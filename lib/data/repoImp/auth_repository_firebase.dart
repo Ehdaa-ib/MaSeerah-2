@@ -9,27 +9,46 @@ class AuthRepositoryFirebase implements AuthRepository {
   AuthRepositoryFirebase(this._dataSource);
 
   @override
-  Future<AppUser> register({
+  Future<AppUser> login({
     required String email,
     required String password,
-    required String name,
-    String role = "user",
   }) async {
-    // validateEmail()
     if (!Validators.validateEmail(email)) {
       throw Exception("Invalid email format");
     }
-
-    // basic password rule (Firebase requires at least 6)
-    if (password.length < 6) {
-      throw Exception("Password must be at least 6 characters");
+    if (password.isEmpty) {
+      throw Exception("Password is required");
     }
+    return _dataSource.login(email: email, password: password);
+  }
 
+  @override
+  Future<void> logout() async {
+    await _dataSource.logout();
+  }
+
+  @override
+  Future<AppUser> register({
+    required String name,
+    required String email,
+    required String password,
+    required String confirmPassword,
+  }) async {
     if (name.trim().isEmpty) {
       throw Exception("Name is required");
     }
+    if (!Validators.validateEmail(email)) {
+      throw Exception("Invalid email format");
+    }
+    if (password.length < 6) {
+      throw Exception("Password must be at least 6 characters");
+    }
+    if (password != confirmPassword) {
+      throw Exception("Password and confirm password do not match");
+    }
 
-    // call Firebase datasource register()
+    final role = Validators.roleFromEmail(email);
+
     return _dataSource.register(
       email: email,
       password: password,
