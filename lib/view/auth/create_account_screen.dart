@@ -121,7 +121,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   ],
                   decoration: const InputDecoration(
                     labelText: 'Email',
-                    hintText: 'e.g. you@gmail.com or admin@admin.com',
+                    hintText: 'e.g. you@gmail.com',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
