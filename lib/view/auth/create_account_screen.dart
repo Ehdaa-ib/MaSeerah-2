@@ -98,7 +98,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       fit: BoxFit.contain,
                     ),
 
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 0),
 
                     Container(
                       width: MediaQuery.of(context).size.width * 0.95,
@@ -210,7 +210,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 8),
 
                             Text(
                               'Email',
@@ -282,7 +282,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 8),
 
                             Text(
                               'Password',
@@ -362,7 +362,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 8),
 
                             Text(
                               'Confirm Password',
@@ -447,7 +447,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             ),
 
                             if (_errorMessage != null) ...[
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 8),
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
