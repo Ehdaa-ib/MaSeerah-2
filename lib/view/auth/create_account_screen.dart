@@ -87,7 +87,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
               child: Transform.translate(
-                offset: const Offset(0, -30),
+                offset: const Offset(0, -50),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
