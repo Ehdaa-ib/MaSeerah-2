@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/error_messages.dart';
 import '../../model/app_user.dart';
 import 'create_account_screen.dart';
 import 'login_screen.dart';
@@ -86,7 +87,7 @@ class _SignedInGate extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${snapshot.error}',
+                      toUserFriendlyMessage(snapshot.error),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                         fontSize: 12,

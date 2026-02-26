@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/error_messages.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
 
@@ -48,13 +49,14 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e is Exception
-              ? e.toString().replaceFirst('Exception: ', '')
-              : e.toString();
+          _errorMessage = toUserFriendlyMessage(e);
           _isLoading = false;
         });
       }

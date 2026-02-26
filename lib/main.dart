@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'view/auth/auth_gate.dart';
+import 'view/auth/create_account_screen.dart';
+import 'view/auth/login_screen.dart';
+import 'view/home/landing_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +20,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const AuthGate(),
+      home: const LandingPage(),
+      routes: {
+        '/login': (_) => const LoginScreen(),
+        '/create': (_) => const CreateAccountScreen(),
+      },
     );
   }
 }

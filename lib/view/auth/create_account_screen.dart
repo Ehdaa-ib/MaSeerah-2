@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/error_messages.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
 
@@ -57,10 +58,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
       if (!mounted) return;
       setState(() => _isLoading = false);
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
+          _errorMessage = toUserFriendlyMessage(e);
           _isLoading = false;
         });
       }
@@ -87,7 +89,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
               child: Transform.translate(
-                offset: const Offset(0, -50),
+                offset: const Offset(0, -20),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
