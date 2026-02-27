@@ -4,4 +4,7 @@ import '../model/journey.dart';
 abstract class JourneyRepository {
   /// Returns the journey if it exists, otherwise null.
   Future<Journey?> getById(String journeyId);
+
+  /// Returns all journeys from Firestore.
+  Future<List<Journey>> getAll();
 }

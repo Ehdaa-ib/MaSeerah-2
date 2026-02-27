@@ -70,11 +70,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     });
     try {
       _user ??= await _getCurrentUser();
-      var journey = await journeyRepo.getById(widget.journeyId);
-      if (journey == null && _user != null) {
-        await _seedJourney();
-        journey = await journeyRepo.getById(widget.journeyId);
-      }
+      final journey = await journeyRepo.getById(widget.journeyId);
       Order? order;
       if (_user != null) {
         order = await _orderService.getUserOrderForJourney(
@@ -110,13 +106,6 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     final data = Map<String, dynamic>.from(doc.data()!);
     data['userId'] = doc.id;
     return AppUser.fromMap(data);
-  }
-
-  Future<void> _seedJourney() async {
-    await FirebaseFirestore.instance.collection('journeys').doc(widget.journeyId).set({
-      'name': 'MaSeerah Journey',
-      'price': 99.99,
-    });
   }
 
   void _openSignIn() {

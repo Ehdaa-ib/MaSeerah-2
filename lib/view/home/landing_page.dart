@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
 import '../auth/login_screen.dart';
-import '../journey/journey_purchase_screen.dart';
+import '../journey/journey_list_screen.dart';
 
 /// Public landing page - no sign-in required. Shows Sign In and Journeys buttons.
 class LandingPage extends StatelessWidget {
@@ -21,7 +21,7 @@ class LandingPage extends StatelessWidget {
   void _openJourneys(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const JourneyPurchaseScreen(),
+        builder: (_) => const JourneyListScreen(),
       ),
     );
   }

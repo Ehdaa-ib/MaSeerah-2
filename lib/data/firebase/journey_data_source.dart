@@ -15,4 +15,13 @@ class JourneyDataSource {
     final data = Map<String, dynamic>.from(doc.data()!);
     return Journey.fromMap(data, id: doc.id);
   }
+
+  /// Fetches all journeys. Returns empty list if none.
+  Future<List<Journey>> getAll() async {
+    final snapshot = await _firestore.collection(_collection).get();
+    return snapshot.docs.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data());
+      return Journey.fromMap(data, id: doc.id);
+    }).toList();
+  }
 }

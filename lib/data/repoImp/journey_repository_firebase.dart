@@ -11,4 +11,9 @@ class JourneyRepositoryFirebase implements JourneyRepository {
   Future<Journey?> getById(String journeyId) async {
     return _dataSource.getById(journeyId);
   }
+
+  @override
+  Future<List<Journey>> getAll() async {
+    return _dataSource.getAll();
+  }
 }
