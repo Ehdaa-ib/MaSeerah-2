@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/error_messages.dart';
 import '../../data/firebase/journey_data_source.dart';
 import '../../data/repoImp/journey_repository_firebase.dart';
@@ -53,7 +54,10 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
   void _openJourney(Journey journey) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => JourneyPurchaseScreen(journeyId: journey.journeyId),
+        builder: (_) => JourneyPurchaseScreen(
+          journeyId: journey.journeyId,
+          initialJourney: journey,
+        ),
       ),
     );
   }
@@ -62,32 +66,46 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Journeys')),
-        body: const Center(child: CircularProgressIndicator()),
+        backgroundColor: AppColors.green,
+        appBar: AppBar(
+          title: const Text('Journeys'),
+          backgroundColor: AppColors.brown,
+          foregroundColor: AppColors.beige,
+        ),
+        body: const Center(child: CircularProgressIndicator(color: AppColors.brown)),
       );
     }
 
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Journeys')),
+        backgroundColor: AppColors.green,
+        appBar: AppBar(
+          title: const Text('Journeys'),
+          backgroundColor: AppColors.brown,
+          foregroundColor: AppColors.beige,
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 64, color: Theme.of(context).colorScheme.error),
+                Icon(Icons.error_outline, size: 64, color: AppColors.brown),
                 const SizedBox(height: 16),
                 Text(
                   _error!,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  style: const TextStyle(color: AppColors.brown),
                 ),
                 const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: _load,
                   icon: const Icon(Icons.refresh),
                   label: const Text('Retry'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.brown,
+                    foregroundColor: AppColors.beige,
+                  ),
                 ),
               ],
             ),
@@ -98,19 +116,24 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
 
     if (_journeys.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Journeys')),
+        backgroundColor: AppColors.green,
+        appBar: AppBar(
+          title: const Text('Journeys'),
+          backgroundColor: AppColors.brown,
+          foregroundColor: AppColors.beige,
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.travel_explore, size: 64, color: Theme.of(context).colorScheme.outline),
+                Icon(Icons.travel_explore, size: 64, color: AppColors.brown),
                 const SizedBox(height: 16),
                 Text(
                   'No journeys yet.\nAdd journeys in Firestore (journeys collection).',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: const TextStyle(color: AppColors.brown),
                 ),
               ],
             ),
@@ -120,7 +143,12 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Journeys')),
+      backgroundColor: AppColors.green,
+      appBar: AppBar(
+        title: const Text('Journeys'),
+        backgroundColor: AppColors.brown,
+        foregroundColor: AppColors.beige,
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView.builder(
@@ -130,13 +158,15 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
             final journey = _journeys[index];
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
+              color: AppColors.beige,
               child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.travel_explore),
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.orange,
+                  child: const Icon(Icons.travel_explore, color: AppColors.beige),
                 ),
-                title: Text(journey.name),
-                subtitle: Text('${journey.price.toStringAsFixed(2)} SAR'),
-                trailing: const Icon(Icons.chevron_right),
+                title: Text(journey.name, style: const TextStyle(color: AppColors.brown)),
+                subtitle: Text('${journey.price.toStringAsFixed(2)} SAR', style: const TextStyle(color: AppColors.brown)),
+                trailing: const Icon(Icons.chevron_right, color: AppColors.brown),
                 onTap: () => _openJourney(journey),
               ),
             );

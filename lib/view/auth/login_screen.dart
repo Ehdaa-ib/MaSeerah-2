@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/error_messages.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
@@ -20,9 +21,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
-
-  static const Color terracotta = Color(0xFFBB6653);  
-  static const Color cream = Color(0xFFFFF8E8);       
 
   @override
   void dispose() {
@@ -103,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 45),
                       decoration: BoxDecoration(
-                        color: cream.withOpacity(0.92),
+                        color: AppColors.beige.withOpacity(0.92),
                         borderRadius: BorderRadius.circular(20), 
                         boxShadow: [
                           BoxShadow(
@@ -125,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w600,
-                                color: terracotta,
+                                color: AppColors.brown,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -134,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 16,
-                                color: terracotta.withOpacity(0.7),
+                                color: AppColors.brown.withOpacity(0.7),
                               ),
                             ),
                             const SizedBox(height: 40),
@@ -144,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: terracotta,
+                                color: AppColors.brown,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -152,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               style: const TextStyle(
-                                color: Color(0xFF2F2113),
+                                color: AppColors.brown,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Enter your email',
@@ -179,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
                                   borderSide: BorderSide(
-                                    color: terracotta,
+                                    color: AppColors.brown,
                                     width: 2,
                                   ),
                                 ),
@@ -215,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: terracotta,
+                                color: AppColors.brown,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -223,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               controller: _passwordController,
                               obscureText: _obscurePassword,
                               style: const TextStyle(
-                                color: Color(0xFF2F2113),
+                                color: AppColors.brown,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Enter your password',
@@ -250,7 +248,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
                                   borderSide: BorderSide(
-                                    color: terracotta,
+                                    color: AppColors.brown,
                                     width: 2,
                                   ),
                                 ),
@@ -298,9 +296,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   'Forgot password?',
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: terracotta.withOpacity(0.8),
+                                    color: AppColors.brown.withOpacity(0.8),
                                     decoration: TextDecoration.underline,
-                                    decorationColor: terracotta.withOpacity(0.3),
+                                    decorationColor: AppColors.brown.withOpacity(0.3),
                                   ),
                                 ),
                               ),
@@ -331,14 +329,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             ElevatedButton(
                               onPressed: _isLoading ? null : _submit,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: terracotta,
+                                backgroundColor: AppColors.brown,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                                 elevation: 3,
-                                shadowColor: terracotta.withOpacity(0.5),
+                                shadowColor: AppColors.brown.withOpacity(0.5),
                               ),
                               child: _isLoading
                                   ? const SizedBox(
@@ -368,7 +366,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   "Don't have an account? ",
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: terracotta.withOpacity(0.7),
+                                    color: AppColors.brown.withOpacity(0.7),
                                   ),
                                 ),
                                 GestureDetector(
@@ -377,10 +375,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     'Sign Up',
                                     style: TextStyle(
                                       fontSize: 15,
-                                      color: terracotta,
+                                      color: AppColors.brown,
                                       fontWeight: FontWeight.w600,
                                       decoration: TextDecoration.underline,
-                                      decorationColor: terracotta.withOpacity(0.4),
+                                      decorationColor: AppColors.brown.withOpacity(0.4),
                                     ),
                                   ),
                                 ),
