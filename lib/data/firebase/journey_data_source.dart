@@ -24,4 +24,24 @@ class JourneyDataSource {
       return Journey.fromMap(data, id: doc.id);
     }).toList();
   }
+
+  Future<void> create({
+    required String journeyId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _firestore.collection(_collection).doc(journeyId).set(
+          data,
+          SetOptions(merge: false),
+        );
+  }
+
+  Future<void> update({
+    required String journeyId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _firestore.collection(_collection).doc(journeyId).set(
+          data,
+          SetOptions(merge: true),
+        );
+  }
 }

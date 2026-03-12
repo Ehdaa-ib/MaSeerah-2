@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'view/auth/create_account_screen.dart';
 import 'view/auth/login_screen.dart';
+import 'view/admin/admin_dashboard.dart';
 import 'view/home/landing_page.dart';
 
 void main() async {
@@ -24,6 +25,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (_) => const LoginScreen(),
         '/create': (_) => const CreateAccountScreen(),
+        '/admin': (_) => const AdminDashboard(),
       },
     );
   }

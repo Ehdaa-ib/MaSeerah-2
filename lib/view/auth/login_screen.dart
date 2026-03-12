@@ -43,13 +43,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final repo = AuthRepositoryFirebase(AuthDataSource());
-      await repo.login(
+      final user = await repo.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
       if (mounted) {
         setState(() => _isLoading = false);
-        Navigator.of(context).pop();
+        final role = user.role.trim().toLowerCase();
+        if (role == 'admin') {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          Navigator.of(context).pushReplacementNamed('/admin');
+        } else {
+          Navigator.of(context).pop();
+        }
       }
     } catch (e) {
       if (mounted) {

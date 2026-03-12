@@ -7,4 +7,16 @@ abstract class JourneyRepository {
 
   /// Returns all journeys from Firestore.
   Future<List<Journey>> getAll();
+
+  /// Creates a journey document with [journeyId] as the document ID.
+  Future<void> create({
+    required String journeyId,
+    required Journey journey,
+  });
+
+  /// Updates journey document fields (merge).
+  Future<void> update({
+    required String journeyId,
+    required Journey journey,
+  });
 }
