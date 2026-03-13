@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
+import '../home/landing_page.dart';
 import 'pages/admin_dashboard_home_page.dart';
 import 'pages/admin_journeys_page.dart';
 import 'pages/admin_users_page.dart';
@@ -26,6 +27,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _logout() async {
     await AuthRepositoryFirebase(AuthDataSource()).logout();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const LandingPage()),
+      (_) => false,
+    );
   }
 
   @override
