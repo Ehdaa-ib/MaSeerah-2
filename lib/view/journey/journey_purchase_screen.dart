@@ -217,31 +217,111 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(title: const Text('Pay with Moyasar')),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '${payment.amount.toStringAsFixed(2)} ${payment.currency}',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                  textAlign: TextAlign.center,
+        builder: (context) => Theme(
+          data: ThemeData(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.brown,
+              onPrimary: Colors.white,
+              surface: AppColors.beige,
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brown,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            filledButtonTheme: FilledButtonThemeData(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.brown,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              fillColor: AppColors.beige,
+              filled: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              labelStyle: const TextStyle(color: AppColors.brown),
+              floatingLabelStyle: const TextStyle(color: AppColors.brown),
+              hintStyle: TextStyle(color: AppColors.brown.withOpacity(0.6)),
+            ),
+            textTheme: Theme.of(context).textTheme.apply(
+              bodyColor: AppColors.brown,
+              displayColor: AppColors.brown,
+            ),
+          ),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            extendBodyBehindAppBar: true,
+            extendBody: true,
+            appBar: AppBar(
+              title: const Text(
+                'Pay with Moyasar',
+                style: TextStyle(color: AppColors.brown),
+              ),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              iconTheme: const IconThemeData(color: AppColors.brown),
+            ),
+            body: SizedBox.expand(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned.fill(
+                    child: Image.asset(
+                      'images/image3.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    left: 24,
+                    right: 24,
+                    bottom: 24,
+                    top: MediaQuery.of(context).padding.top + kToolbarHeight + 24,
+                  ),
+                  child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '${payment.amount.toStringAsFixed(2)} ${payment.currency}',
+                      style: const TextStyle(
+                        color: AppColors.brown,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _journey?.name ?? 'Journey',
+                      style: const TextStyle(
+                        color: AppColors.brown,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    moyasar.CreditCard(config: config, onPaymentResult: onPaymentResult),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _journey?.name ?? 'Journey',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                moyasar.CreditCard(config: config, onPaymentResult: onPaymentResult),
-                const SizedBox(height: 16),
-                const Text('or', textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                moyasar.ApplePay(config: config, onPaymentResult: onPaymentResult),
-              ],
+              ),
+            ],
+              ),
             ),
           ),
         ),
@@ -371,7 +451,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: Image.asset(
-                            'images/darb-alsunnah-1.png',
+                            'images/darb-alsunnah.png',
                             fit: BoxFit.cover,
                           ),
                         ),

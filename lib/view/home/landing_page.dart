@@ -2,13 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
-import '../../data/firebase/auth_data_source.dart';
 import '../../data/firebase/journey_data_source.dart';
-import '../../data/repoImp/auth_repository_firebase.dart';
 import '../../data/repoImp/journey_repository_firebase.dart';
 import '../../model/journey.dart';
 import '../auth/login_screen.dart';
 import '../journey/journey_list_screen.dart';
+import '../../widgets/app_bottom_nav.dart';
+import 'profile_screen.dart';
 import '../journey/journey_purchase_screen.dart';
 
 /// Home page with search bar, scrollable journey cards, and bottom nav.
@@ -79,10 +79,6 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  Future<void> _logout() async {
-    await AuthRepositoryFirebase(AuthDataSource()).logout();
-  }
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -111,7 +107,23 @@ class _LandingPageState extends State<LandingPage> {
               ),
             ),
           ),
-          bottomNavigationBar: _buildBottomNav(user != null),
+          bottomNavigationBar: AppBottomNav(
+            selectedIndex: _selectedNavIndex,
+            onHomeTap: () => setState(() => _selectedNavIndex = 0),
+            onActiveJourneysTap: _openActiveJourneys,
+            onProfileTap: () {
+              setState(() => _selectedNavIndex = 2);
+              if (user != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                ).then((_) {
+                  if (mounted) setState(() => _selectedNavIndex = 0);
+                });
+              } else {
+                _openSignIn();
+              }
+            },
+          ),
         );
       },
     );
@@ -153,6 +165,7 @@ class _LandingPageState extends State<LandingPage> {
                 TextField(
                   controller: _searchController,
                   focusNode: _searchFocusNode,
+                  autofocus: false,
                   decoration: InputDecoration(
                     hintText: 'Explore your next journey',
                     hintStyle: TextStyle(
@@ -225,110 +238,6 @@ class _LandingPageState extends State<LandingPage> {
     }
   }
 
-  Widget _buildBottomNav(bool isLoggedIn) {
-    return Container(
-        decoration: BoxDecoration(
-        color: AppColors.beige,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 76,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                color: AppColors.brown,
-                isSelected: _selectedNavIndex == 0,
-                onTap: () => setState(() => _selectedNavIndex = 0),
-              ),
-              GestureDetector(
-                onTap: _openActiveJourneys,
-                behavior: HitTestBehavior.opaque,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      height: 48,
-                      width: 100,
-                      child: Image.asset(
-                        'images/active journeys.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      'Active Journeys',
-                      style: TextStyle(fontSize: 12, color: AppColors.brown),
-                    ),
-                  ],
-                ),
-              ),
-              _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                color: AppColors.brown,
-                isSelected: _selectedNavIndex == 2,
-                onTap: () {
-                  setState(() => _selectedNavIndex = 2);
-                  if (isLoggedIn) {
-                    _logout();
-                  } else {
-                    _openSignIn();
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 26),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: color),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _JourneyCard extends StatelessWidget {
