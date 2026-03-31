@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:moyasar/moyasar.dart' as moyasar;
 
@@ -19,6 +20,8 @@ import '../../service/order_service.dart';
 import '../../service/payment_service.dart';
 import '../../core/app_colors.dart';
 import '../auth/login_screen.dart';
+import '../feedback/feedback_screen.dart';
+import '../../data/firebase/journey_completion_data_source.dart';
 
 /// Journey description and purchase page. Collapsing header, About, Good to know, sticky payment button.
 class JourneyPurchaseScreen extends StatefulWidget {
@@ -153,6 +156,17 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   }
 
   void _openPaymentScreen(Payment payment) {
+    final supported = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+    if (!supported) {
+      setState(() {
+        _error =
+            'Payments are only supported on Android/iOS right now. Please run the app on a mobile device/emulator to pay.';
+      });
+      return;
+    }
+
     final amountHalalas = (payment.amount * 100).round();
     final config = moyasar.PaymentConfig(
       publishableApiKey: _paymentService.publishableKey,
@@ -258,6 +272,28 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     }
   }
 
+  Future<void> _finishJourney() async {
+    if (_user == null) {
+      _openSignIn();
+      return;
+    }
+    setState(() => _error = null);
+    try {
+      await JourneyCompletionDataSource().markCompleted(
+        userId: _user!.userId,
+        journeyId: widget.journeyId,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FeedbackScreen(journeyId: widget.journeyId),
+        ),
+      );
+    } catch (e) {
+      if (mounted) setState(() => _error = toUserFriendlyMessage(e));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -305,7 +341,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       appBar: AppBar(
         title: const Text(
           'Darb Al-Sunnah',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.brown,
             fontWeight: FontWeight.bold,
             fontSize: 18,
@@ -552,12 +588,24 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       );
     }
     if (isPaid) {
-      return _PaymentButton(
-        price: 0,
-        label: 'Start Your Journey',
-        onTap: _startJourney,
-        isGreen: false,
-        centered: true,
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _PaymentButton(
+            price: 0,
+            label: 'Start Your Journey',
+            onTap: _startJourney,
+            isGreen: false,
+            centered: true,
+          ),
+          _PaymentButton(
+            price: 0,
+            label: 'Finish Journey & Leave Feedback',
+            onTap: _finishJourney,
+            isGreen: true,
+            centered: true,
+          ),
+        ],
       );
     }
     return _PaymentButton(

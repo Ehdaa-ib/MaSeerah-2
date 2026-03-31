@@ -1,22 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
     // Users can read and write only their own document (users/{uid})
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
+    }
+
+    // Journey completion gate (1 doc per user+journey)
+    match /journeyCompletions/{completionId} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.journeyId is string;
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Feedback (1 doc per user+journey; docId is {uid}_{journeyId} in-app)
+    match /feedback/{feedbackId} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.journeyId is string
+        && request.resource.data.overallRating is number
+        && request.resource.data.contentRating is number
+        && request.resource.data.recommendationRating is number
+        && request.resource.data.challengeRating is number
+        && request.resource.data.overallRating >= 1 && request.resource.data.overallRating <= 5
+        && request.resource.data.contentRating >= 1 && request.resource.data.contentRating <= 5
+        && request.resource.data.recommendationRating >= 1 && request.resource.data.recommendationRating <= 5
+        && request.resource.data.challengeRating >= 1 && request.resource.data.challengeRating <= 5;
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
     }
     // Journeys: anyone can read (browse), authenticated users can write
     match /journeys/{journeyId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isSignedIn();
     }
     // Orders: authenticated users can read/write
     match /orders/{orderId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
     // Payments: authenticated users can read/write
     match /payments/{paymentId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
   }
 }
