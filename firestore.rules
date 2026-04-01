@@ -23,7 +23,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Feedback (1 doc per user+journey; docId is {uid}_{journeyId} in-app)
+    // Feedback (multiple docs per user+journey allowed)
     match /feedback/{feedbackId} {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid

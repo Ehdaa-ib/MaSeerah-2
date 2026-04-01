@@ -11,17 +11,20 @@ class FeedbackDataSource {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  String docIdFor({required String userId, required String journeyId}) =>
-      '${userId}_$journeyId';
-
   Future<FeedbackEntry?> getByUserAndJourney({
     required String userId,
     required String journeyId,
   }) async {
-    final docId = docIdFor(userId: userId, journeyId: journeyId);
-    final doc = await _firestore.collection(_collection).doc(docId).get();
-    if (!doc.exists || doc.data() == null) return null;
-    return FeedbackEntry.fromMap(Map<String, dynamic>.from(doc.data()!));
+    final snap = await _firestore
+        .collection(_collection)
+        .where('userId', isEqualTo: userId)
+        .where('journeyId', isEqualTo: journeyId)
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .get();
+
+    if (snap.docs.isEmpty) return null;
+    return FeedbackEntry.fromMap(Map<String, dynamic>.from(snap.docs.first.data()));
   }
 
   Future<List<String>> uploadPhotos({
@@ -33,36 +36,45 @@ class FeedbackDataSource {
 
     final urls = <String>[];
     for (final f in files) {
-      final name = DateTime.now().microsecondsSinceEpoch.toString();
-      final ref = _storage
-          .ref()
-          .child('feedbackPhotos')
-          .child(userId)
-          .child(journeyId)
-          .child('$name.jpg');
+      try {
+        final name = DateTime.now().microsecondsSinceEpoch.toString();
+        final ref = _storage
+            .ref()
+            .child('feedbackPhotos')
+            .child(userId)
+            .child(journeyId)
+            .child('$name.jpg');
 
-      await ref.putFile(f);
-      final url = await ref.getDownloadURL();
-      urls.add(url);
+        final snapshot = await ref.putFile(
+          f,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        final url = await snapshot.ref.getDownloadURL();
+        urls.add(url);
+      } on FirebaseException catch (e) {
+        final code = e.code;
+        if (code == 'unauthorized' || code == 'permission-denied') {
+          throw Exception(
+            'Photo upload blocked by Storage rules. Deploy `storage.rules` and ensure you are signed in.',
+          );
+        }
+        if (code == 'object-not-found') {
+          throw Exception(
+            'Upload failed: Storage object not found. Ensure Firebase Storage is enabled in Firebase Console and the app uses the correct project/bucket.',
+          );
+        }
+        throw Exception('Photo upload failed ($code): ${e.message ?? ''}'.trim());
+      }
     }
     return urls;
   }
 
-  Future<void> createOnce({
+  Future<void> create({
     required FeedbackEntry entry,
   }) async {
-    final docId = docIdFor(userId: entry.userId, journeyId: entry.journeyId);
-    final docRef = _firestore.collection(_collection).doc(docId);
-
-    await _firestore.runTransaction((tx) async {
-      final existing = await tx.get(docRef);
-      if (existing.exists) {
-        throw Exception('Feedback already submitted for this journey.');
-      }
-      tx.set(docRef, {
-        ...entry.toMap(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    await _firestore.collection(_collection).add({
+      ...entry.toMap(),
+      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 }
