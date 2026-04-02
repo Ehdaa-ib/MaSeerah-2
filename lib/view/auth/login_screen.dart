@@ -1,10 +1,12 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/error_messages.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
+import '../faq/faqs_page.dart';
 import 'forget_password_page.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -23,11 +25,56 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  late final TapGestureRecognizer _faqTapRecognizer;
+  late final TapGestureRecognizer _contactTapRecognizer;
+
+  static final Uri _supportMailto = Uri(
+    scheme: 'mailto',
+    path: 'MaSeerah.help@gmail.com',
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _faqTapRecognizer = TapGestureRecognizer()..onTap = _onFaqTap;
+    _contactTapRecognizer = TapGestureRecognizer()..onTap = _onContactUsTap;
+  }
+
   @override
   void dispose() {
+    _faqTapRecognizer.dispose();
+    _contactTapRecognizer.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _onFaqTap() {
+    if (_isLoading) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const FaqsPage()),
+    );
+  }
+
+  Future<void> _onContactUsTap() async {
+    if (_isLoading) return;
+    try {
+      final launched = await launchUrl(
+        _supportMailto,
+        mode: LaunchMode.platformDefault,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open email app.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open email app.')),
+        );
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -390,6 +437,47 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+                            const SizedBox(height: 18),
+                            Text.rich(
+                              TextSpan(
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  height: 1.45,
+                                  color: AppColors.brown.withOpacity(0.7),
+                                ),
+                                children: [
+                                  const TextSpan(
+                                    text:
+                                        'Do you have questions? Check ',
+                                  ),
+                                  TextSpan(
+                                    text: 'FAQs',
+                                    style: TextStyle(
+                                      color: AppColors.brown,
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor:
+                                          AppColors.brown.withOpacity(0.4),
+                                    ),
+                                    recognizer: _faqTapRecognizer,
+                                  ),
+                                  const TextSpan(text: ' or '),
+                                  TextSpan(
+                                    text: 'contact us',
+                                    style: TextStyle(
+                                      color: AppColors.brown,
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor:
+                                          AppColors.brown.withOpacity(0.4),
+                                    ),
+                                    recognizer: _contactTapRecognizer,
+                                  ),
+                                  const TextSpan(text: '.'),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
