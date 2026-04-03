@@ -7,16 +7,16 @@ class FaqDataSource {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Live stream of all FAQ documents (order is not guaranteed by Firestore).
+  /// Live stream of all FAQ documents, ordered by the `order` field.
   Stream<List<FaqItem>> watchFaqs() {
-    return _firestore.collection(collection).snapshots().map((snapshot) {
-      final items = snapshot.docs
+    return _firestore
+        .collection(collection)
+        .orderBy('order')
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
           .map((doc) => FaqItem.fromFirestore(doc.id, doc.data()))
-          .toList()
-        ..sort(
-          (a, b) => a.question.toLowerCase().compareTo(b.question.toLowerCase()),
-        );
-      return items;
+          .toList();
     });
   }
 }
