@@ -52,5 +52,10 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read, write: if isSignedIn();
     }
+
+    // Password reset codes — written only by Cloud Functions (Admin SDK)
+    match /password_reset_codes/{docId} {
+      allow read, write: if false;
+    }
   }
 }

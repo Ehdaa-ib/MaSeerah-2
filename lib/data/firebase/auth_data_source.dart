@@ -74,4 +74,24 @@ class AuthDataSource {
       role: role,
     );
   }
+
+  /// Firebase-hosted reset email (link contains `oobCode`). Works on Spark plan.
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(email: email.trim());
+  }
+
+  /// Validates [oobCode] and returns the account email.
+  Future<String> verifyPasswordResetOobCode(String oobCode) async {
+    return _auth.verifyPasswordResetCode(oobCode.trim());
+  }
+
+  Future<void> confirmPasswordReset({
+    required String oobCode,
+    required String newPassword,
+  }) async {
+    await _auth.confirmPasswordReset(
+      code: oobCode.trim(),
+      newPassword: newPassword,
+    );
+  }
 }

@@ -18,4 +18,19 @@ abstract class AuthRepository {
     required String password,
     required String confirmPassword,
   });
+
+  /// Sends Firebase's password-reset email (reset link in the message). Spark plan.
+  Future<void> sendPasswordResetEmail(String email);
+
+  /// Parses a pasted link or raw `oobCode`, verifies it, returns email and code for the next step.
+  Future<({String email, String oobCode})> verifyPasswordResetLinkOrCode(
+    String linkOrCode,
+  );
+
+  /// Applies [oobCode] with [newPassword], then signs in and returns profile.
+  Future<AppUser> completePasswordResetAndSignIn({
+    required String email,
+    required String oobCode,
+    required String newPassword,
+  });
 }
