@@ -163,10 +163,10 @@ class _FaqExpansionTile extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 a,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 15,
                   height: 1.45,
-                  color: AppColors.brown.withOpacity(0.85),
+                  color: Color(0xFFF08C51),
                 ),
               ),
             ),
