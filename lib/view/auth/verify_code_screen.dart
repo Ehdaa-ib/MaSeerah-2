@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/error_messages.dart';
@@ -16,15 +19,32 @@ class VerifyCodeScreen extends StatefulWidget {
 }
 
 class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
-  final _linkOrCodeController = TextEditingController();
+  final _codeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   String? _errorMessage;
+  int _resendCooldownSec = 0;
+  Timer? _cooldownTimer;
 
   @override
   void dispose() {
-    _linkOrCodeController.dispose();
+    _cooldownTimer?.cancel();
+    _codeController.dispose();
     super.dispose();
+  }
+
+  void _startResendCooldown([int seconds = 60]) {
+    _cooldownTimer?.cancel();
+    setState(() => _resendCooldownSec = seconds);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_resendCooldownSec <= 1) {
+        t.cancel();
+        setState(() => _resendCooldownSec = 0);
+      } else {
+        setState(() => _resendCooldownSec--);
+      }
+    });
   }
 
   Future<void> _continue() async {
@@ -35,16 +55,14 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     });
     try {
       final repo = AuthRepositoryFirebase(AuthDataSource());
-      final result = await repo.verifyPasswordResetLinkOrCode(
-        _linkOrCodeController.text,
-      );
+      await repo.verifyPasswordResetCode(widget.email, _codeController.text.trim());
       if (!mounted) return;
       setState(() => _isLoading = false);
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => ResetPasswordScreen(
-            email: result.email,
-            oobCode: result.oobCode,
+            email: widget.email.trim(),
+            verificationCode: _codeController.text.trim(),
           ),
         ),
       );
@@ -58,24 +76,32 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     }
   }
 
-  Future<void> _resendEmail() async {
+  Future<void> _resendOtp() async {
+    if (_resendCooldownSec > 0 || _isLoading) return;
     setState(() => _errorMessage = null);
     try {
       final repo = AuthRepositoryFirebase(AuthDataSource());
       await repo.sendPasswordResetEmail(widget.email);
       if (mounted) {
+        _startResendCooldown(60);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('A new reset email has been sent.'),
+            content: Text('A new code has been sent to your email.'),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        final msg = toUserFriendlyMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(toUserFriendlyMessage(e))),
+          SnackBar(content: Text(msg)),
         );
+        final match = RegExp(r'wait (\d+) seconds').firstMatch(msg.toLowerCase());
+        if (match != null) {
+          final s = int.tryParse(match.group(1) ?? '') ?? 60;
+          _startResendCooldown(s.clamp(1, 300));
+        }
       }
     }
   }
@@ -132,7 +158,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Reset link or code',
+                              'Enter verification code',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 28,
@@ -142,7 +168,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'We sent a message to',
+                              'We sent a 6-digit code to',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
@@ -161,9 +187,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Open the email and tap the link, or paste the full '
-                              'link here. You can also paste only the long code from '
-                              'the link (the part after oobCode=).',
+                              'Check your inbox and enter the code below. The code expires in 15 minutes.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 13,
@@ -172,7 +196,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             ),
                             const SizedBox(height: 20),
                             Text(
-                              'Link or code',
+                              '6-digit code',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -181,19 +205,25 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             ),
                             const SizedBox(height: 8),
                             TextFormField(
-                              controller: _linkOrCodeController,
-                              keyboardType: TextInputType.multiline,
-                              maxLines: 4,
-                              minLines: 2,
+                              controller: _codeController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
+                              ],
+                              textAlign: TextAlign.center,
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 28,
+                                letterSpacing: 10,
                                 color: AppColors.brown,
+                                fontWeight: FontWeight.w600,
                               ),
                               decoration: InputDecoration(
-                                hintText: 'Paste reset link or code',
+                                hintText: '• • • • • •',
                                 hintStyle: TextStyle(
-                                  color: Colors.grey.shade500,
-                                  fontSize: 13,
+                                  color: Colors.grey.shade400,
+                                  fontSize: 24,
+                                  letterSpacing: 8,
                                 ),
                                 filled: true,
                                 fillColor: Colors.white.withOpacity(0.5),
@@ -209,14 +239,14 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                                   borderRadius: BorderRadius.circular(15),
                                   borderSide: const BorderSide(color: AppColors.brown, width: 2),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                               ),
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'Paste the link or code from the email';
+                                if (v == null || v.isEmpty) {
+                                  return 'Enter the code from your email';
                                 }
-                                if (v.trim().length < 4) {
-                                  return 'That looks too short';
+                                if (v.length != 6) {
+                                  return 'Enter all 6 digits';
                                 }
                                 return null;
                               },
@@ -284,9 +314,13 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             ),
                             Center(
                               child: TextButton(
-                                onPressed: _isLoading ? null : _resendEmail,
+                                onPressed: (_isLoading || _resendCooldownSec > 0)
+                                    ? null
+                                    : _resendOtp,
                                 child: Text(
-                                  "Didn't get the email? Resend",
+                                  _resendCooldownSec > 0
+                                      ? 'Resend code in ${_resendCooldownSec}s'
+                                      : "Didn't get the code? Resend",
                                   style: TextStyle(
                                     color: AppColors.brown,
                                     fontSize: 13,

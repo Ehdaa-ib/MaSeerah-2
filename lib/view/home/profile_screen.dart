@@ -8,6 +8,7 @@ import '../../data/repoImp/auth_repository_firebase.dart';
 import '../../model/app_user.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../auth/login_screen.dart';
+import '../faq/faqs_page.dart';
 import '../journey/journey_list_screen.dart';
 
 /// Profile page when user is signed in. Shows greeting, logout icon.
@@ -55,13 +56,33 @@ class ProfileScreen extends StatelessWidget {
             child: SafeArea(
               child: Column(
                 children: [
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      icon: const Icon(Icons.logout_rounded),
-                      color: AppColors.brown,
-                      iconSize: 32,
-                      onPressed: () => _logoutAndGoToSignIn(context),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const FaqsPage()),
+                            );
+                          },
+                          icon: const Icon(Icons.help_outline_rounded, color: AppColors.brown),
+                          label: const Text(
+                            'FAQs',
+                            style: TextStyle(
+                              color: AppColors.brown,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.logout_rounded),
+                          color: AppColors.brown,
+                          iconSize: 32,
+                          onPressed: () => _logoutAndGoToSignIn(context),
+                        ),
+                      ],
                     ),
                   ),
                   Expanded(

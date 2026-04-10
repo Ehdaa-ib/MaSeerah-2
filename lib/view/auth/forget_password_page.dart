@@ -125,9 +125,8 @@ void _goToSignUp() {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Enter the email you used to register. Firebase will send a '
-                              'password reset link. On the next screen you can paste that '
-                              'link or the code from it.',
+                              'Enter the email you used to register. We will send a '
+                              '6-digit verification code to that address.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
@@ -243,7 +242,7 @@ void _goToSignUp() {
                                       ),
                                     )
                                   : const Text(
-                                      'Send reset email',
+                                      'Send verification code',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,

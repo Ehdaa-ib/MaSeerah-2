@@ -6,12 +6,9 @@ import '../../core/app_colors.dart';
 import '../../core/error_messages.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
-<<<<<<< HEAD
 import '../faq/faqs_page.dart';
 import 'forget_password_page.dart';
-=======
 import '../home/landing_page.dart';
->>>>>>> ae1a3a7 (added little changes)
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -101,20 +98,16 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (mounted) {
         setState(() => _isLoading = false);
-<<<<<<< HEAD
         final role = user.role.trim().toLowerCase();
         if (role == 'admin') {
           Navigator.of(context).popUntil((route) => route.isFirst);
           Navigator.of(context).pushReplacementNamed('/admin');
         } else {
-          Navigator.of(context).pop();
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LandingPage()),
+            (route) => false,
+          );
         }
-=======
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LandingPage()),
-          (route) => false,
-        );
->>>>>>> ae1a3a7 (added little changes)
       }
     } catch (e) {
       if (mounted) {

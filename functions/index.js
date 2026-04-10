@@ -1,25 +1,38 @@
 /**
- * Password reset with 6-digit code sent by email.
+ * Password reset via 6-digit OTP (email). Does NOT use Firebase Auth reset links.
+ *
+ * Callables (region us-central1 — match Flutter FirebaseFunctions.instanceFor):
+ *   sendPasswordResetOtp, verifyPasswordResetOtp, resetPasswordWithOtp
+ *
+ * Firestore: password_reset_otps/{sha256(email)} — client denied by rules; Admin SDK only.
+ *
+ * Secrets / env:
+ *   OTP_PEPPER     — required in production (min 16 chars), HMAC key for hashing OTPs
+ *   SMTP_*         — see services/email_service.js
  *
  * Deploy: firebase deploy --only functions
- *
- * Set SMTP for real emails (Firebase Console → Functions → configuration, or .env for emulator):
- *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
- * Without SMTP, the code is only logged in Cloud Logging (check Firebase console after testing).
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { sendPasswordResetOtpEmail } = require('./services/email_service');
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-/** Must match Flutter: FirebaseFunctions.instanceFor(region: 'us-central1'). */
+/** Binds Secret Manager → process.env at runtime when listed in `secrets: []` below. */
+const otpPepperSecret = defineSecret('OTP_PEPPER');
+
 const callableRegion = 'us-central1';
+
+const OTP_TTL_MS = 15 * 60 * 1000;
+const RESEND_COOLDOWN_MS = 60 * 1000;
+const MAX_RESENDS = 5;
+const MAX_VERIFY_ATTEMPTS = 5;
 
 function authErrorCode(err) {
   if (!err) return '';
@@ -31,158 +44,252 @@ function authErrorCode(err) {
 }
 
 function docIdForEmail(email) {
-  return crypto.createHash('sha256').update(email.toLowerCase().trim()).digest('hex');
+  return crypto.createHash('sha256').update(normalizeEmail(email)).digest('hex');
 }
 
-async function sendEmailWithCode(email, code) {
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const from = process.env.SMTP_FROM || 'noreply@localhost';
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
 
-  if (!host || !user || !pass) {
-    logger.warn(`[password-reset] SMTP not set. Code for ${email}: ${code}`);
-    return;
+function isValidEmailFormat(email) {
+  const e = normalizeEmail(email);
+  return e.length > 3 && e.includes('@') && !e.startsWith('@') && e.includes('.');
+}
+
+function getOtpPepper() {
+  const fromEnv = process.env.OTP_PEPPER;
+  if (fromEnv && String(fromEnv).trim().length >= 16) {
+    return String(fromEnv).trim();
+  }
+  if (process.env.FUNCTIONS_EMULATOR === 'true') {
+    logger.warn(
+      'OTP_PEPPER not set; using emulator-only default (set OTP_PEPPER for production).',
+    );
+    return 'emulator-only-otp-pepper-min-16-chars!!';
+  }
+  try {
+    const fromSecret = otpPepperSecret.value();
+    if (fromSecret && String(fromSecret).trim().length >= 16) {
+      return String(fromSecret).trim();
+    }
+  } catch (err) {
+    logger.warn('Could not read OTP_PEPPER secret', err);
+  }
+  throw new HttpsError(
+    'failed-precondition',
+    'Password reset is not configured yet. Ask the developer to set OTP_PEPPER ' +
+      '(a random secret, at least 16 characters) for Cloud Functions, then redeploy. ' +
+      'Command: firebase functions:secrets:set OTP_PEPPER',
+  );
+}
+
+function hashOtp(email, plainCode, pepper) {
+  const payload = `${normalizeEmail(email)}|${plainCode}`;
+  return crypto.createHmac('sha256', pepper).update(payload).digest('hex');
+}
+
+function generateSixDigitCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+exports.sendPasswordResetOtp = onCall(
+  { region: callableRegion, secrets: [otpPepperSecret] },
+  async (request) => {
+  const emailRaw =
+    request.data && request.data.email ? String(request.data.email) : '';
+  const email = normalizeEmail(emailRaw);
+  if (!isValidEmailFormat(email)) {
+    throw new HttpsError('invalid-argument', 'Enter a valid email address.');
   }
 
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-  });
+  let pepper;
+  try {
+    pepper = getOtpPepper();
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    throw new HttpsError('internal', 'Configuration error.');
+  }
 
-  await transporter.sendMail({
-    from,
-    to: email,
-    subject: 'MaSeerah — Your verification code',
-    text:
-      `Your verification code is: ${code}\n\n` +
-      'It expires in 15 minutes.\n\n' +
-      'If you did not request a password reset, you can ignore this email.',
-  });
-}
-
-exports.sendPasswordResetCode = onCall(
-  { region: callableRegion },
-  async (request) => {
-    const email =
-      request.data && request.data.email ? String(request.data.email).trim() : '';
-    if (!email || !email.includes('@')) {
-      throw new HttpsError('invalid-argument', 'Valid email is required.');
+  let userRecord;
+  try {
+    userRecord = await admin.auth().getUserByEmail(email);
+  } catch (e) {
+    const ac = authErrorCode(e);
+    if (ac === 'auth/user-not-found') {
+      throw new HttpsError('not-found', 'No account found with this email.');
     }
+    logger.error('getUserByEmail failed', { code: ac, err: e });
+    throw new HttpsError('internal', 'Could not verify account. Try again later.');
+  }
 
-    let userRecord;
-    try {
-      userRecord = await admin.auth().getUserByEmail(email);
-    } catch (e) {
-      const ac = authErrorCode(e);
-      if (ac === 'auth/user-not-found') {
-        throw new HttpsError('not-found', 'No account found with this email.');
-      }
-      logger.error('getUserByEmail failed', { code: ac, err: e });
+  const docId = docIdForEmail(email);
+  const ref = admin.firestore().collection('password_reset_otps').doc(docId);
+  const now = Date.now();
+
+  let snap = await ref.get();
+  let d = snap.exists ? snap.data() : null;
+
+  if (d && d.consumed === true) {
+    await ref.delete().catch(() => {});
+    d = null;
+  }
+
+  if (d) {
+    const lastSent =
+      d.lastSentAt && d.lastSentAt.toMillis ? d.lastSentAt.toMillis() : 0;
+    const resendCount = typeof d.resendCount === 'number' ? d.resendCount : 0;
+    if (resendCount >= MAX_RESENDS) {
       throw new HttpsError(
-        'internal',
-        'Could not verify this email. Check Firebase Auth and billing, then try again.',
+        'resource-exhausted',
+        'Maximum resend attempts reached. Try again later.',
       );
     }
+    if (lastSent > 0 && now - lastSent < RESEND_COOLDOWN_MS) {
+      const waitSec = Math.ceil((RESEND_COOLDOWN_MS - (now - lastSent)) / 1000);
+      throw new HttpsError(
+        'resource-exhausted',
+        `Please wait ${waitSec} seconds before requesting another code.`,
+      );
+    }
+  }
 
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = admin.firestore.Timestamp.fromMillis(
-      Date.now() + 15 * 60 * 1000,
+  const plainCode = generateSixDigitCode();
+  const hashedCode = hashOtp(email, plainCode, pepper);
+  const expiresAt = admin.firestore.Timestamp.fromMillis(now + OTP_TTL_MS);
+  const lastSentAt = admin.firestore.FieldValue.serverTimestamp();
+
+  const nextResend = d
+    ? (typeof d.resendCount === 'number' ? d.resendCount : 0) + 1
+    : 1;
+
+  const createdAtValue =
+    d && d.createdAt ? d.createdAt : admin.firestore.FieldValue.serverTimestamp();
+
+  const payload = {
+    email,
+    hashedCode,
+    uid: userRecord.uid,
+    createdAt: createdAtValue,
+    expiresAt,
+    attemptCount: 0,
+    resendCount: nextResend,
+    lastSentAt,
+    verified: false,
+    consumed: false,
+  };
+
+  try {
+    await ref.set(payload, { merge: false });
+  } catch (e) {
+    logger.error('password_reset_otps write failed', e);
+    throw new HttpsError('internal', 'Could not save reset code. Try again.');
+  }
+
+  try {
+    await sendPasswordResetOtpEmail(email, plainCode);
+  } catch (e) {
+    logger.error('sendPasswordResetOtpEmail failed', e);
+    await ref.delete().catch(() => {});
+    if (e instanceof HttpsError) throw e;
+    throw new HttpsError(
+      'internal',
+      'Could not send email. Configure SMTP for Functions or check logs.',
     );
+  }
 
-    try {
-      await admin
-        .firestore()
-        .collection('password_reset_codes')
-        .doc(docIdForEmail(email))
-        .set({
-          email,
-          code,
-          expiresAt,
-          uid: userRecord.uid,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    } catch (e) {
-      logger.error('password_reset_codes write failed', e);
-      throw new HttpsError(
-        'internal',
-        'Could not save the verification code. Check Firestore rules and APIs.',
-      );
-    }
-
-    try {
-      await sendEmailWithCode(email, code);
-    } catch (e) {
-      logger.error('sendEmailWithCode failed', e);
-      await admin
-        .firestore()
-        .collection('password_reset_codes')
-        .doc(docIdForEmail(email))
-        .delete()
-        .catch(() => {});
-      throw new HttpsError(
-        'internal',
-        'Could not send the email. Check SMTP settings for this function.',
-      );
-    }
-
-    return { ok: true };
+  return { ok: true };
   },
 );
 
-exports.verifyPasswordResetCode = onCall({ region: callableRegion }, async (request) => {
-  const email =
-    request.data && request.data.email ? String(request.data.email).trim() : '';
+exports.verifyPasswordResetOtp = onCall(
+  { region: callableRegion, secrets: [otpPepperSecret] },
+  async (request) => {
+  const email = normalizeEmail(
+    request.data && request.data.email ? String(request.data.email) : '',
+  );
   const code =
     request.data && request.data.code ? String(request.data.code).trim() : '';
-  if (!email || !code) {
-    throw new HttpsError('invalid-argument', 'Email and code are required.');
+  if (!isValidEmailFormat(email) || !code) {
+    throw new HttpsError('invalid-argument', 'Email and 6-digit code are required.');
   }
   if (code.length !== 6 || !/^\d{6}$/.test(code)) {
     throw new HttpsError('invalid-argument', 'Enter the 6-digit code.');
   }
 
+  let pepper;
+  try {
+    pepper = getOtpPepper();
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    throw new HttpsError('internal', 'Configuration error.');
+  }
+
   const ref = admin
     .firestore()
-    .collection('password_reset_codes')
+    .collection('password_reset_otps')
     .doc(docIdForEmail(email));
   const doc = await ref.get();
   if (!doc.exists) {
     throw new HttpsError(
       'permission-denied',
-      'Incorrect or expired verification code.',
+      'Incorrect or expired code.',
     );
   }
-  const d = doc.data();
-  if (d.code !== code) {
-    throw new HttpsError('permission-denied', 'Incorrect verification code.');
+
+  const data = doc.data();
+  if (data.consumed === true) {
+    throw new HttpsError('permission-denied', 'This code has already been used.');
   }
-  if (d.expiresAt.toMillis() < Date.now()) {
+  if (data.expiresAt.toMillis() < Date.now()) {
     throw new HttpsError(
       'deadline-exceeded',
       'This code has expired. Request a new one.',
     );
   }
-  return { ok: true };
-});
 
-exports.completePasswordResetWithCode = onCall({ region: callableRegion }, async (request) => {
-  const email =
-    request.data && request.data.email ? String(request.data.email).trim() : '';
+  const attempts = typeof data.attemptCount === 'number' ? data.attemptCount : 0;
+  if (attempts >= MAX_VERIFY_ATTEMPTS) {
+    throw new HttpsError(
+      'permission-denied',
+      'Too many incorrect attempts. Request a new code.',
+    );
+  }
+
+  const expectedHash = data.hashedCode;
+  const actualHash = hashOtp(email, code, pepper);
+  if (actualHash !== expectedHash) {
+    await ref.update({
+      attemptCount: admin.firestore.FieldValue.increment(1),
+    });
+    throw new HttpsError('permission-denied', 'Incorrect code.');
+  }
+
+  await ref.update({ verified: true });
+  return { ok: true };
+  },
+);
+
+exports.resetPasswordWithOtp = onCall(
+  { region: callableRegion, secrets: [otpPepperSecret] },
+  async (request) => {
+  const email = normalizeEmail(
+    request.data && request.data.email ? String(request.data.email) : '',
+  );
   const code =
     request.data && request.data.code ? String(request.data.code).trim() : '';
   const newPassword =
     request.data && request.data.newPassword
       ? String(request.data.newPassword)
       : '';
-  if (!email || !code || !newPassword) {
+
+  if (!isValidEmailFormat(email) || !code || !newPassword) {
     throw new HttpsError(
       'invalid-argument',
       'Email, code, and new password are required.',
     );
+  }
+  if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+    throw new HttpsError('invalid-argument', 'Enter the 6-digit code.');
   }
   if (newPassword.length < 6) {
     throw new HttpsError(
@@ -191,29 +298,60 @@ exports.completePasswordResetWithCode = onCall({ region: callableRegion }, async
     );
   }
 
+  let pepper;
+  try {
+    pepper = getOtpPepper();
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    throw new HttpsError('internal', 'Configuration error.');
+  }
+
   const ref = admin
     .firestore()
-    .collection('password_reset_codes')
+    .collection('password_reset_otps')
     .doc(docIdForEmail(email));
   const doc = await ref.get();
   if (!doc.exists) {
+    throw new HttpsError('permission-denied', 'Incorrect or expired code.');
+  }
+
+  const data = doc.data();
+  if (data.consumed === true) {
+    throw new HttpsError('permission-denied', 'This code has already been used.');
+  }
+  if (data.verified !== true) {
     throw new HttpsError(
-      'permission-denied',
-      'Incorrect or expired verification code.',
+      'failed-precondition',
+      'Verify your code before setting a new password.',
     );
   }
-  const d = doc.data();
-  if (d.code !== code) {
-    throw new HttpsError('permission-denied', 'Incorrect verification code.');
-  }
-  if (d.expiresAt.toMillis() < Date.now()) {
+  if (data.expiresAt.toMillis() < Date.now()) {
     throw new HttpsError(
       'deadline-exceeded',
       'This code has expired. Request a new one.',
     );
   }
 
-  await admin.auth().updateUser(d.uid, { password: newPassword });
-  await ref.delete();
+  const actualHash = hashOtp(email, code, pepper);
+  if (actualHash !== data.hashedCode) {
+    throw new HttpsError('permission-denied', 'Incorrect code.');
+  }
+
+  try {
+    await admin.auth().updateUser(data.uid, { password: newPassword });
+  } catch (e) {
+    logger.error('updateUser password failed', e);
+    throw new HttpsError('internal', 'Could not update password. Try again.');
+  }
+
+  await ref
+    .update({
+      consumed: true,
+      hashedCode: admin.firestore.FieldValue.delete(),
+    })
+    .catch(() => {});
+  await ref.delete().catch(() => {});
+
   return { ok: true };
-});
+  },
+);

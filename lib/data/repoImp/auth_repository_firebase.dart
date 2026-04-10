@@ -1,14 +1,18 @@
 import '../../core/email_validation.dart';
-import '../../core/password_reset_link_parser.dart';
 import '../../core/validators.dart';
 import '../../model/app_user.dart';
 import '../../repository/auth_repo.dart';
+import '../../service/password_reset_otp_service.dart';
 import '../firebase/auth_data_source.dart';
 
 class AuthRepositoryFirebase implements AuthRepository {
   final AuthDataSource _dataSource;
+  final PasswordResetOtpService _passwordResetOtp;
 
-  AuthRepositoryFirebase(this._dataSource);
+  AuthRepositoryFirebase(
+    this._dataSource, {
+    PasswordResetOtpService? passwordResetOtpService,
+  }) : _passwordResetOtp = passwordResetOtpService ?? PasswordResetOtpService();
 
   @override
   Future<AppUser> login({
@@ -81,40 +85,50 @@ class AuthRepositoryFirebase implements AuthRepository {
     );
     if (mxErr != null) throw Exception(mxErr);
 
-    await _dataSource.sendPasswordResetEmail(email.trim());
+    try {
+      await _passwordResetOtp.sendPasswordResetOtp(email.trim());
+    } catch (e) {
+      throw Exception(PasswordResetOtpService.mapFunctionsError(e));
+    }
   }
 
   @override
-  Future<({String email, String oobCode})> verifyPasswordResetLinkOrCode(
-    String linkOrCode,
-  ) async {
-    final oob = extractOobCodeFromPasswordResetInput(linkOrCode);
-    if (oob == null || oob.isEmpty) {
-      throw Exception(
-        'Paste the reset link from your email or the code from that link.',
-      );
+  Future<void> verifyPasswordResetCode(String email, String code) async {
+    final formatErr = EmailValidation.validateFormat(email);
+    if (formatErr != null) throw Exception(formatErr);
+    final c = code.trim();
+    if (c.length != 6 || int.tryParse(c) == null) {
+      throw Exception('Enter the 6-digit code from your email.');
     }
-    final email = await _dataSource.verifyPasswordResetOobCode(oob);
-    return (email: email, oobCode: oob);
+    try {
+      await _passwordResetOtp.verifyPasswordResetOtp(email, c);
+    } catch (e) {
+      throw Exception(PasswordResetOtpService.mapFunctionsError(e));
+    }
   }
 
   @override
   Future<AppUser> completePasswordResetAndSignIn({
     required String email,
-    required String oobCode,
+    required String verificationCode,
     required String newPassword,
   }) async {
     if (newPassword.length < 6) {
       throw Exception('Password must be at least 6 characters');
     }
-    final code = extractOobCodeFromPasswordResetInput(oobCode);
-    if (code == null || code.isEmpty) {
-      throw Exception('Invalid reset code.');
+    final c = verificationCode.trim();
+    if (c.length != 6) {
+      throw Exception('Enter the 6-digit verification code.');
     }
-    await _dataSource.confirmPasswordReset(
-      oobCode: code,
-      newPassword: newPassword,
-    );
+    try {
+      await _passwordResetOtp.resetPasswordWithOtp(
+        email: email.trim(),
+        code: c,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      throw Exception(PasswordResetOtpService.mapFunctionsError(e));
+    }
     return _dataSource.login(email: email.trim(), password: newPassword);
   }
 }

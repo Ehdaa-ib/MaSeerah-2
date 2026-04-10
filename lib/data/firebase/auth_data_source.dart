@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 
 import '../../model/app_user.dart';
 
@@ -64,6 +66,13 @@ class AuthDataSource {
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: false));
 
+    // 4) Create a public index entry (hashed) so reset-password can check existence
+    // while signed out without querying private user documents.
+    await _firestore.collection('email_index').doc(_emailHash(email)).set({
+      'uid': uid,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: false));
+
     // Wait a moment to ensure document is fully written before auth state change triggers read
     await Future.delayed(const Duration(milliseconds: 100));
 
@@ -75,23 +84,8 @@ class AuthDataSource {
     );
   }
 
-  /// Firebase-hosted reset email (link contains `oobCode`). Works on Spark plan.
-  Future<void> sendPasswordResetEmail(String email) async {
-    await _auth.sendPasswordResetEmail(email: email.trim());
-  }
-
-  /// Validates [oobCode] and returns the account email.
-  Future<String> verifyPasswordResetOobCode(String oobCode) async {
-    return _auth.verifyPasswordResetCode(oobCode.trim());
-  }
-
-  Future<void> confirmPasswordReset({
-    required String oobCode,
-    required String newPassword,
-  }) async {
-    await _auth.confirmPasswordReset(
-      code: oobCode.trim(),
-      newPassword: newPassword,
-    );
+  String _emailHash(String email) {
+    final normalized = email.trim().toLowerCase();
+    return sha256.convert(utf8.encode(normalized)).toString();
   }
 }

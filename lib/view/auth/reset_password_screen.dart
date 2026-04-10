@@ -4,18 +4,18 @@ import '../../core/app_colors.dart';
 import '../../core/error_messages.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
-import '../home/landing_page.dart';
+import '../home/profile_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({
     super.key,
     required this.email,
-    required this.oobCode,
+    required this.verificationCode,
   });
 
   final String email;
-  /// Firebase Auth action (oob) code from the reset link.
-  final String oobCode;
+  /// 6-digit OTP already verified on the previous screen.
+  final String verificationCode;
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -47,7 +47,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       final repo = AuthRepositoryFirebase(AuthDataSource());
       final user = await repo.completePasswordResetAndSignIn(
         email: widget.email,
-        oobCode: widget.oobCode,
+        verificationCode: widget.verificationCode,
         newPassword: _passwordController.text,
       );
       if (!mounted) return;
@@ -57,7 +57,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         Navigator.of(context).pushNamedAndRemoveUntil('/admin', (route) => false);
       } else {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LandingPage()),
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
           (route) => false,
         );
       }
