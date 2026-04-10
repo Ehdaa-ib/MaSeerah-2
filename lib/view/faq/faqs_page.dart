@@ -22,7 +22,10 @@ String _messageForFaqError(Object? error) {
 
 /// Loads FAQ entries from Firestore collection [FaqDataSource.collection].
 class FaqsPage extends StatefulWidget {
-  const FaqsPage({super.key});
+  /// Optional stream override for widget tests / previews.
+  final Stream<List<FaqItem>>? faqsStream;
+
+  const FaqsPage({super.key, this.faqsStream});
 
   @override
   State<FaqsPage> createState() => _FaqsPageState();
@@ -64,7 +67,7 @@ class _FaqsPageState extends State<FaqsPage> {
       ),
       body: StreamBuilder<List<FaqItem>>(
         key: ValueKey(_streamGeneration),
-        stream: FaqDataSource().watchFaqs(),
+        stream: widget.faqsStream ?? FaqDataSource().watchFaqs(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Column(

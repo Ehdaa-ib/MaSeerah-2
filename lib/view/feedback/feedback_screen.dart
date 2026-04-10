@@ -10,8 +10,14 @@ import '../../model/feedback.dart';
 
 class FeedbackScreen extends StatefulWidget {
   final String journeyId;
+  /// Optional override for tests so they don't need Firebase Auth.
+  final String? Function()? currentUserId;
 
-  const FeedbackScreen({super.key, required this.journeyId});
+  const FeedbackScreen({
+    super.key,
+    required this.journeyId,
+    this.currentUserId,
+  });
 
   @override
   State<FeedbackScreen> createState() => _FeedbackScreenState();
@@ -36,11 +42,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     super.dispose();
   }
 
-  bool get _ratingsValid =>
-      _overallRating >= 1 &&
-      _contentRating >= 1 &&
-      _nearbyRating >= 1 &&
-      _challengesRating >= 1;
+  bool get _overallRatingValid => _overallRating >= 1;
 
   Future<void> _pickPhotos() async {
     final images = await _picker.pickMultiImage(imageQuality: 85);
@@ -55,16 +57,15 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       _error = null;
     });
 
-    if (!_ratingsValid) {
+    if (!_overallRatingValid) {
       setState(() {
         _isLoading = false;
-        _error =
-            'Please rate Overall, Content, Nearby recommendations, and Challenges (1–5).';
+        _error = 'Please rate Overall (1–5).';
       });
       return;
     }
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = widget.currentUserId?.call() ?? FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       setState(() {
         _isLoading = false;
