@@ -8,6 +8,7 @@ import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
 import '../faq/faqs_page.dart';
 import 'forget_password_page.dart';
+import '../home/landing_page.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -102,7 +103,10 @@ class _LoginScreenState extends State<LoginScreen> {
           Navigator.of(context).popUntil((route) => route.isFirst);
           Navigator.of(context).pushReplacementNamed('/admin');
         } else {
-          Navigator.of(context).pop();
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LandingPage()),
+            (route) => false,
+          );
         }
       }
     } catch (e) {

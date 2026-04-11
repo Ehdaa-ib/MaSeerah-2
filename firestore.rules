@@ -58,5 +58,26 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read, write: if isSignedIn();
     }
+
+    // Password reset codes — legacy; Admin SDK only
+    match /password_reset_codes/{docId} {
+      allow read, write: if false;
+    }
+
+    // Password reset OTP sessions — Admin SDK only (hashed OTP, never plain code)
+    match /password_reset_otps/{docId} {
+      allow read, write: if false;
+    }
+
+    // Public email index for password reset "exists" checks.
+    // Stores only a hash of the normalized email to avoid exposing raw addresses.
+    // Read is public so the reset flow can run while signed out.
+    match /email_index/{emailHash} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt is timestamp;
+      allow update, delete: if false;
+    }
   }
 }

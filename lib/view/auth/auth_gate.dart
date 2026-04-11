@@ -8,9 +8,6 @@ import 'create_account_screen.dart';
 import 'login_screen.dart';
 import '../home/home_page.dart';
 import 'forget_password_page.dart';
-import 'verify_code_screen.dart';
-import 'reset_password_screen.dart';
-
 /// Root auth-aware screen: shows Login/Create account when signed out,
 /// or User/Admin home when signed in. Logout brings back to login.
 class AuthGate extends StatelessWidget {
@@ -35,18 +32,10 @@ class AuthGate extends StatelessWidget {
                   return MaterialPageRoute(
                     builder: (_) => const CreateAccountScreen(),
                   );
-                case '/forgot-password':              
+                case '/forgot-password':
                   return MaterialPageRoute(
                     builder: (_) => const ForgotPasswordScreen(),
-                );
-                case '/verify-code':                   
-                  return MaterialPageRoute(
-                    builder: (_) => const VerifyCodeScreen(),
-               );
-                case '/reset-password':                 
-                  return MaterialPageRoute(
-                    builder: (_) => const ResetPasswordScreen(),
-               );
+                  );
                 case '/login':
                 default:
                   return MaterialPageRoute(

@@ -18,4 +18,17 @@ abstract class AuthRepository {
     required String password,
     required String confirmPassword,
   });
+
+  /// Sends a 6-digit password-reset OTP by email (Cloud Functions + SMTP).
+  Future<void> sendPasswordResetEmail(String email);
+
+  /// Verifies the OTP for [email] (does not change password yet).
+  Future<void> verifyPasswordResetCode(String email, String code);
+
+  /// Confirms OTP, sets [newPassword] in Firebase Auth, then signs in and returns profile.
+  Future<AppUser> completePasswordResetAndSignIn({
+    required String email,
+    required String verificationCode,
+    required String newPassword,
+  });
 }

@@ -1,36 +1,113 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import '../../core/app_colors.dart';
+import '../../core/error_messages.dart';
+import '../../data/firebase/auth_data_source.dart';
+import '../../data/repoImp/auth_repository_firebase.dart';
 import 'reset_password_screen.dart';
 
 class VerifyCodeScreen extends StatefulWidget {
-  const VerifyCodeScreen({super.key});
+  const VerifyCodeScreen({super.key, required this.email});
+
+  final String email;
 
   @override
   State<VerifyCodeScreen> createState() => _VerifyCodeScreenState();
 }
 
 class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
-  final _emailController = TextEditingController();
   final _codeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  String? _errorMessage;
+  int _resendCooldownSec = 0;
+  Timer? _cooldownTimer;
 
-  void _checkCode() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const ResetPasswordScreen()),
-        );
-      });
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  void _startResendCooldown([int seconds = 60]) {
+    _cooldownTimer?.cancel();
+    setState(() => _resendCooldownSec = seconds);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_resendCooldownSec <= 1) {
+        t.cancel();
+        setState(() => _resendCooldownSec = 0);
+      } else {
+        setState(() => _resendCooldownSec--);
+      }
+    });
+  }
+
+  Future<void> _continue() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final repo = AuthRepositoryFirebase(AuthDataSource());
+      await repo.verifyPasswordResetCode(widget.email, _codeController.text.trim());
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ResetPasswordScreen(
+            email: widget.email.trim(),
+            verificationCode: _codeController.text.trim(),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = toUserFriendlyMessage(e);
+        });
+      }
     }
   }
 
-  void _resendCode() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Verification code resent!')),
-    );
+  Future<void> _resendOtp() async {
+    if (_resendCooldownSec > 0 || _isLoading) return;
+    setState(() => _errorMessage = null);
+    try {
+      final repo = AuthRepositoryFirebase(AuthDataSource());
+      await repo.sendPasswordResetEmail(widget.email);
+      if (mounted) {
+        _startResendCooldown(60);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A new code has been sent to your email.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = toUserFriendlyMessage(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+        final match = RegExp(r'wait (\d+) seconds').firstMatch(msg.toLowerCase());
+        if (match != null) {
+          final s = int.tryParse(match.group(1) ?? '') ?? 60;
+          _startResendCooldown(s.clamp(1, 300));
+        }
+      }
+    }
+  }
+
+  void _backToEmail() {
+    Navigator.of(context).pop();
   }
 
   @override
@@ -81,7 +158,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Reset Password',
+                              'Enter verification code',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 28,
@@ -91,65 +168,35 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Email sent!',
+                              'We sent a 6-digit code to',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.normal,
-                                color: AppColors.brown,
+                                fontSize: 14,
+                                color: AppColors.brown.withOpacity(0.8),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Check your email and enter verification code',
+                              widget.email,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.brown.withOpacity(0.7),
-                              ),
-                            ),
-                            const SizedBox(height: 30),
-                            Text(
-                              'Email',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.brown,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              style: const TextStyle(color: AppColors.brown),
-                              decoration: InputDecoration(
-                                hintText: 'Enter your email',
-                                hintStyle: TextStyle(color: Colors.grey.shade500),
-                                filled: true,
-                                fillColor: Colors.white.withOpacity(0.5),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(color: Colors.grey.shade700, width: 1.5),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(color: Colors.grey.shade700, width: 1.5),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(color: AppColors.brown, width: 2),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                                prefixIcon: Icon(Icons.email_outlined, color: Colors.grey.shade700, size: 22),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Check your inbox and enter the code below. The code expires in 15 minutes.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.brown.withOpacity(0.75),
                               ),
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) return 'Email is required';
-                                return null;
-                              },
                             ),
                             const SizedBox(height: 20),
                             Text(
-                              'Enter code',
+                              '6-digit code',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -160,14 +207,19 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             TextFormField(
                               controller: _codeController,
                               keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
+                              ],
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                fontSize: 24,
-                                letterSpacing: 8,
+                                fontSize: 28,
+                                letterSpacing: 10,
                                 color: AppColors.brown,
+                                fontWeight: FontWeight.w600,
                               ),
                               decoration: InputDecoration(
-                                hintText: '0 0 0 0 0',
+                                hintText: '• • • • • •',
                                 hintStyle: TextStyle(
                                   color: Colors.grey.shade400,
                                   fontSize: 24,
@@ -185,19 +237,39 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(color: AppColors.brown, width: 2),
+                                  borderSide: const BorderSide(color: AppColors.brown, width: 2),
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return 'Code is required';
-                                if (v.length < 5) return 'Enter 5-digit code';
+                                if (v == null || v.isEmpty) {
+                                  return 'Enter the code from your email';
+                                }
+                                if (v.length != 6) {
+                                  return 'Enter all 6 digits';
+                                }
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 30),
+                            if (_errorMessage != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.red.shade200),
+                                ),
+                                child: Text(
+                                  _errorMessage!,
+                                  style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 24),
                             ElevatedButton(
-                              onPressed: _isLoading ? null : _checkCode,
+                              onPressed: _isLoading ? null : _continue,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.brown,
                                 foregroundColor: Colors.white,
@@ -218,19 +290,37 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                                       ),
                                     )
                                   : const Text(
-                                      'Check code',
+                                      'Continue',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
                             ),
-                            const SizedBox(height: 15),
+                            const SizedBox(height: 12),
                             Center(
                               child: TextButton(
-                                onPressed: _resendCode,
+                                onPressed: _isLoading ? null : _backToEmail,
                                 child: Text(
-                                  "Didn't receive code? Resend",
+                                  'Back to email',
+                                  style: TextStyle(
+                                    color: AppColors.brown,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Center(
+                              child: TextButton(
+                                onPressed: (_isLoading || _resendCooldownSec > 0)
+                                    ? null
+                                    : _resendOtp,
+                                child: Text(
+                                  _resendCooldownSec > 0
+                                      ? 'Resend code in ${_resendCooldownSec}s'
+                                      : "Didn't get the code? Resend",
                                   style: TextStyle(
                                     color: AppColors.brown,
                                     fontSize: 13,

@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
+
 import '../../core/app_colors.dart';
-import 'login_screen.dart';
+import '../../core/error_messages.dart';
+import '../../data/firebase/auth_data_source.dart';
+import '../../data/repoImp/auth_repository_firebase.dart';
+import '../home/profile_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key});
+  const ResetPasswordScreen({
+    super.key,
+    required this.email,
+    required this.verificationCode,
+  });
+
+  final String email;
+  /// 6-digit OTP already verified on the previous screen.
+  final String verificationCode;
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -16,17 +28,46 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _isLoading = false;
+  String? _errorMessage;
 
-  void _resetPassword() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _resetPassword() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final repo = AuthRepositoryFirebase(AuthDataSource());
+      final user = await repo.completePasswordResetAndSignIn(
+        email: widget.email,
+        verificationCode: widget.verificationCode,
+        newPassword: _passwordController.text,
+      );
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      final role = user.role.trim().toLowerCase();
+      if (role == 'admin') {
+        Navigator.of(context).pushNamedAndRemoveUntil('/admin', (route) => false);
+      } else {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
           (route) => false,
         );
-      });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = toUserFriendlyMessage(e);
+        });
+      }
     }
   }
 
@@ -78,7 +119,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Reset Password',
+                              'Set new password',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 28,
@@ -88,7 +129,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Enter your new password',
+                              'Enter your new password below. You will be signed in automatically.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
@@ -97,7 +138,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             ),
                             const SizedBox(height: 40),
                             Text(
-                              'New Password',
+                              'New password',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -168,7 +209,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             ),
                             const SizedBox(height: 20),
                             Text(
-                              'Confirm Password',
+                              'Confirm password',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -239,6 +280,22 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 return null;
                               },
                             ),
+                            if (_errorMessage != null) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.red.shade200),
+                                ),
+                                child: Text(
+                                  _errorMessage!,
+                                  style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 30),
                             ElevatedButton(
                               onPressed: _isLoading ? null : _resetPassword,
@@ -262,7 +319,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                       ),
                                     )
                                   : const Text(
-                                      'Reset Password',
+                                      'Save and sign in',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,

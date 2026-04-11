@@ -18,10 +18,33 @@ String toUserFriendlyMessage(dynamic e) {
   // Strip "[code] " prefix so we don't show e.g. [firebase_auth/invalid-email]
   final bracketEnd = str.indexOf('] ');
   if (bracketEnd != -1 && bracketEnd < str.length - 2) {
-    return str.substring(bracketEnd + 2).trim();
+    final rest = str.substring(bracketEnd + 2).trim();
+    if (_isUnhelpfulFunctionsClientText(rest)) {
+      return _cloudFunctionsGenericHint;
+    }
+    return rest;
   }
-  if (str.trim().isNotEmpty) return str.trim();
+  final trimmed = str.trim();
+  if (trimmed.isNotEmpty) {
+    if (_isUnhelpfulFunctionsClientText(trimmed)) {
+      return _cloudFunctionsGenericHint;
+    }
+    return trimmed;
+  }
   return 'Something went wrong. Please try again.';
+}
+
+const String _cloudFunctionsGenericHint =
+    'The app could not complete this action. Cloud Functions may be missing '
+    'or need billing. Deploy to us-central1 (see functions/README.md).';
+
+bool _isUnhelpfulFunctionsClientText(String s) {
+  final m = s.toLowerCase();
+  return m == 'internal' ||
+      m == 'unknown' ||
+      m == 'not_found' ||
+      m == 'not-found' ||
+      m == 'unavailable';
 }
 
 String _firebaseAuthMessageForCode(String code) {

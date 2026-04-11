@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/error_messages.dart';
+import '../../data/firebase/auth_data_source.dart';
+import '../../data/repoImp/auth_repository_firebase.dart';
 import 'verify_code_screen.dart';
 import 'create_account_screen.dart';
 
@@ -16,6 +19,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -23,15 +27,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  void _sendCode() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
-        Navigator.of(context).push(
-  MaterialPageRoute(builder: (context) => const VerifyCodeScreen()),
-);
-      });
+  Future<void> _sendCode() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final repo = AuthRepositoryFirebase(AuthDataSource());
+      await repo.sendPasswordResetEmail(_emailController.text.trim());
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      final email = _emailController.text.trim();
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => VerifyCodeScreen(email: email),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = toUserFriendlyMessage(e);
+        });
+      }
     }
   }
 
@@ -106,7 +125,8 @@ void _goToSignUp() {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Enter your email and we will send you a verification code',
+                              'Enter the email you used to register. We will send a '
+                              '6-digit verification code to that address.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
@@ -183,6 +203,22 @@ void _goToSignUp() {
                                 return null;
                               },
                             ),
+                            if (_errorMessage != null) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.red.shade200),
+                                ),
+                                child: Text(
+                                  _errorMessage!,
+                                  style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 30),
                             ElevatedButton(
                               onPressed: _isLoading ? null : _sendCode,
