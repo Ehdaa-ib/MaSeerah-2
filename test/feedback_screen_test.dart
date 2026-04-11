@@ -12,12 +12,11 @@ void main() {
     );
   }
 
-  Finder _overallStars() => find.descendant(
-        of: find.ancestor(
-          of: find.text('Overall'),
-          matching: find.byType(Column),
-        ),
-        matching: find.byIcon(Icons.star_border),
+  Finder _overallStars() => find.byWidgetPredicate(
+        (w) =>
+            w is Icon &&
+            (w.icon == Icons.star || w.icon == Icons.star_border) &&
+            w.size == 32,
       );
 
   testWidgets('FeedbackScreen renders title and submit button', (tester) async {
@@ -40,6 +39,7 @@ void main() {
       ),
     );
 
+    await tester.ensureVisible(find.text('Submit Review'));
     await tester.tap(find.text('Submit Review'));
     await tester.pump();
 
@@ -62,6 +62,7 @@ void main() {
     await tester.tap(stars.at(4));
     await tester.pump();
 
+    await tester.ensureVisible(find.text('Submit Review'));
     await tester.tap(find.text('Submit Review'));
     await tester.pump();
 

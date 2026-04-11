@@ -86,9 +86,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         userId: uid,
         journeyId: widget.journeyId,
         overallRating: _overallRating.round().clamp(1, 5),
-        contentRating: _contentRating.clamp(1, 5),
-        recommendationRating: _nearbyRating.clamp(1, 5),
-        challengeRating: _challengesRating.clamp(1, 5),
+        contentRating: _contentRating.clamp(0, 5),
+        recommendationRating: _nearbyRating.clamp(0, 5),
+        challengeRating: _challengesRating.clamp(0, 5),
         overallComment: _commentsController.text.trim(),
         photos: photoUrls,
       );

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
@@ -20,6 +21,14 @@ class TestPngAssetBundle extends CachingAssetBundle {
 
   @override
   Future<ByteData> load(String key) async {
+    if (key == 'AssetManifest.bin') {
+      final encoded = const StandardMessageCodec().encodeMessage(<String, Object?>{});
+      return encoded ?? ByteData(0);
+    }
+    if (key == 'AssetManifest.json') {
+      final bytes = Uint8List.fromList(utf8.encode('{}'));
+      return ByteData.sublistView(bytes);
+    }
     return ByteData.sublistView(_pngBytes);
   }
 }

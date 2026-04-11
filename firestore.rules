@@ -33,9 +33,9 @@ service cloud.firestore {
         && request.resource.data.recommendationRating is number
         && request.resource.data.challengeRating is number
         && request.resource.data.overallRating >= 1 && request.resource.data.overallRating <= 5
-        && request.resource.data.contentRating >= 1 && request.resource.data.contentRating <= 5
-        && request.resource.data.recommendationRating >= 1 && request.resource.data.recommendationRating <= 5
-        && request.resource.data.challengeRating >= 1 && request.resource.data.challengeRating <= 5;
+        && request.resource.data.contentRating >= 0 && request.resource.data.contentRating <= 5
+        && request.resource.data.recommendationRating >= 0 && request.resource.data.recommendationRating <= 5
+        && request.resource.data.challengeRating >= 0 && request.resource.data.challengeRating <= 5;
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
@@ -43,6 +43,12 @@ service cloud.firestore {
     match /journeys/{journeyId} {
       allow read: if true;
       allow write: if isSignedIn();
+    }
+
+    // FAQs: anyone can read, no client writes.
+    match /faqs/{faqId} {
+      allow read: if true;
+      allow write: if false;
     }
     // Orders: authenticated users can read/write
     match /orders/{orderId} {
