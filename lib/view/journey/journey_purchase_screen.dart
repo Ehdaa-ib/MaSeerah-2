@@ -22,6 +22,7 @@ import '../../core/app_colors.dart';
 import '../auth/login_screen.dart';
 import '../feedback/feedback_screen.dart';
 import '../../data/firebase/journey_completion_data_source.dart';
+import 'journey_map_screen.dart';
 
 /// Journey description and purchase page. Collapsing header, About, Good to know, sticky payment button.
 class JourneyPurchaseScreen extends StatefulWidget {
@@ -194,13 +195,11 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
               gatewayTransactionId: gatewayId,
             );
             if (!mounted) return;
-            Navigator.of(context).pop();
-            await _load();
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Payment successful!'), backgroundColor: Colors.green),
-              );
-            }
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const JourneyMapScreen(),
+  ),
+);
           } catch (e) {
             if (mounted) setState(() => _error = toUserFriendlyMessage(e));
           }
@@ -330,27 +329,29 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   }
 
   Future<void> _startJourney() async {
-    if (_user == null) {
-      _openSignIn();
-      return;
-    }
-    setState(() {
-      _error = null;
-    });
-    try {
-      await _accessService.startJourney(
-        userId: _user!.userId,
-        journeyId: widget.journeyId,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Journey started! Enjoy your experience.'), backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = toUserFriendlyMessage(e));
-    }
+  if (_user == null) {
+    _openSignIn();
+    return;
   }
+  setState(() {
+    _error = null;
+  });
+  try {
+    await _accessService.startJourney(
+      userId: _user!.userId,
+      journeyId: widget.journeyId,
+    );
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const JourneyMapScreen(),
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) setState(() => _error = toUserFriendlyMessage(e));
+  }
+}
 
   Future<void> _finishJourney() async {
     if (_user == null) {
