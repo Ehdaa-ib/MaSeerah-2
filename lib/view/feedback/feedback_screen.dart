@@ -60,7 +60,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     if (!_overallRatingValid) {
       setState(() {
         _isLoading = false;
-        _error = 'Please rate Overall (1–5).';
+        _error = 'overall rating is required';
       });
       return;
     }
@@ -79,7 +79,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       final photoUrls = await ds.uploadPhotos(
         userId: uid,
         journeyId: widget.journeyId,
-        files: _photos.map((x) => File(x.path)).toList(),
+        files: _photos,
       );
 
       final entry = FeedbackEntry(
@@ -263,13 +263,28 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                           const SizedBox(height: 16),
 
                           // Specifics Section
-                          Text(
-                            'Specifics',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.brown,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                'Specifics',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.brown,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '(optional)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 16),
 

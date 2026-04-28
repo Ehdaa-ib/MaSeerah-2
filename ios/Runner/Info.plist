@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MaSeerah needs access to your photo library so you can attach images to journey feedback.</string>
 </dict>
 </plist>

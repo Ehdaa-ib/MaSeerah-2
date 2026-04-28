@@ -23,19 +23,29 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Feedback (multiple docs per user+journey allowed)
+    // Feedback (multiple docs per user+journey allowed).
+    // Optional detail ratings may be omitted by the client; treat missing as 0.
     match /feedback/{feedbackId} {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.journeyId is string
         && request.resource.data.overallRating is number
-        && request.resource.data.contentRating is number
-        && request.resource.data.recommendationRating is number
-        && request.resource.data.challengeRating is number
-        && request.resource.data.overallRating >= 1 && request.resource.data.overallRating <= 5
-        && request.resource.data.contentRating >= 0 && request.resource.data.contentRating <= 5
-        && request.resource.data.recommendationRating >= 0 && request.resource.data.recommendationRating <= 5
-        && request.resource.data.challengeRating >= 0 && request.resource.data.challengeRating <= 5;
+        && request.resource.data.overallRating >= 1
+        && request.resource.data.overallRating <= 5
+        && request.resource.data.get('contentRating', 0) is number
+        && request.resource.data.get('contentRating', 0) >= 0
+        && request.resource.data.get('contentRating', 0) <= 5
+        && request.resource.data.get('recommendationRating', 0) is number
+        && request.resource.data.get('recommendationRating', 0) >= 0
+        && request.resource.data.get('recommendationRating', 0) <= 5
+        && request.resource.data.get('challengeRating', 0) is number
+        && request.resource.data.get('challengeRating', 0) >= 0
+        && request.resource.data.get('challengeRating', 0) <= 5
+        && (!('overallComment' in request.resource.data)
+          || request.resource.data.overallComment is string)
+        && (!('photos' in request.resource.data)
+          || (request.resource.data.photos is list
+            && request.resource.data.photos.size() <= 20));
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
