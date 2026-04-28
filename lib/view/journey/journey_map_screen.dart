@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
 import 'google_map_page.dart';
+import 'widgets/journey_svg_map.dart';
 
 class JourneyMapScreen extends StatefulWidget {
   const JourneyMapScreen({super.key});
@@ -10,7 +11,8 @@ class JourneyMapScreen extends StatefulWidget {
 }
 
 class _JourneyMapScreenState extends State<JourneyMapScreen> {
-  List<int> visitedPlaces = [];
+  /// 1-based index of the currently active region.
+  int currentRegion = 1;
 
   @override
   Widget build(BuildContext context) {
@@ -26,56 +28,49 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       ),
       body: Stack(
         children: [
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: AppColors.beige,
-            child: const Center(
-              child: Text(
-                'Map Image Here',
-                style: TextStyle(color: AppColors.brown, fontSize: 24),
+          Positioned.fill(
+            child: Container(
+              color: AppColors.beige,
+              padding: const EdgeInsets.all(16),
+              child: JourneySvgMap(
+                currentRegion: currentRegion,
+                onActiveRegionTap: (region) => _onRegionTap(region),
               ),
             ),
           ),
-          _buildClickableSpot(1, top: 100, left: 50, width: 60, height: 60),
-          _buildClickableSpot(2, top: 100, left: 150, width: 60, height: 60),
-          _buildClickableSpot(3, top: 100, left: 250, width: 60, height: 60),
-          _buildClickableSpot(4, top: 100, left: 350, width: 60, height: 60),
-          _buildClickableSpot(5, top: 250, left: 50, width: 60, height: 60),
-          _buildClickableSpot(6, top: 250, left: 150, width: 60, height: 60),
-          _buildClickableSpot(7, top: 250, left: 250, width: 60, height: 60),
-          _buildClickableSpot(8, top: 250, left: 350, width: 60, height: 60),
           Positioned(
-            bottom: 20,
-            left: 20,
-            child: GestureDetector(
-              onTap: () {
-                _showMessage('You clicked the bottom left button!');
-              },
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.brown,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.brown,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => _showMessage('Current region: $currentRegion'),
+                      icon: const Icon(Icons.info_outline),
+                      label: const Text('Info'),
                     ),
-                  ],
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.info, color: Colors.white, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Info',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                     ),
-                  ],
-                ),
+                    onPressed: (currentRegion < 9)
+                        ? () => setState(() => currentRegion += 1)
+                        : null,
+                    child: const Text('Next'),
+                  ),
+                ],
               ),
             ),
           ),
@@ -84,66 +79,19 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     );
   }
 
-  Widget _buildClickableSpot(int placeNumber, {
-    required double top,
-    required double left,
-    required double width,
-    required double height,
-  }) {
-    final isVisited = visitedPlaces.contains(placeNumber);
-    
-    return Positioned(
-      top: top,
-      left: left,
-      child: GestureDetector(
-        onTap: () {
-          if (placeNumber == 1) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const GoogleMapPage(),
-              ),
-            );
-          } else {
-            _onPlaceTap(placeNumber);
-          }
-        },
-        child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: isVisited 
-                ? AppColors.orange.withOpacity(0.7)
-                : Colors.black.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isVisited ? AppColors.orange : Colors.white.withOpacity(0.5),
-              width: 2,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              '$placeNumber',
-              style: TextStyle(
-                color: isVisited ? Colors.white : Colors.white.withOpacity(0.8),
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  void _onRegionTap(int region) {
+    // Only the active region should call into this.
+    if (region != currentRegion) return;
 
-  void _onPlaceTap(int placeNumber) {
-    setState(() {
-      if (!visitedPlaces.contains(placeNumber)) {
-        visitedPlaces.add(placeNumber);
-        _showMessage('You visited place $placeNumber! 🎉');
-      } else {
-        _showMessage('You already visited place $placeNumber');
-      }
-    });
+    // Example behavior: region_1 opens the Google map page.
+    if (region == 1) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const GoogleMapPage()),
+      );
+      return;
+    }
+
+    _showMessage('Tapped active region $region');
   }
 
   void _showMessage(String message) {
