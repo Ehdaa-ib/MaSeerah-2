@@ -31,10 +31,29 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
           Positioned.fill(
             child: Container(
               color: AppColors.beige,
-              padding: const EdgeInsets.all(16),
-              child: JourneySvgMap(
-                currentRegion: currentRegion,
-                onActiveRegionTap: (region) => _onRegionTap(region),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // SVG viewBox is 430x850 (map is tall). Render at full width and
+                  // compute height by aspect ratio so it can scroll if needed.
+                  const svgWidth = 430.0;
+                  const svgHeight = 850.0;
+                  final w = constraints.maxWidth;
+                  final h = w * (svgHeight / svgWidth);
+
+                  return SingleChildScrollView(
+                    // Edge-to-edge width with a tiny top gap.
+                    padding: const EdgeInsets.only(top: 6, bottom: 120),
+                    child: SizedBox(
+                      width: w,
+                      height: h,
+                      child: JourneySvgMap(
+                        currentRegion: currentRegion,
+                        allowTapInactive: true,
+                        onRegionTap: (region) => _onRegionTap(region),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -80,18 +99,27 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   }
 
   void _onRegionTap(int region) {
-    // Only the active region should call into this.
-    if (region != currentRegion) return;
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Region'),
+        content: Text('Region number: $region'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
 
     // Example behavior: region_1 opens the Google map page.
-    if (region == 1) {
+    if (region == 1 && region == currentRegion) {
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const GoogleMapPage()),
       );
       return;
     }
-
-    _showMessage('Tapped active region $region');
   }
 
   void _showMessage(String message) {
