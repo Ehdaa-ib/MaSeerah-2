@@ -82,7 +82,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       });
     }
     try {
-      _user ??= await _getCurrentUser();
+      _user = await _getCurrentUser() ?? widget.user;
       Journey? journey = hasInitial ? _journey : await journeyRepo.getById(widget.journeyId);
       Order? order;
       if (_user != null) {
@@ -123,8 +123,16 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
 
   void _openSignIn() {
     Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const LoginScreen()))
-        .then((_) => _load());
+        .push<bool>(
+          MaterialPageRoute<bool>(
+            builder: (_) => const LoginScreen(returnToCallerOnSuccess: true),
+          ),
+        )
+        .then((signedIn) {
+      if (signedIn == true && mounted) {
+        _load();
+      }
+    });
   }
 
   Future<void> _purchaseAndPay() async {
@@ -197,9 +205,13 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
             if (!mounted) return;
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const JourneyMapScreen(),
-  ),
-);
+                builder: (_) => JourneyMapScreen(
+                  journeyTitle: _journey?.name ?? 'Journey',
+                  landmarksJourneyId: widget.journeyId.replaceAll('_', ''),
+                  catalogJourneyId: widget.journeyId,
+                ),
+              ),
+            );
           } catch (e) {
             if (mounted) setState(() => _error = toUserFriendlyMessage(e));
           }
@@ -344,7 +356,11 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const JourneyMapScreen(),
+          builder: (_) => JourneyMapScreen(
+            journeyTitle: _journey?.name ?? 'Journey',
+            landmarksJourneyId: widget.journeyId.replaceAll('_', ''),
+            catalogJourneyId: widget.journeyId,
+          ),
         ),
       );
     }
@@ -420,13 +436,15 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     return Scaffold(
       backgroundColor: AppColors.green,
       appBar: AppBar(
-        title: const Text(
-          'Darb Al-Sunnah',
-          style: TextStyle(
+        title: Text(
+          journey.name,
+          style: const TextStyle(
             color: AppColors.brown,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         centerTitle: true,
         backgroundColor: AppColors.green,
@@ -736,7 +754,7 @@ class _DetailCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(
-                '8',
+                '7',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,

@@ -1,0 +1,168 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Document in `journey_landmarks/{docId}`.
+/// **Region** on the map is tied to **[order]** (order 1 → region 1), not the document id.
+class JourneyLandmark {
+  const JourneyLandmark({
+    required this.documentId,
+    required this.journeyId,
+    required this.order,
+    required this.name,
+    this.description,
+    this.distanceFromPreviousMeters,
+    this.walkingTimeFromPreviousMinutes,
+    this.latitude,
+    this.longitude,
+  });
+
+  /// Must match Firestore field names exactly (camelCase).
+  static const String firestoreFieldDistanceFromPreviousMeters = 'distanceFromPreviousMeters';
+  static const String firestoreFieldWalkingTimeFromPreviousMinutes = 'walkingTimeFromPreviousMinutes';
+
+  final String documentId;
+  final String journeyId;
+
+  /// Visit order; matches SVG **region** index (1 → region 1).
+  final int order;
+  final String name;
+
+  /// Longer copy for the region sheet; from Firestore `description` (and common aliases).
+  final String? description;
+
+  /// Leg from the previous landmark in the journey (meaningful for [order] > 1).
+  final int? distanceFromPreviousMeters;
+  final int? walkingTimeFromPreviousMinutes;
+
+  /// Destination coordinates for external Google Maps.
+  final double? latitude;
+  final double? longitude;
+
+  bool get hasCoordinates =>
+      latitude != null && longitude != null && latitude!.isFinite && longitude!.isFinite;
+
+  static String? _readDescription(Map<String, dynamic> data) {
+    const keys = ['description', 'landmarkDescription', 'about', 'desc', 'details'];
+    for (final key in keys) {
+      final v = data[key];
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+    }
+    return null;
+  }
+
+  factory JourneyLandmark.fromFirestore(String docId, Map<String, dynamic> data) {
+    final order = _readOrder(data);
+    final lat = _readLatitude(data);
+    final lng = _readLongitude(data);
+    return JourneyLandmark(
+      documentId: docId,
+      journeyId: (data['journeyId'] as String?) ?? '',
+      order: order,
+      name: (data['name'] as String?)?.trim().isNotEmpty == true
+          ? data['name'] as String
+          : 'Landmark',
+      description: _readDescription(data),
+      distanceFromPreviousMeters: _readFirestoreInt(
+        data,
+        firestoreFieldDistanceFromPreviousMeters,
+      ),
+      walkingTimeFromPreviousMinutes: _readFirestoreInt(
+        data,
+        firestoreFieldWalkingTimeFromPreviousMinutes,
+      ),
+      latitude: lat,
+      longitude: lng,
+    );
+  }
+
+  /// Reads a nullable int from [data] for [key]. Null-safe; supports Firestore [int], [double]/[num]
+  /// (common on web/JS interop for integer fields), numeric [String], and other numeric-like values.
+  static int? _readFirestoreInt(Map<String, dynamic> data, String key) {
+    if (!data.containsKey(key)) return null;
+    return _coerceToInt(data[key]);
+  }
+
+  static int? _coerceToInt(Object? value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) {
+      if (value.isNaN || value.isInfinite) return null;
+      // Whole numbers only; avoids silent truncation of true fractional values.
+      final r = value.round();
+      if ((value - r).abs() > 1e-6) return null;
+      return r;
+    }
+    if (value is num) {
+      final d = value.toDouble();
+      if (d.isNaN || d.isInfinite) return null;
+      final r = d.round();
+      if ((d - r).abs() > 1e-6) return null;
+      return r;
+    }
+    if (value is String) {
+      final t = value.trim();
+      if (t.isEmpty) return null;
+      return int.tryParse(t);
+    }
+    // Rare: platform-specific numeric wrappers; `toString()` then [num.parse] is last resort.
+    try {
+      final n = num.tryParse(value.toString());
+      if (n == null) return null;
+      final d = n.toDouble();
+      if (d.isNaN || d.isInfinite) return null;
+      return d.round();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Prefer field `order`; fall back to `landmarkNumber` for older documents.
+  static int _readOrder(Map<String, dynamic> data) {
+    final o = _readFirestoreInt(data, 'order');
+    if (o != null && o > 0) return o;
+    final legacy = _readFirestoreInt(data, 'landmarkNumber');
+    if (legacy != null && legacy > 0) return legacy;
+    return 0;
+  }
+
+  static double? _readLatitude(Map<String, dynamic> data) {
+    final direct = data['latitude'] ?? data['lat'];
+    final n = _coerceToDouble(direct);
+    if (n != null) return n;
+    for (final key in ['location', 'coordinates', 'position']) {
+      final g = data[key];
+      if (g is GeoPoint) return g.latitude;
+    }
+    return null;
+  }
+
+  static double? _readLongitude(Map<String, dynamic> data) {
+    final direct = data['longitude'] ?? data['lng'];
+    final n = _coerceToDouble(direct);
+    if (n != null) return n;
+    for (final key in ['location', 'coordinates', 'position']) {
+      final g = data[key];
+      if (g is GeoPoint) return g.longitude;
+    }
+    return null;
+  }
+
+  static double? _coerceToDouble(Object? value) {
+    if (value == null) return null;
+    if (value is double) {
+      if (value.isNaN || value.isInfinite) return null;
+      return value;
+    }
+    if (value is int) return value.toDouble();
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final t = value.trim();
+      if (t.isEmpty) return null;
+      return double.tryParse(t);
+    }
+    try {
+      return double.tryParse(value.toString());
+    } catch (_) {
+      return null;
+    }
+  }
+}

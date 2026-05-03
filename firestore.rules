@@ -55,6 +55,12 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
+    // Journey landmarks (names / map order). Read for signed-in users; writes via Admin only.
+    match /journey_landmarks/{landmarkId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // FAQs: anyone can read, no client writes.
     match /faqs/{faqId} {
       allow read: if true;

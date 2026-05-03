@@ -8,6 +8,7 @@ import '../../data/repoImp/auth_repository_firebase.dart';
 import '../faq/faqs_page.dart';
 import '../journey/journey_list_screen.dart';
 import '../auth/login_screen.dart';
+import 'landing_page.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -122,12 +123,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _logout() async {
     await AuthRepositoryFirebase(AuthDataSource()).logout();
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (c) => LoginScreen(
+          hideBackButton: true,
+          authBottomNav: AppBottomNav(
+            selectedIndex: 2,
+            onHomeTap: () => Navigator.of(c).pushAndRemoveUntil(
+                  MaterialPageRoute<void>(builder: (_) => const LandingPage()),
+                  (_) => false,
+                ),
+            onActiveJourneysTap: () => Navigator.of(c).pushAndRemoveUntil(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const JourneyListScreen(),
+                  ),
+                  (_) => false,
+                ),
+            onProfileTap: () {},
+          ),
+        ),
+      ),
+      (_) => false,
+    );
   }
 
   @override
@@ -175,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Center(
                   child: CircleAvatar(
                     radius: 50,
-                    backgroundColor: Colors.white.withOpacity(0.5),
+                    backgroundColor: AppColors.beige.withValues(alpha: 0.88),
                     child: Icon(
                       Icons.person,
                       size: 50,
@@ -247,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               width: 200,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.5),
+                                color: AppColors.beige.withValues(alpha: 0.88),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: AppColors.brown.withOpacity(0.2)),
                               ),
@@ -306,7 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               width: 280,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.5),
+                                color: AppColors.beige.withValues(alpha: 0.88),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: AppColors.brown.withOpacity(0.2)),
                               ),
@@ -364,7 +382,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.5),
+                    color: AppColors.beige.withValues(alpha: 0.88),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.brown.withOpacity(0.2)),
                   ),
@@ -398,7 +416,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _iconButton(IconData icon, VoidCallback onPressed) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: AppColors.beige.withValues(alpha: 0.88),
         shape: BoxShape.circle,
       ),
       child: IconButton(
@@ -412,7 +430,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: AppColors.beige.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.brown.withOpacity(0.2)),
       ),
@@ -441,7 +459,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: AppColors.beige.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.brown.withOpacity(0.2)),
       ),

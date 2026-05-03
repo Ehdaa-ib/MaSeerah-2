@@ -58,8 +58,34 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   void _openSignIn() {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    final landingContext = context;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (sheetContext) => LoginScreen(
+          hideBackButton: true,
+          authBottomNav: AppBottomNav(
+            selectedIndex: 2,
+            onHomeTap: () {
+              Navigator.of(sheetContext).pop();
+              setState(() => _selectedNavIndex = 0);
+            },
+            onActiveJourneysTap: () {
+              Navigator.of(sheetContext).pop();
+              setState(() => _selectedNavIndex = 1);
+              Navigator.of(landingContext).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const JourneyListScreen(),
+                ),
+              );
+            },
+            onProfileTap: () {
+              Navigator.of(sheetContext).pop();
+              setState(() => _selectedNavIndex = 2);
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   void _openJourney(Journey? journey) {
