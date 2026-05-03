@@ -506,7 +506,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   }
 }
 
-/// Region popup: close (left), centered title, 1:00 countdown (right), description, then challenge CTA.
+/// Region popup: close (left), centered title, countdown (right), description, then challenge CTA.
 class _RegionLandmarkChallengeSheet extends StatefulWidget {
   const _RegionLandmarkChallengeSheet({
     required this.width,
@@ -529,7 +529,7 @@ class _RegionLandmarkChallengeSheet extends StatefulWidget {
 }
 
 class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeSheet> {
-  static const int _initialSeconds = 60;
+  static const int _initialSeconds = 2;
   int _secondsLeft = _initialSeconds;
   Timer? _timer;
 

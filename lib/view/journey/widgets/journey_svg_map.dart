@@ -5,12 +5,36 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:path_drawing/path_drawing.dart';
 
+/// Blend toward Rec.709 luma for locked region art (see [_kLockedRegionColorFilter]).
+const double _kMapRegionInactiveBlend = 0.52;
+
+/// Rec.709 luma blend at paint time so every layer (including decor) mutes the same
+/// way. [ColorMapper] during SVG compile can still miss some vector_graphics paths.
+final ColorFilter _kLockedRegionColorFilter = () {
+  const t = _kMapRegionInactiveBlend;
+  const lr = 0.2126, lg = 0.7152, lb = 0.0722;
+  const omt = 1.0 - t;
+  return ColorFilter.matrix(<double>[
+    omt + t * lr, t * lg, t * lb, 0, 0,
+    t * lr, omt + t * lg, t * lb, 0, 0,
+    t * lr, t * lg, omt + t * lb, 0, 0,
+    0, 0, 0, 1, 0,
+  ]);
+}();
+
 /// Renders an SVG journey map where each region is a `<g id="region_N">...</g>`
 /// group inside the SVG (N = 1..regionCount).
 ///
+/// Optional sibling decoration groups: `<g class="regionN_decor">` or
+/// `id="regionN_decor"` / `id="region_N_decor"` (same clip root as regions).
+/// They are merged into that region’s decor layer and hit path.
+///
+/// Optional global art: `<g id="map_overlay">...</g>` — drawn on top, tied to
+/// **region 1** for tint and hit-testing (legacy / global chrome).
+///
 /// - Completed regions: full color
 /// - Active region: full color + tappable
-/// - Future regions: grayscale + not tappable
+/// - Future regions: muted tint (paint-time [ColorFiltered] matrix) + not tappable
 ///
 /// If the SVG does not contain the required group ids, this widget falls back
 /// to rendering the entire SVG (non-interactive).
@@ -78,6 +102,8 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
           return SvgPicture.string(
             res.fullSvg,
             fit: BoxFit.contain,
+            clipBehavior: Clip.none,
+            allowDrawingOutsideViewBox: true,
           );
         }
 
@@ -114,6 +140,14 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
                       isActive: i == widget.currentRegion,
                       onTap: null,
                     ),
+                // Legacy global overlay (e.g. untagged buildings); tied to region 1.
+                if (res.mapOverlaySvg != null)
+                  _RegionLayer(
+                    svg: res.mapOverlaySvg!,
+                    isCompleted: 1 < widget.currentRegion,
+                    isActive: 1 == widget.currentRegion,
+                    onTap: null,
+                  ),
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
@@ -150,30 +184,29 @@ class _RegionLayer extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _inactiveGray = ColorFilter.matrix(<double>[
-    // classic luminance grayscale
-    0.2126, 0.7152, 0.0722, 0, 0, //
-    0.2126, 0.7152, 0.0722, 0, 0, //
-    0.2126, 0.7152, 0.0722, 0, 0, //
-    0, 0, 0, 1, 0, //
-  ]);
-
   @override
   Widget build(BuildContext context) {
-    final future = !isCompleted && !isActive;
-    final child = SvgPicture.string(svg, fit: BoxFit.contain);
+    final isLocked = !isCompleted && !isActive;
+    Widget child = SvgPicture.string(
+      svg,
+      fit: BoxFit.contain,
+      clipBehavior: Clip.none,
+      allowDrawingOutsideViewBox: true,
+    );
+    if (isLocked) {
+      child = ColorFiltered(
+        colorFilter: _kLockedRegionColorFilter,
+        child: child,
+      );
+    }
 
-    final filtered = future
-        ? ColorFiltered(colorFilter: _inactiveGray, child: child)
-        : child;
-
-    if (onTap == null) return filtered;
+    if (onTap == null) return child;
 
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
         onTap: onTap,
-        child: filtered,
+        child: child,
       ),
     );
   }
@@ -183,6 +216,8 @@ class _SvgSplitResult {
   final String fullSvg;
   final Map<int, String> regionSvgs;
   final Map<int, String> regionDecorSvgs;
+  /// Optional mini-SVG for `<g id="map_overlay">` (or loose paths after region 1).
+  final String? mapOverlaySvg;
   final bool hasAllRegions;
   final _ViewBox viewBox;
   final Map<int, Path> regionHitPaths;
@@ -191,6 +226,7 @@ class _SvgSplitResult {
     required this.fullSvg,
     required this.regionSvgs,
     required this.regionDecorSvgs,
+    this.mapOverlaySvg,
     required this.hasAllRegions,
     required this.viewBox,
     required this.regionHitPaths,
@@ -226,12 +262,18 @@ class _SvgSplitter {
         body: split.base,
       );
 
-      if (split.decor != null) {
+      final siblingDecor = _extractSiblingDecorGroup(svg, i);
+      var decorBody = split.decor;
+      if (siblingDecor != null) {
+        decorBody =
+            decorBody == null ? siblingDecor : '$decorBody\n$siblingDecor';
+      }
+      if (decorBody != null && decorBody.isNotEmpty) {
         decorRegions[i] = _wrapSvg(
           viewBox: viewBoxRaw,
           defs: defs,
           rootGroupOpen: rootGroupOpen,
-          body: split.decor!,
+          body: decorBody,
         );
       }
 
@@ -241,6 +283,24 @@ class _SvgSplitter {
           hitPaths[i] = parseSvgPathData(d);
         } catch (_) {}
       }
+      if (siblingDecor != null && hitPaths[i] != null) {
+        _mergeOverlayPathsIntoRegionHit(hitPaths, siblingDecor, bindRegion: i);
+      }
+    }
+
+    final String? overlayInner =
+        _extractMapOverlayBodyById(svg) ?? _extractLooseOverlayAfterRegion1(svg);
+    final mapOverlaySvg = overlayInner != null && overlayInner.isNotEmpty
+        ? _wrapSvg(
+            viewBox: viewBoxRaw,
+            defs: defs,
+            rootGroupOpen: rootGroupOpen,
+            body: overlayInner,
+          )
+        : null;
+
+    if (overlayInner != null && overlayInner.isNotEmpty) {
+      _mergeOverlayPathsIntoRegionHit(hitPaths, overlayInner, bindRegion: 1);
     }
 
     final hasAll = regions.length == regionCount;
@@ -248,10 +308,144 @@ class _SvgSplitter {
       fullSvg: svg,
       regionSvgs: regions,
       regionDecorSvgs: decorRegions,
+      mapOverlaySvg: mapOverlaySvg,
       hasAllRegions: hasAll,
       viewBox: viewBox,
       regionHitPaths: hitPaths,
     );
+  }
+
+  /// `<g id="map_overlay">...</g>` — buildings/decoration outside region groups.
+  static String? _extractMapOverlayBodyById(String svg) {
+    final re = RegExp(
+      r'<g\b[^>]*\bid="map_overlay"[^>]*>',
+      caseSensitive: false,
+    );
+    final m = re.firstMatch(svg);
+    if (m == null) return null;
+    final gStart = m.start;
+    final firstTagEnd = svg.indexOf('>', gStart);
+    if (firstTagEnd == -1) return null;
+
+    var depth = 1;
+    var i = firstTagEnd + 1;
+    while (i < svg.length) {
+      final nextOpen = svg.indexOf('<g', i);
+      final nextClose = svg.indexOf('</g', i);
+      if (nextClose == -1) return null;
+
+      if (nextOpen != -1 && nextOpen < nextClose) {
+        depth++;
+        final openEnd = svg.indexOf('>', nextOpen);
+        if (openEnd == -1) return null;
+        i = openEnd + 1;
+        continue;
+      }
+
+      depth--;
+      final closeEnd = svg.indexOf('>', nextClose);
+      if (closeEnd == -1) return null;
+      i = closeEnd + 1;
+
+      if (depth == 0) {
+        return svg.substring(firstTagEnd + 1, nextClose).trim();
+      }
+    }
+    return null;
+  }
+
+  /// Fallback: paths between the region-1 `</g>` and the clip root `</g>` (no overlay id).
+  static String? _extractLooseOverlayAfterRegion1(String svg) {
+    final re = RegExp(
+      r'class="(?:region_1|region1)"[^>]*/>\s*</g>\s*([\s\S]*?)\s*</g>\s*<defs',
+      caseSensitive: false,
+    );
+    final m = re.firstMatch(svg);
+    if (m == null) return null;
+    final inner = m.group(1)!.trim();
+    if (inner.isEmpty) return null;
+    if (!RegExp(r'<(path|g|circle|rect|ellipse|polygon|polyline|line)\b',
+            caseSensitive: false)
+        .hasMatch(inner)) {
+      return null;
+    }
+    return inner;
+  }
+
+  static void _mergeOverlayPathsIntoRegionHit(
+    Map<int, Path> hitPaths,
+    String overlayInner, {
+    required int bindRegion,
+  }) {
+    final existing = hitPaths[bindRegion];
+    if (existing == null) return;
+    var combined = existing;
+
+    final re = RegExp(
+      r'<path\b[^>]*\bd="([^"]+)"',
+      caseSensitive: false,
+    );
+    for (final m in re.allMatches(overlayInner)) {
+      final d = m.group(1);
+      if (d == null || d.isEmpty) continue;
+      try {
+        final extra = parseSvgPathData(d);
+        combined = Path.combine(PathOperation.union, combined, extra);
+      } catch (_) {}
+    }
+    hitPaths[bindRegion] = combined;
+  }
+
+  /// Sibling `<g class="regionN_decor">…</g>` or `id="regionN_decor"` / `region_N_decor`.
+  ///
+  /// Class matching must **not** use `(?:^|\\s)` around the token: `^` is the start
+  /// of the whole SVG, so `class="region2_decor"` would never match.
+  static String? _extractSiblingDecorGroup(String svg, int n) {
+    for (final id in ['region_${n}_decor', 'region${n}_decor']) {
+      final byId = _extractElementById(svg, id);
+      if (byId != null) return byId;
+    }
+    final ns = n.toString();
+    final re = RegExp(
+      r'<g\b[^>]*class="\s*(?:[^"]*\s)?region_?' +
+          ns +
+          r'_decor(?:\s[^"]*)?"[^>]*>',
+      caseSensitive: false,
+    );
+    final m = re.firstMatch(svg);
+    if (m == null) return null;
+    return _extractGGroupByDepth(svg, m.start);
+  }
+
+  /// Full `<g …>…</g>` starting at [gStart] (balanced nested `<g>`).
+  static String? _extractGGroupByDepth(String svg, int gStart) {
+    final firstTagEnd = svg.indexOf('>', gStart);
+    if (firstTagEnd == -1) return null;
+    var depth = 1;
+    var i = firstTagEnd + 1;
+    while (i < svg.length) {
+      final nextOpen = svg.indexOf('<g', i);
+      final nextClose = svg.indexOf('</g', i);
+      if (nextClose == -1) return null;
+
+      if (nextOpen != -1 && nextOpen < nextClose) {
+        depth++;
+        final openEnd = svg.indexOf('>', nextOpen);
+        if (openEnd == -1) return null;
+        i = openEnd + 1;
+        continue;
+      }
+
+      depth--;
+      final closeEnd = svg.indexOf('>', nextClose);
+      if (closeEnd == -1) return null;
+      i = closeEnd + 1;
+
+      if (depth == 0) {
+        return svg.substring(gStart, closeEnd + 1);
+      }
+    }
+    return null;
   }
 
   static String _wrapSvg({
@@ -335,10 +529,9 @@ $body$rootClose
   }
 
   static String _regionClassPattern(int n) {
-    // Matches token region_1 or region1 as whole class token.
-    // This pattern is used *inside* a class attribute value, so we avoid ^/$.
-    // Example: class="foo region_2 bar" or class="region9"
-    return r'(?:\s|^)region_?' + n.toString() + r'(?:\s|$)';
+    // Whole token inside class="...". Do not use `^` here — that anchors the whole SVG.
+    // Word boundaries work after the opening quote (e.g. class="region_2").
+    return r'\bregion_?' + n.toString() + r'\b';
   }
 
   static String? _extractGroupByRegionClass(String svg, int regionNumber) {
