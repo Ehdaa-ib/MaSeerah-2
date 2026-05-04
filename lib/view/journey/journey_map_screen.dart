@@ -254,6 +254,12 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   bool get _footerVisible =>
       _regionSheetRegion == null && !_emptyChallengeOverlay;
 
+  /// Bottom gap under the scrollable map so the last pixels can scroll above the overlay footer.
+  double _mapScrollBottomInset(BuildContext context) {
+    if (!_footerVisible) return 24;
+    return MediaQuery.viewPaddingOf(context).bottom + 136;
+  }
+
   bool _journeyMentionsQuba() {
     for (final l in _landmarks) {
       if (l.name.toLowerCase().contains('quba')) return true;
@@ -488,28 +494,50 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                   const svgHeight = 850.0;
                   final w = constraints.maxWidth;
                   final h = w * (svgHeight / svgWidth);
+                  const topInset = 6.0;
+                  final bottomInset = _mapScrollBottomInset(context);
+                  final maxH = constraints.maxHeight;
+
+                  final map = SizedBox(
+                    width: w,
+                    height: h,
+                    child: JourneySvgMap(
+                      assetPath: 'images/map.svg',
+                      activeMapAssetPath: 'images/map_active.png',
+                      inactiveMapAssetPath: 'images/map_inactive.png',
+                      regionCount: _mapRegionCount,
+                      currentRegion: currentRegion,
+                      allowTapInactive: true,
+                      onRegionTap: _onRegionTap,
+                    ),
+                  );
+
+                  // When the body is taller than the map, a plain [SingleChildScrollView]
+                  // leaves beige below the map; pin the map to the bottom (above the footer inset).
+                  if (topInset + h + bottomInset <= maxH) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: topInset),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: map,
+                            ),
+                          ),
+                          SizedBox(height: bottomInset),
+                        ],
+                      ),
+                    );
+                  }
 
                   return SingleChildScrollView(
                     padding: EdgeInsets.only(
-                      top: 6,
-                      bottom: _footerVisible ? 200 : 24,
+                      top: topInset,
+                      bottom: bottomInset,
                     ),
-                    child: SizedBox(
-                      width: w,
-                      height: h,
-                      child: JourneySvgMap(
-<<<<<<< HEAD
-                        assetPath: 'images/map.svg',
-                        activeMapAssetPath: 'images/map_active.png',
-                        inactiveMapAssetPath: 'images/map_inactive.png',
-=======
-                        regionCount: _mapRegionCount,
->>>>>>> d94c13d2441156df11db9881aad7b3dc550d463e
-                        currentRegion: currentRegion,
-                        allowTapInactive: true,
-                        onRegionTap: _onRegionTap,
-                      ),
-                    ),
+                    child: map,
                   );
                 },
               ),

@@ -2,50 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:path_drawing/path_drawing.dart';
 
-/// Blend toward Rec.709 luma for locked region art (see [_kLockedRegionColorFilter]).
-const double _kMapRegionInactiveBlend = 0.52;
-
-/// Rec.709 luma blend at paint time so every layer (including decor) mutes the same
-/// way. [ColorMapper] during SVG compile can still miss some vector_graphics paths.
-final ColorFilter _kLockedRegionColorFilter = () {
-  const t = _kMapRegionInactiveBlend;
-  const lr = 0.2126, lg = 0.7152, lb = 0.0722;
-  const omt = 1.0 - t;
-  return ColorFilter.matrix(<double>[
-    omt + t * lr, t * lg, t * lb, 0, 0,
-    t * lr, omt + t * lg, t * lb, 0, 0,
-    t * lr, t * lg, omt + t * lb, 0, 0,
-    0, 0, 0, 1, 0,
-  ]);
-}();
-
-/// Renders an SVG journey map where each region is a `<g id="region_N">...</g>`
-/// group inside the SVG (N = 1..regionCount).
+/// Journey map: **PNGs** for artwork, **`map.svg`** only for region paths (taps + clip holes).
 ///
-/// Optional sibling decoration groups: `<g class="regionN_decor">` or
-/// `id="regionN_decor"` / `id="region_N_decor"` (same clip root as regions).
-/// They are merged into that region’s decor layer and hit path.
+/// [activeMapAssetPath] is the full-color raster underneath. [inactiveMapAssetPath] is drawn
+/// on top and clipped so regions `1..currentRegion` are cut out. Use an empty
+/// [inactiveMapAssetPath] to show only the active image (no gray overlay).
 ///
-/// Optional global art: `<g id="map_overlay">...</g>` — drawn on top, tied to
-/// **region 1** for tint and hit-testing (legacy / global chrome).
-///
-/// - Completed regions: full color
-/// - Active region: full color + tappable
-/// - Future regions: muted tint (paint-time [ColorFiltered] matrix) + not tappable
-///
-/// If [inactiveMapAssetPath] is non-empty, the visible map uses **raster images** (fast):
-/// [activeMapAssetPath] (e.g. PNG) is drawn underneath, [inactiveMapAssetPath] on top with a
-/// clip so regions `1..currentRegion` are cut out—revealing the active map as the journey
-/// progresses. Region geometry for clipping and taps still comes from parsing [assetPath]
-/// (typically a lightweight `map.svg` with region paths only).
-///
-/// If the SVG does not contain the required group ids, this widget falls back
-/// to rendering the entire SVG (non-interactive).
+/// [assetPath] must stay aligned with the PNGs (`class="region_N"` / `region_N` on paths;
+/// optional `regionN_decor` and `map_overlay` affect hit-testing only).
 class JourneySvgMap extends StatefulWidget {
-  /// SVG used for region splitting and hit-testing (e.g. `images/map.svg`).
+  /// SVG read for geometry only (not painted).
   final String assetPath;
   /// Full-color map image drawn under the inactive overlay in dual-map mode (e.g. PNG).
   final String activeMapAssetPath;
@@ -59,7 +27,6 @@ class JourneySvgMap extends StatefulWidget {
   final ValueChanged<int>? onRegionTap;
 
   /// If true, all regions are tappable (active/inactive).
-  /// Inactive regions are still rendered with a grayscale filter.
   final bool allowTapInactive;
 
   const JourneySvgMap({
@@ -110,32 +77,20 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
         }
         final res = snap.data!;
 
-        // Fallback: show whole SVG if we couldn't find the region groups.
         if (!res.hasAllRegions) {
-          if (widget.inactiveMapAssetPath.isNotEmpty &&
-              widget.activeMapAssetPath.isNotEmpty) {
+          if (widget.activeMapAssetPath.isNotEmpty) {
             return Image.asset(
               widget.activeMapAssetPath,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.low,
             );
           }
-          return SvgPicture.string(
-            res.fullSvg,
-            fit: BoxFit.contain,
-            clipBehavior: Clip.none,
-            allowDrawingOutsideViewBox: true,
-          );
+          return const Center(child: Icon(Icons.map_outlined));
         }
 
         if (widget.inactiveMapAssetPath.isNotEmpty) {
           if (widget.activeMapAssetPath.isEmpty) {
-            return SvgPicture.string(
-              res.fullSvg,
-              fit: BoxFit.contain,
-              clipBehavior: Clip.none,
-              allowDrawingOutsideViewBox: true,
-            );
+            return _rasterMapWithHits(context, res, top: widget.inactiveMapAssetPath);
           }
           return LayoutBuilder(
             builder: (context, constraints) {
@@ -174,149 +129,77 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
                       gaplessPlayback: true,
                     ),
                   ),
-                  Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTapDown: (details) {
-                        final ro = context.findRenderObject();
-                        if (ro is! RenderBox) return;
-                        final local = ro.globalToLocal(details.globalPosition);
-                        final region = hit.hitTest(local, ro.size);
-                        if (region == null) return;
-                        if (!widget.allowTapInactive &&
-                            region != widget.currentRegion) {
-                          return;
-                        }
-                        widget.onRegionTap?.call(region);
-                      },
-                    ),
-                  ),
+                  _regionTapOverlay(context, hit),
                 ],
               );
             },
           );
         }
 
-        // Render each region as its own layer so we can control filters.
-        // Taps are handled via real hit-testing against the region path data,
-        // otherwise InkWell would treat each region layer as a full-rect hit area.
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final hit = _SvgHitTester(
-              viewBox: res.viewBox,
-              regionPaths: res.regionHitPaths,
-            );
+        return _rasterMapWithHits(context, res, top: widget.activeMapAssetPath);
+      },
+    );
+  }
 
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                // Match SVG paint order: earlier elements are "behind".
-                // Figma exports these regions in 9..1 order, so render from
-                // regionCount down to 1 to keep decorations visible.
-                for (int i = widget.regionCount; i >= 1; i--)
-                  _RegionLayer(
-                    svg: res.regionSvgs[i]!,
-                    isCompleted: i < widget.currentRegion,
-                    isActive: i == widget.currentRegion,
-                    onTap: null,
-                  ),
-                // Decorations should be painted on top of all regions, otherwise
-                // later region shapes can cover them.
-                for (int i = widget.regionCount; i >= 1; i--)
-                  if (res.regionDecorSvgs[i] != null)
-                    _RegionLayer(
-                      svg: res.regionDecorSvgs[i]!,
-                      isCompleted: i < widget.currentRegion,
-                      isActive: i == widget.currentRegion,
-                      onTap: null,
-                    ),
-                // Legacy global overlay (e.g. untagged buildings); tied to region 1.
-                if (res.mapOverlaySvg != null)
-                  _RegionLayer(
-                    svg: res.mapOverlaySvg!,
-                    isCompleted: 1 < widget.currentRegion,
-                    isActive: 1 == widget.currentRegion,
-                    onTap: null,
-                  ),
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTapDown: (details) {
-                      final ro = context.findRenderObject();
-                      if (ro is! RenderBox) return;
-                      final local = ro.globalToLocal(details.globalPosition);
-                      final region = hit.hitTest(local, ro.size);
-                      if (region == null) return;
-                      if (!widget.allowTapInactive && region != widget.currentRegion) return;
-                      widget.onRegionTap?.call(region);
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
+  /// Single full-bleed raster ([top]) with path-based region taps.
+  Widget _rasterMapWithHits(
+    BuildContext context,
+    _SvgSplitResult res, {
+    required String top,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hit = _SvgHitTester(
+          viewBox: res.viewBox,
+          regionPaths: res.regionHitPaths,
+        );
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final cw = (constraints.maxWidth * dpr).round().clamp(1, 4096);
+        final ch = (constraints.maxHeight * dpr).round().clamp(1, 4096);
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              top,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.low,
+              cacheWidth: cw,
+              cacheHeight: ch,
+              gaplessPlayback: true,
+            ),
+            _regionTapOverlay(context, hit),
+          ],
         );
       },
     );
   }
-}
 
-class _RegionLayer extends StatelessWidget {
-  final String svg;
-  final bool isCompleted;
-  final bool isActive;
-  final VoidCallback? onTap;
-
-  const _RegionLayer({
-    required this.svg,
-    required this.isCompleted,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isLocked = !isCompleted && !isActive;
-    Widget child = SvgPicture.string(
-      svg,
-      fit: BoxFit.contain,
-      clipBehavior: Clip.none,
-      allowDrawingOutsideViewBox: true,
-    );
-    if (isLocked) {
-      child = ColorFiltered(
-        colorFilter: _kLockedRegionColorFilter,
-        child: child,
-      );
-    }
-
-    if (onTap == null) return child;
-
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: onTap,
-        child: child,
+  Widget _regionTapOverlay(BuildContext context, _SvgHitTester hit) {
+    return Positioned.fill(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTapDown: (details) {
+          final ro = context.findRenderObject();
+          if (ro is! RenderBox) return;
+          final local = ro.globalToLocal(details.globalPosition);
+          final region = hit.hitTest(local, ro.size);
+          if (region == null) return;
+          if (!widget.allowTapInactive && region != widget.currentRegion) {
+            return;
+          }
+          widget.onRegionTap?.call(region);
+        },
       ),
     );
   }
 }
 
 class _SvgSplitResult {
-  final String fullSvg;
-  final Map<int, String> regionSvgs;
-  final Map<int, String> regionDecorSvgs;
-  /// Optional mini-SVG for `<g id="map_overlay">` (or loose paths after region 1).
-  final String? mapOverlaySvg;
   final bool hasAllRegions;
   final _ViewBox viewBox;
   final Map<int, Path> regionHitPaths;
 
   const _SvgSplitResult({
-    required this.fullSvg,
-    required this.regionSvgs,
-    required this.regionDecorSvgs,
-    this.mapOverlaySvg,
     required this.hasAllRegions,
     required this.viewBox,
     required this.regionHitPaths,
@@ -327,45 +210,19 @@ class _SvgSplitter {
   static _SvgSplitResult splitIntoRegions(String svg, int regionCount) {
     final viewBoxRaw = _extractViewBox(svg);
     final viewBox = _ViewBox.parse(viewBoxRaw);
-    final defs = _extractDefs(svg);
-    final rootGroupOpen = _extractRootGroupOpen(svg);
-
-    final regions = <int, String>{};
-    final decorRegions = <int, String>{};
     final hitPaths = <int, Path>{};
 
     // Fast path: if regions are tagged on paths via class="region_1"/"region1",
     // collect them in one scan (more reliable than regexing with ^ anchors).
     final classTaggedPaths = _extractRegionPathsByClass(svg);
 
+    var foundCount = 0;
     for (int i = 1; i <= regionCount; i++) {
       // Preferred: `<g id="region_N">...</g>` (or any element with id="region_N").
       // Fallback: elements/groups tagged via class e.g. class="region_1" or class="region1".
       final element = _extractRegionElement(svg, i) ?? classTaggedPaths[i];
       if (element == null) continue;
-
-      final split = _splitRegionBaseAndDecor(element, i);
-      regions[i] = _wrapSvg(
-        viewBox: viewBoxRaw,
-        defs: defs,
-        rootGroupOpen: rootGroupOpen,
-        body: split.base,
-      );
-
-      final siblingDecor = _extractSiblingDecorGroup(svg, i);
-      var decorBody = split.decor;
-      if (siblingDecor != null) {
-        decorBody =
-            decorBody == null ? siblingDecor : '$decorBody\n$siblingDecor';
-      }
-      if (decorBody != null && decorBody.isNotEmpty) {
-        decorRegions[i] = _wrapSvg(
-          viewBox: viewBoxRaw,
-          defs: defs,
-          rootGroupOpen: rootGroupOpen,
-          body: decorBody,
-        );
-      }
+      foundCount++;
 
       final d = _extractHitPathD(element, i);
       if (d != null) {
@@ -373,6 +230,7 @@ class _SvgSplitter {
           hitPaths[i] = parseSvgPathData(d);
         } catch (_) {}
       }
+      final siblingDecor = _extractSiblingDecorGroup(svg, i);
       if (siblingDecor != null && hitPaths[i] != null) {
         _mergeOverlayPathsIntoRegionHit(hitPaths, siblingDecor, bindRegion: i);
       }
@@ -380,25 +238,12 @@ class _SvgSplitter {
 
     final String? overlayInner =
         _extractMapOverlayBodyById(svg) ?? _extractLooseOverlayAfterRegion1(svg);
-    final mapOverlaySvg = overlayInner != null && overlayInner.isNotEmpty
-        ? _wrapSvg(
-            viewBox: viewBoxRaw,
-            defs: defs,
-            rootGroupOpen: rootGroupOpen,
-            body: overlayInner,
-          )
-        : null;
-
     if (overlayInner != null && overlayInner.isNotEmpty) {
       _mergeOverlayPathsIntoRegionHit(hitPaths, overlayInner, bindRegion: 1);
     }
 
-    final hasAll = regions.length == regionCount;
+    final hasAll = foundCount == regionCount;
     return _SvgSplitResult(
-      fullSvg: svg,
-      regionSvgs: regions,
-      regionDecorSvgs: decorRegions,
-      mapOverlaySvg: mapOverlaySvg,
       hasAllRegions: hasAll,
       viewBox: viewBox,
       regionHitPaths: hitPaths,
@@ -538,40 +383,9 @@ class _SvgSplitter {
     return null;
   }
 
-  static String _wrapSvg({
-    required String viewBox,
-    required String defs,
-    required String? rootGroupOpen,
-    required String body,
-  }) {
-    final rootOpen = rootGroupOpen ?? '';
-    final rootClose = rootGroupOpen != null ? '\n</g>' : '';
-    return '''
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="$viewBox">
-$defs
-$rootOpen
-$body$rootClose
-</svg>
-''';
-  }
-
   static String _extractViewBox(String svg) {
     final m = RegExp(r'viewBox="([^"]+)"', caseSensitive: false).firstMatch(svg);
     return m?.group(1) ?? '0 0 430 850';
-  }
-
-  static String _extractDefs(String svg) {
-    final m = RegExp(r'<defs\b[^>]*>[\s\S]*?</defs>', caseSensitive: false)
-        .firstMatch(svg);
-    return m?.group(0) ?? '';
-  }
-
-  static String? _extractRootGroupOpen(String svg) {
-    // Capture the first <g ...> tag right under <svg>. This commonly contains
-    // the global clip-path used by the export (e.g. clip-path="url(#a)").
-    final m = RegExp(r'<svg\b[^>]*>[\s\S]*?(<g\b[^>]*>)', caseSensitive: false)
-        .firstMatch(svg);
-    return m?.group(1);
   }
 
   static String? _extractElementById(String svg, String id) {
@@ -665,34 +479,6 @@ $body$rootClose
     ).firstMatch(elementSvg);
     if (tagged != null) return tagged.group(1);
     return _extractFirstPathD(elementSvg);
-  }
-
-  static ({String base, String? decor}) _splitRegionBaseAndDecor(
-    String elementSvg,
-    int regionNumber,
-  ) {
-    // Prefer the region-tagged <path> as the base painted shape.
-    // Everything else in the enclosing group is treated as decor to be drawn
-    // on top of all regions (so it doesn't get covered by other region shapes).
-    final token = _regionClassPattern(regionNumber);
-    final basePathRe = RegExp(
-      r'(<path\b[^>]*class="[^"]*' + token + r'[^"]*"[^>]*/?>)',
-      caseSensitive: false,
-    );
-    final m = basePathRe.firstMatch(elementSvg);
-    if (m == null) return (base: elementSvg, decor: null);
-
-    final base = m.group(1)!;
-    final removedOnce = elementSvg.replaceFirst(base, '');
-
-    final hasMoreShapes = RegExp(
-      r'<path\b|<rect\b|<circle\b|<ellipse\b|<polygon\b|<polyline\b|<line\b',
-      caseSensitive: false,
-    ).hasMatch(removedOnce);
-
-    if (!hasMoreShapes) return (base: base, decor: null);
-
-    return (base: base, decor: removedOnce);
   }
 
   static String? _extractEnclosingGroupForRegionPath(String svg, int regionNumber) {
