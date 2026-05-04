@@ -90,4 +90,13 @@ class OrderService {
     if (userId.trim().isEmpty || journeyId.trim().isEmpty) return null;
     return _orderRepo.getUserOrderForJourney(userId.trim(), journeyId.trim());
   }
+
+  /// True if the user has ever completed payment for this journey (any paid order).
+  Future<bool> userHasPaidForJourney({
+    required String userId,
+    required String journeyId,
+  }) async {
+    if (userId.trim().isEmpty || journeyId.trim().isEmpty) return false;
+    return _orderRepo.hasPaidOrderForJourney(userId.trim(), journeyId.trim());
+  }
 }

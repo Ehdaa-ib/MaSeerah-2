@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../challenge/challenge_quiz_parser.dart';
+import 'challenge_model.dart';
+
 /// Document in `journey_landmarks/{docId}`.
 /// **Region** on the map is tied to **[order]** (order 1 → region 1), not the document id.
 class JourneyLandmark {
-  const JourneyLandmark({
+  JourneyLandmark({
     required this.documentId,
     required this.journeyId,
     required this.order,
@@ -13,6 +16,8 @@ class JourneyLandmark {
     this.walkingTimeFromPreviousMinutes,
     this.latitude,
     this.longitude,
+    this.challenge,
+    this.nextLandmarkId,
   });
 
   /// Must match Firestore field names exactly (camelCase).
@@ -36,6 +41,12 @@ class JourneyLandmark {
   /// Destination coordinates for external Google Maps.
   final double? latitude;
   final double? longitude;
+
+  /// Parsed `quiz` field when present (direct or `stageN`); null if absent / unparsable.
+  final ChallengeModel? challenge;
+
+  /// Optional Firestore landmark document id for the next stop (challenge navigation).
+  final String? nextLandmarkId;
 
   bool get hasCoordinates =>
       latitude != null && longitude != null && latitude!.isFinite && longitude!.isFinite;
@@ -71,7 +82,20 @@ class JourneyLandmark {
       ),
       latitude: lat,
       longitude: lng,
+      challenge: ChallengeQuizParser.tryParse(
+        data['quiz'],
+        landmarkDocumentId: docId,
+      ),
+      nextLandmarkId: _readNextLandmarkId(data),
     );
+  }
+
+  static String? _readNextLandmarkId(Map<String, dynamic> data) {
+    for (final key in ['nextLandmarkId', 'nextLandmark', 'nextLandmarkDocId']) {
+      final v = data[key];
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+    }
+    return null;
   }
 
   /// Reads a nullable int from [data] for [key]. Null-safe; supports Firestore [int], [double]/[num]

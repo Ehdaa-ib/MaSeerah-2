@@ -6,7 +6,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/app_colors.dart';
 import '../../data/firebase/feedback_data_source.dart';
+import '../../data/firebase/journey_completion_data_source.dart';
+import '../../data/firebase/journey_repurchase_gate_data_source.dart';
 import '../../model/feedback.dart';
+import '../home/landing_page.dart';
 
 class FeedbackScreen extends StatefulWidget {
   final String journeyId;
@@ -95,11 +98,27 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
       await ds.create(entry: entry);
 
+      try {
+        await JourneyCompletionDataSource().clearCompletion(
+          userId: uid,
+          journeyId: widget.journeyId,
+        );
+      } catch (_) {}
+      try {
+        await JourneyRepurchaseGateDataSource().setRequiresRepurchase(
+          userId: uid,
+          journeyId: widget.journeyId,
+        );
+      } catch (_) {}
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Thank you for your feedback!')),
       );
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pushAndRemoveUntil<void>(
+        MaterialPageRoute<void>(builder: (_) => const LandingPage()),
+        (_) => false,
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
