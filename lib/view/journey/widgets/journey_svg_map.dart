@@ -36,10 +36,21 @@ final ColorFilter _kLockedRegionColorFilter = () {
 /// - Active region: full color + tappable
 /// - Future regions: muted tint (paint-time [ColorFiltered] matrix) + not tappable
 ///
+/// If [inactiveMapAssetPath] is non-empty, the visible map uses **raster images** (fast):
+/// [activeMapAssetPath] (e.g. PNG) is drawn underneath, [inactiveMapAssetPath] on top with a
+/// clip so regions `1..currentRegion` are cut out—revealing the active map as the journey
+/// progresses. Region geometry for clipping and taps still comes from parsing [assetPath]
+/// (typically a lightweight `map.svg` with region paths only).
+///
 /// If the SVG does not contain the required group ids, this widget falls back
 /// to rendering the entire SVG (non-interactive).
 class JourneySvgMap extends StatefulWidget {
+  /// SVG used for region splitting and hit-testing (e.g. `images/map.svg`).
   final String assetPath;
+  /// Full-color map image drawn under the inactive overlay in dual-map mode (e.g. PNG).
+  final String activeMapAssetPath;
+  /// Inactive map image drawn on top and clipped (e.g. PNG). Use `''` to disable dual-map mode.
+  final String inactiveMapAssetPath;
   final int regionCount;
   final int currentRegion; // 1-based
   /// Called when a region is tapped.
@@ -54,6 +65,8 @@ class JourneySvgMap extends StatefulWidget {
   const JourneySvgMap({
     super.key,
     this.assetPath = 'images/map.svg',
+    this.activeMapAssetPath = 'images/map_active.png',
+    this.inactiveMapAssetPath = 'images/map_inactive.png',
     this.regionCount = 9,
     required this.currentRegion,
     this.onRegionTap,
@@ -99,11 +112,88 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
 
         // Fallback: show whole SVG if we couldn't find the region groups.
         if (!res.hasAllRegions) {
+          if (widget.inactiveMapAssetPath.isNotEmpty &&
+              widget.activeMapAssetPath.isNotEmpty) {
+            return Image.asset(
+              widget.activeMapAssetPath,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.low,
+            );
+          }
           return SvgPicture.string(
             res.fullSvg,
             fit: BoxFit.contain,
             clipBehavior: Clip.none,
             allowDrawingOutsideViewBox: true,
+          );
+        }
+
+        if (widget.inactiveMapAssetPath.isNotEmpty) {
+          if (widget.activeMapAssetPath.isEmpty) {
+            return SvgPicture.string(
+              res.fullSvg,
+              fit: BoxFit.contain,
+              clipBehavior: Clip.none,
+              allowDrawingOutsideViewBox: true,
+            );
+          }
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final hit = _SvgHitTester(
+                viewBox: res.viewBox,
+                regionPaths: res.regionHitPaths,
+              );
+              final dpr = MediaQuery.devicePixelRatioOf(context);
+              final cw = (constraints.maxWidth * dpr).round().clamp(1, 4096);
+              final ch = (constraints.maxHeight * dpr).round().clamp(1, 4096);
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    widget.activeMapAssetPath,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.low,
+                    cacheWidth: cw,
+                    cacheHeight: ch,
+                    gaplessPlayback: true,
+                  ),
+                  ClipPath(
+                    clipper: _InactiveOverlayClipper(
+                      viewBox: res.viewBox,
+                      regionPaths: res.regionHitPaths,
+                      regionCount: widget.regionCount,
+                      currentRegion: widget.currentRegion,
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      widget.inactiveMapAssetPath,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.low,
+                      cacheWidth: cw,
+                      cacheHeight: ch,
+                      gaplessPlayback: true,
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTapDown: (details) {
+                        final ro = context.findRenderObject();
+                        if (ro is! RenderBox) return;
+                        final local = ro.globalToLocal(details.globalPosition);
+                        final region = hit.hitTest(local, ro.size);
+                        if (region == null) return;
+                        if (!widget.allowTapInactive &&
+                            region != widget.currentRegion) {
+                          return;
+                        }
+                        widget.onRegionTap?.call(region);
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         }
 
@@ -706,6 +796,63 @@ class _ViewBox {
     }
     double p(int i, double fallback) => double.tryParse(parts[i]) ?? fallback;
     return _ViewBox(x: p(0, 0), y: p(1, 0), width: p(2, 430), height: p(3, 850));
+  }
+}
+
+/// Transforms a path from SVG user space ([viewBox]) to Stack layout [size]
+/// using the same [BoxFit.contain] letterboxing as [_SvgHitTester].
+Path _transformSvgPathToLayout(Path source, Size size, _ViewBox viewBox) {
+  final sx = size.width / viewBox.width;
+  final sy = size.height / viewBox.height;
+  final scale = sx < sy ? sx : sy;
+  final dx = (size.width - viewBox.width * scale) / 2;
+  final dy = (size.height - viewBox.height * scale) / 2;
+  final m = Matrix4.identity()
+    ..translateByDouble(dx, dy, 0, 1.0)
+    ..scaleByDouble(scale, scale, 1, 1)
+    ..translateByDouble(-viewBox.x, -viewBox.y, 0, 1.0);
+  return source.transform(m.storage);
+}
+
+/// Keeps the inactive map only **outside** regions `1..currentRegion` so the
+/// active map shows through completed and current areas.
+class _InactiveOverlayClipper extends CustomClipper<Path> {
+  _InactiveOverlayClipper({
+    required this.viewBox,
+    required this.regionPaths,
+    required this.regionCount,
+    required this.currentRegion,
+  });
+
+  final _ViewBox viewBox;
+  final Map<int, Path> regionPaths;
+  final int regionCount;
+  final int currentRegion;
+
+  @override
+  Path getClip(Size size) {
+    final outer = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    Path? holes;
+    final maxR = currentRegion.clamp(0, regionCount);
+    for (var i = 1; i <= maxR; i++) {
+      final p = regionPaths[i];
+      if (p == null) continue;
+      final local = _transformSvgPathToLayout(p, size, viewBox);
+      holes = holes == null
+          ? local
+          : Path.combine(PathOperation.union, holes, local);
+    }
+    if (holes == null) return outer;
+    return Path.combine(PathOperation.difference, outer, holes);
+  }
+
+  @override
+  bool shouldReclip(covariant _InactiveOverlayClipper old) {
+    return old.currentRegion != currentRegion ||
+        old.regionCount != regionCount ||
+        old.viewBox != viewBox ||
+        old.regionPaths != regionPaths;
   }
 }
 

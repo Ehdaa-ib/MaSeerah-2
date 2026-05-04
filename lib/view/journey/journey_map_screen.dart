@@ -248,6 +248,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                       width: w,
                       height: h,
                       child: JourneySvgMap(
+                        assetPath: 'images/map.svg',
+                        activeMapAssetPath: 'images/map_active.png',
+                        inactiveMapAssetPath: 'images/map_inactive.png',
                         currentRegion: currentRegion,
                         allowTapInactive: true,
                         onRegionTap: _onRegionTap,
