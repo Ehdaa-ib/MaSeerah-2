@@ -7,6 +7,9 @@ import '../../model/feedback.dart';
 class FeedbackDataSource {
   static const String _collection = 'feedback';
 
+  /// Mirror of [feedback] under `users/{userId}/…` for profile history (same doc id).
+  static const String userFeedbackSubcollection = 'journeyFeedback';
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
@@ -99,7 +102,7 @@ class FeedbackDataSource {
   }) async {
     // Explicit map so optional ratings (0) are always sent; avoids rules
     // treating omitted fields as missing.
-    await _firestore.collection(_collection).add({
+    final data = <String, dynamic>{
       'userId': entry.userId,
       'journeyId': entry.journeyId,
       'overallRating': entry.overallRating,
@@ -109,6 +112,18 @@ class FeedbackDataSource {
       'overallComment': entry.overallComment,
       'photos': entry.photos,
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    final rootRef = _firestore.collection(_collection).doc();
+    final profileRef = _firestore
+        .collection('users')
+        .doc(entry.userId)
+        .collection(userFeedbackSubcollection)
+        .doc(rootRef.id);
+
+    final batch = _firestore.batch();
+    batch.set(rootRef, data);
+    batch.set(profileRef, data);
+    await batch.commit();
   }
 }

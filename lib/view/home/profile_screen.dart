@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/app_colors.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../data/firebase/auth_data_source.dart';
+import '../../data/firebase/feedback_data_source.dart';
+import '../../data/firebase/journey_completion_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
 import '../faq/faqs_page.dart';
 import '../journey/journey_list_screen.dart';
@@ -64,18 +66,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
         joinedDate = "Unknown";
       }
 
-      final userJourneysSnap = await _firestore
-          .collection('user_journeys')
-          .where('userId', isEqualTo: user.uid)
+      final completionHistSnap = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection(JourneyCompletionDataSource.userCompletionHistorySubcollection)
           .get();
-      journeysCount = userJourneysSnap.docs.length;
-      userJourneys = userJourneysSnap.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'name': data['journeyName'] ?? '',
-          'date': data['date'] ?? '',
-        };
-      }).toList();
+
+      if (completionHistSnap.docs.isNotEmpty) {
+        userJourneys = await Future.wait(completionHistSnap.docs.map((doc) async {
+          final data = doc.data();
+          final journeyId = data['journeyId'] as String? ?? '';
+          var name = journeyId;
+          if (journeyId.isNotEmpty) {
+            final jd = await _firestore.collection('journeys').doc(journeyId).get();
+            if (jd.exists) {
+              name = (jd.data()?['name'] as String?)?.trim() ?? journeyId;
+            }
+          }
+          final ts = data['completedAt'] as Timestamp?;
+          return {
+            'name': name,
+            'date': ts != null ? _formatDate(ts.toDate()) : '',
+          };
+        }));
+        journeysCount = userJourneys.length;
+      } else {
+        final userJourneysSnap = await _firestore
+            .collection('user_journeys')
+            .where('userId', isEqualTo: user.uid)
+            .get();
+        journeysCount = userJourneysSnap.docs.length;
+        userJourneys = userJourneysSnap.docs.map((doc) {
+          final data = doc.data();
+          return {
+            'name': data['journeyName'] ?? '',
+            'date': data['date'] ?? '',
+          };
+        }).toList();
+      }
 
       final photosSnap = await _firestore
           .collection('photos')
@@ -83,20 +111,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .get();
       photosCount = photosSnap.docs.length;
 
-      final feedbacksSnap = await _firestore
-          .collection('feedbacks')
-          .where('userId', isEqualTo: user.uid)
-          .orderBy('createdAt', descending: true)
+      final feedbackById = <String, Map<String, dynamic>>{};
+      final feedbackRootSnap =
+          await _firestore.collection('feedback').where('userId', isEqualTo: user.uid).get();
+      for (final doc in feedbackRootSnap.docs) {
+        feedbackById[doc.id] = doc.data();
+      }
+      final feedbackProfileSnap = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection(FeedbackDataSource.userFeedbackSubcollection)
           .get();
+      for (final doc in feedbackProfileSnap.docs) {
+        feedbackById.putIfAbsent(doc.id, () => doc.data());
+      }
 
-      for (var doc in feedbacksSnap.docs) {
-        final data = doc.data();
+      final mergedFeedback = feedbackById.entries.toList()
+        ..sort((a, b) {
+          final ta = a.value['createdAt'];
+          final tb = b.value['createdAt'];
+          if (ta is! Timestamp && tb is! Timestamp) return 0;
+          if (ta is! Timestamp) return 1;
+          if (tb is! Timestamp) return -1;
+          return tb.compareTo(ta);
+        });
+
+      for (final e in mergedFeedback) {
+        final data = e.value;
         final journeyId = data['journeyId'];
-        String journeyName = "General";
-        if (journeyId != null && journeyId != "all") {
-          final journeyDoc = await _firestore.collection('journeys').doc(journeyId).get();
+        String journeyName = 'General';
+        if (journeyId != null && journeyId != 'all') {
+          final journeyDoc = await _firestore.collection('journeys').doc(journeyId as String).get();
           if (journeyDoc.exists) {
-            journeyName = journeyDoc.data()?['name'] ?? "Unknown Journey";
+            journeyName = journeyDoc.data()?['name'] ?? 'Unknown Journey';
           }
         }
         userFeedbacks.add({

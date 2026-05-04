@@ -14,13 +14,80 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
-    // Journey completion gate (1 doc per user+journey)
+    // Append-only: each time a journey is finished, a row is added (never deleted by replay).
+    match /users/{userId}/journeyCompletionHistory/{historyId} {
+      allow create: if isOwner(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.journeyId is string;
+      allow read: if isOwner(userId);
+      allow update, delete: if false;
+    }
+
+    // In-progress journey (map region + challenge flags). Deleted when the journey is completed.
+    match /users/{userId}/activeJourneys/{journeyId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.journeyId == journeyId
+        && request.resource.data.journeyTitle is string
+        && request.resource.data.landmarksJourneyId is string
+        && request.resource.data.currentRegion is int
+        && request.resource.data.currentRegion >= 1
+        && request.resource.data.currentRegion <= 50
+        && request.resource.data.qubaChallengeCompleted is bool
+        && request.resource.data.lastRegionChallengeCompleted is bool
+        && (!('catalogJourneyId' in request.resource.data)
+          || request.resource.data.catalogJourneyId == null
+          || request.resource.data.catalogJourneyId is string);
+      allow delete: if isOwner(userId);
+    }
+
+    // After feedback: user must pay again before starting. Cleared on successful payment.
+    match /users/{userId}/journeyPurchaseGate/{journeyId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.requiresNewPurchase == true;
+      allow delete: if isOwner(userId);
+    }
+
+    // Mirror of top-level `feedback` for profile (same fields + same doc id as `feedback/{id}`).
+    match /users/{userId}/journeyFeedback/{feedbackId} {
+      allow create: if isOwner(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.journeyId is string
+        && request.resource.data.overallRating is number
+        && request.resource.data.overallRating >= 1
+        && request.resource.data.overallRating <= 5
+        && request.resource.data.get('contentRating', 0) is number
+        && request.resource.data.get('contentRating', 0) >= 0
+        && request.resource.data.get('contentRating', 0) <= 5
+        && request.resource.data.get('recommendationRating', 0) is number
+        && request.resource.data.get('recommendationRating', 0) >= 0
+        && request.resource.data.get('recommendationRating', 0) <= 5
+        && request.resource.data.get('challengeRating', 0) is number
+        && request.resource.data.get('challengeRating', 0) >= 0
+        && request.resource.data.get('challengeRating', 0) <= 5
+        && (!('overallComment' in request.resource.data)
+          || request.resource.data.overallComment is string)
+        && (!('photos' in request.resource.data)
+          || (request.resource.data.photos is list
+            && request.resource.data.photos.size() <= 20));
+      allow read: if isOwner(userId);
+      allow update, delete: if false;
+    }
+
+    // Journey completion (1 doc id per user+journey: `{uid}_{journeyId}`).
+    // Updates: [markCompleted] uses merge (treated as update). Deletes: replay after a new payment.
     match /journeyCompletions/{completionId} {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.journeyId is string;
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.journeyId == resource.data.journeyId;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Feedback (multiple docs per user+journey allowed).

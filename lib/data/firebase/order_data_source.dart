@@ -64,5 +64,21 @@ class OrderDataSource {
     }
     return app.Order.fromMap(saved, id: doc.id);
   }
+
+  /// True if this user has at least one **paid** order for the journey (supports replay after a new pending order).
+  Future<bool> hasPaidOrderForJourney(String userId, String journeyId) async {
+    final q = await _firestore
+        .collection(_collection)
+        .where('userId', isEqualTo: userId)
+        .where('journeyId', isEqualTo: journeyId)
+        .get();
+    for (final doc in q.docs) {
+      final status = doc.data()['status'] as String?;
+      if (app.OrderStatusExtension.fromString(status) == app.OrderStatus.paid) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
  
