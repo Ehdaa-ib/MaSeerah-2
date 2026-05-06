@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
 import '../../data/firebase/journey_progress_data_source.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../auth/login_screen.dart';
+import '../home/landing_page.dart';
+import '../home/profile_screen.dart';
 import 'journey_map_screen.dart';
 
 /// In-progress journeys only (footer **Active Journeys** tab). Browse/purchase uses the home journey cards.
@@ -31,9 +35,17 @@ class JourneyListScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.green,
       appBar: AppBar(
-        title: const Text('Active Journeys'),
-        backgroundColor: AppColors.brown,
-        foregroundColor: AppColors.beige,
+        title: const Text(
+          'Active Journeys',
+          style: TextStyle(
+            color: AppColors.brown,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        automaticallyImplyLeading: false,
+        backgroundColor: AppColors.beige,
+        foregroundColor: AppColors.brown,
+        elevation: 0,
       ),
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
@@ -115,7 +127,7 @@ class JourneyListScreen extends StatelessWidget {
 
               return ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                 itemCount: active.length,
                 itemBuilder: (context, index) {
                   final p = active[index];
@@ -152,6 +164,30 @@ class JourneyListScreen extends StatelessWidget {
               );
             },
           );
+        },
+      ),
+      bottomNavigationBar: AppBottomNav(
+        selectedIndex: 1,
+        onHomeTap: () {
+          Navigator.of(context).pushAndRemoveUntil<void>(
+            MaterialPageRoute<void>(builder: (_) => const LandingPage()),
+            (_) => false,
+          );
+        },
+        onActiveJourneysTap: () {},
+        onProfileTap: () {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+            );
+          } else {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const LoginScreen(returnToCallerOnSuccess: true),
+              ),
+            );
+          }
         },
       ),
     );

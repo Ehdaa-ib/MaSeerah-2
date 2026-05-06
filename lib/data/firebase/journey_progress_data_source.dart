@@ -23,6 +23,41 @@ class JourneyProgressDataSource {
     return ActiveJourneyProgress.fromMap(journeyId.trim(), doc.data()!);
   }
 
+  /// Source-of-truth lookup used by both Active Journeys and Journey Details.
+  ///
+  /// Some older flows may store progress under a slightly different id. This method:
+  /// - first tries doc id == [journeyId]
+  /// - then tries a normalized id (removing `_`)
+  /// - then queries by `catalogJourneyId == journeyId`
+  Future<ActiveJourneyProgress?> getUserJourneyProgress({
+    required String userId,
+    required String journeyId,
+  }) async {
+    final uid = userId.trim();
+    final jid = journeyId.trim();
+    if (uid.isEmpty || jid.isEmpty) return null;
+
+    // 1) Direct doc id match (current standard).
+    final direct = await get(userId: uid, journeyId: jid);
+    if (direct != null) return direct;
+
+    // 2) Fallback: normalized id without underscores.
+    final normalized = jid.replaceAll('_', '');
+    if (normalized.isNotEmpty && normalized != jid) {
+      final normDoc = await get(userId: uid, journeyId: normalized);
+      if (normDoc != null) return normDoc;
+    }
+
+    // 3) Fallback: query by `catalogJourneyId`.
+    final q = await _col(uid)
+        .where('catalogJourneyId', isEqualTo: jid)
+        .limit(1)
+        .get();
+    if (q.docs.isEmpty) return null;
+    final d = q.docs.first;
+    return ActiveJourneyProgress.fromMap(d.id, d.data());
+  }
+
   Stream<List<ActiveJourneyProgress>> streamAll({required String userId}) {
     if (userId.trim().isEmpty) {
       return Stream.value(const <ActiveJourneyProgress>[]);

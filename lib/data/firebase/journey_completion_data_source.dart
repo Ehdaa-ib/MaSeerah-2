@@ -30,6 +30,8 @@ class JourneyCompletionDataSource {
         'userId': userId,
         'journeyId': journeyId,
         'completedAt': FieldValue.serverTimestamp(),
+        // Journey was finished on the map; feedback may still be pending.
+        'awaitingFeedback': true,
       },
       SetOptions(merge: true),
     );
@@ -37,6 +39,7 @@ class JourneyCompletionDataSource {
       'userId': userId,
       'journeyId': journeyId,
       'completedAt': FieldValue.serverTimestamp(),
+      'awaitingFeedback': true,
     });
     await batch.commit();
   }
@@ -48,6 +51,16 @@ class JourneyCompletionDataSource {
     final docId = _docId(userId: userId, journeyId: journeyId);
     final doc = await _firestore.collection(_collection).doc(docId).get();
     return doc.exists;
+  }
+
+  Future<bool> isAwaitingFeedback({
+    required String userId,
+    required String journeyId,
+  }) async {
+    final docId = _docId(userId: userId, journeyId: journeyId);
+    final doc = await _firestore.collection(_collection).doc(docId).get();
+    if (!doc.exists || doc.data() == null) return false;
+    return doc.data()!['awaitingFeedback'] == true;
   }
 
   /// Clears completion so a new paid playthrough can start (call after a successful purchase).

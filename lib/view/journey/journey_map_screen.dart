@@ -10,6 +10,7 @@ import '../../data/firebase/journey_data_source.dart';
 import '../../data/firebase/journey_landmark_data_source.dart';
 import '../../data/firebase/journey_progress_data_source.dart';
 import '../../challenge/challenge_renderer.dart';
+import '../../model/journey.dart';
 import '../../model/journey_landmark.dart';
 import '../../service/landmark_maps_launch_service.dart';
 import '../../util/place_image_asset.dart';
@@ -130,6 +131,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   final _landmarkDs = JourneyLandmarkDataSource();
   final _progressDs = JourneyProgressDataSource();
   Timer? _saveProgressDebounce;
+  Journey? _catalogJourney;
 
   /// Optional labels when Firestore has no doc yet for that [order]. DB name wins when present.
   /// Region 8 → Bustan Al-Mustazil (mirror in Firestore: `order: 8`, `name: "Bustan Al-Mustazil"`).
@@ -178,6 +180,10 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   @override
   void initState() {
     super.initState();
+    // Warm up asset-manifest image lookup so region sheets resolve photos immediately.
+    Future<void>(() async {
+      await prewarmPlaceImageResolver();
+    });
     final r = widget.initialRegion;
     if (r != null && r >= 1 && r <= _mapRegionCount) {
       currentRegion = r.clamp(1, _mapRegionCount);
@@ -229,14 +235,35 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   }
 
   Future<void> _leaveMapToJourneyIntro() async {
-    await _flushPersistProgressNow();
+    // Persist in background; don't block navigation (avoids "button does nothing" feeling).
+    // If writes are blocked by rules/network, we still navigate immediately.
+    Future<void>(() async {
+      try {
+        await _flushPersistProgressNow().timeout(const Duration(seconds: 2));
+      } catch (_) {}
+    });
     if (!mounted) return;
     final catalogId = _effectiveCatalogJourneyId();
     if (catalogId != null && catalogId.isNotEmpty) {
-      await Navigator.of(context).pushReplacement(
+      final optimistic = ActiveJourneyProgress(
+        journeyId: catalogId,
+        journeyTitle: _appBarTitle(),
+        landmarksJourneyId: widget.landmarksJourneyId,
+        catalogJourneyId: catalogId,
+        currentRegion: currentRegion.clamp(1, _mapRegionCount),
+        qubaChallengeCompleted: _qubaChallengeCompleted,
+        lastRegionChallengeCompleted: _lastRegionChallengeCompleted,
+        updatedAtMillis: DateTime.now().millisecondsSinceEpoch,
+      );
+      await Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(
-          builder: (_) => JourneyPurchaseScreen(journeyId: catalogId),
+          builder: (_) => JourneyPurchaseScreen(
+            journeyId: catalogId,
+            initialJourney: _catalogJourney,
+            initialSavedProgress: optimistic,
+          ),
         ),
+        (route) => route.isFirst,
       );
     } else {
       if (mounted) Navigator.of(context).pop();
@@ -293,6 +320,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     try {
       final journey = await JourneyDataSource().getById(id);
       if (!mounted || journey == null) return;
+      _catalogJourney = journey;
       final name = journey.name.trim();
       // Do not overwrite a non-default [journeyTitle] with the model fallback "Journey".
       if (name.isEmpty || name == 'Journey') return;
@@ -328,6 +356,23 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
           ..clear()
           ..addAll(byDoc);
         _landmarksLoading = false;
+      });
+      // Pre-resolve and precache images in the background to eliminate the 1–2s delay
+      // when opening a region sheet for the first time.
+      Future<void>(() async {
+        try {
+          await prewarmPlaceImageResolver();
+          if (!mounted) return;
+          final names = <String>{
+            for (final l in list) l.name,
+            ..._knownRegionTitles.values,
+          };
+          for (final name in names) {
+            final path = await resolvePlaceImageAsset(name);
+            if (!mounted || path == null) continue;
+            await precacheImage(AssetImage(path), context);
+          }
+        } catch (_) {}
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _schedulePersistProgress();
@@ -828,14 +873,25 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
   int _secondsLeft = _initialSeconds;
   Timer? _timer;
   String? _placeImageAsset;
+  bool _imageLoading = false;
+
+  Future<void> _loadPlaceImage() async {
+    setState(() {
+      _placeImageAsset = null;
+      _imageLoading = true;
+    });
+    final path = await resolvePlaceImageAsset(widget.title);
+    if (!mounted) return;
+    setState(() {
+      _placeImageAsset = path;
+      _imageLoading = false;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
-    resolvePlaceImageAsset(widget.title).then((path) {
-      if (!mounted) return;
-      setState(() => _placeImageAsset = path);
-    });
+    _loadPlaceImage();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
@@ -852,6 +908,14 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RegionLandmarkChallengeSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.title.trim() != widget.title.trim()) {
+      _loadPlaceImage();
+    }
   }
 
   String _formatCountdown() {
@@ -984,18 +1048,40 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (_placeImageAsset != null) ...[
+                      if (_placeImageAsset != null || _imageLoading) ...[
                         ClipRRect(
                           borderRadius: BorderRadius.circular(14),
                           child: AspectRatio(
                             aspectRatio: 16 / 9,
-                            child: Image.asset(
-                              _placeImageAsset!,
-                              fit: BoxFit.cover,
-                              gaplessPlayback: true,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const SizedBox.shrink(),
-                            ),
+                            child: _placeImageAsset != null
+                                ? Image.asset(
+                                    _placeImageAsset!,
+                                    fit: BoxFit.cover,
+                                    gaplessPlayback: true,
+                                    errorBuilder: (context, error, stackTrace) => Container(
+                                      color: AppColors.brown.withValues(alpha: 0.06),
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        'Image failed to load',
+                                        style: TextStyle(
+                                          color: AppColors.brown.withValues(alpha: 0.7),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    color: AppColors.brown.withValues(alpha: 0.06),
+                                    alignment: Alignment.center,
+                                    child: SizedBox(
+                                      width: 26,
+                                      height: 26,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.brown.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 14),
