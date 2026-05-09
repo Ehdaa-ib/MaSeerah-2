@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -169,6 +171,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
 
   /// Empty "challenge" step after "Go to the challenge" (footer hidden until dismissed).
   bool _emptyChallengeOverlay = false;
+  bool _noChallengeAutoAdvanceScheduled = false;
 
   /// Brief centered hint (wrong region / done region).
   String? _centerMessage;
@@ -517,14 +520,20 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       appBar: AppBar(
         title: Text(
           _appBarTitle(),
-          style: const TextStyle(color: AppColors.brown),
+          style: const TextStyle(
+            color: AppColors.brown,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         backgroundColor: AppColors.green,
         centerTitle: true,
+        foregroundColor: AppColors.brown,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.brown),
+          icon: const Icon(Icons.arrow_back_ios, color: AppColors.brown),
           onPressed: _leaveMapToJourneyIntro,
         ),
       ),
@@ -719,6 +728,13 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     final size = MediaQuery.sizeOf(context);
     final lm = _landmarkForRegion(currentRegion);
     final challenge = lm?.challenge;
+    if (challenge == null && !_noChallengeAutoAdvanceScheduled) {
+      _noChallengeAutoAdvanceScheduled = true;
+      Future<void>(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 950));
+        if (mounted && _emptyChallengeOverlay) _onEmptyChallengeOverlayNext();
+      });
+    }
     return Positioned.fill(
       child: Material(
         color: Colors.black.withValues(alpha: 0.35),
@@ -744,11 +760,91 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
                     child: challenge != null
                         ? ChallengeRenderer(
                             challenge: challenge,
+                            currentRegionOrder: currentRegion,
+                            resolveNextDestination: () async {
+                              // Next stop = document in `nextLandmarkId` on the **current** landmark when set;
+                              // otherwise infer by region order. Route fields live on the **next** landmark doc.
+                              final nextDocId = lm?.nextLandmarkId?.trim();
+                              JourneyLandmark? nextLm;
+                              if (nextDocId != null && nextDocId.isNotEmpty) {
+                                for (final l in _landmarks) {
+                                  if (l.documentId == nextDocId) {
+                                    nextLm = l;
+                                    break;
+                                  }
+                                }
+                                if (nextLm == null) {
+                                  try {
+                                    nextLm = await _landmarkDs.getLandmark(nextDocId);
+                                  } catch (_) {}
+                                }
+                              }
+                              final nextRegion = (nextLm?.order ?? (currentRegion + 1));
+                              if (nextRegion > _mapRegionCount) {
+                                return ChallengeNextDestination(
+                                  name: 'Journey completed!',
+                                  isLastRegion: true,
+                                );
+                              }
+                              final byOrder = _landmarkForRegion(nextRegion);
+                              final nextResolved = nextLm ?? byOrder;
+                              final name =
+                                  nextResolved?.name ?? byOrder?.name ?? 'Region $nextRegion';
+                              final dist = nextResolved?.distanceFromPreviousMeters ??
+                                  byOrder?.distanceFromPreviousMeters;
+                              var walk = nextResolved?.walkingTimeFromPreviousMinutes ??
+                                  byOrder?.walkingTimeFromPreviousMinutes;
+
+                              // Re-read from Firestore when model missed walking (key casing, web num type, etc.).
+                              if (walk == null) {
+                                final fetchId = nextResolved?.documentId ?? byOrder?.documentId;
+                                if (fetchId != null) {
+                                  try {
+                                    final snap = await FirebaseFirestore.instance
+                                        .collection(JourneyLandmarkDataSource.collection)
+                                        .doc(fetchId)
+                                        .get();
+                                    final d = snap.data();
+                                    if (d != null) {
+                                      walk = JourneyLandmark.walkingTimeFromPreviousMinutesFromRawMap(
+                                        d,
+                                        debugDocId: fetchId,
+                                      );
+                                      if (kDebugMode && walk == null) {
+                                        debugPrint(
+                                          '[ChallengeNext] walkingStillNull doc=$fetchId '
+                                          'keys=${d.keys.toList()} '
+                                          'distanceRaw=${d[JourneyLandmark.firestoreFieldDistanceFromPreviousMeters]}',
+                                        );
+                                      }
+                                    }
+                                  } catch (e) {
+                                    if (kDebugMode) debugPrint('[ChallengeNext] walking refetch: $e');
+                                  }
+                                }
+                              }
+
+                              if (kDebugMode) {
+                                debugPrint(
+                                  '[ChallengeNext] nextLandmarkId=${nextDocId ?? 'null'} '
+                                  'inferredRegion=$nextRegion resolvedDoc=${nextResolved?.documentId} '
+                                  'parsedWalking=$walk',
+                                );
+                              }
+
+                              return ChallengeNextDestination(
+                                name: name,
+                                distanceFromPreviousMeters: dist,
+                                walkingTimeFromPreviousMinutes: walk,
+                                isLastRegion: currentRegion >= _mapRegionCount,
+                              );
+                            },
+                            onResultNext: _onEmptyChallengeOverlayNext,
                             nextLandmarkDocumentId: lm?.nextLandmarkId,
                             onChallengeResolved: ({required success, nextLandmarkDocumentId}) {
                               if (!success) return;
@@ -764,27 +860,6 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                               ),
                             ),
                           ),
-                  ),
-                ),
-                SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.orange,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                        onPressed: _onEmptyChallengeOverlayNext,
-                        child: const Text('Next'),
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -821,6 +896,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                   setState(() {
                     _regionSheetRegion = null;
                     _emptyChallengeOverlay = true;
+                    _noChallengeAutoAdvanceScheduled = false;
                   });
                 },
               ),

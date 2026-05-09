@@ -76,7 +76,9 @@ class _LandingPageState extends State<LandingPage> {
                 MaterialPageRoute<void>(
                   builder: (_) => const JourneyListScreen(),
                 ),
-              );
+              ).then((_) {
+                if (mounted) setState(() => _selectedNavIndex = 0);
+              });
             },
             onProfileTap: () {
               Navigator.of(sheetContext).pop();
@@ -100,9 +102,14 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   void _openActiveJourneys() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const JourneyListScreen()),
-    );
+    setState(() => _selectedNavIndex = 1);
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute<void>(builder: (_) => const JourneyListScreen()),
+    )
+        .then((_) {
+      if (mounted) setState(() => _selectedNavIndex = 0);
+    });
   }
 
   @override
@@ -135,7 +142,10 @@ class _LandingPageState extends State<LandingPage> {
           ),
           bottomNavigationBar: AppBottomNav(
             selectedIndex: _selectedNavIndex,
-            onHomeTap: () => setState(() => _selectedNavIndex = 0),
+            onHomeTap: () {
+              setState(() => _selectedNavIndex = 0);
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
             onActiveJourneysTap: _openActiveJourneys,
             onProfileTap: () {
               setState(() => _selectedNavIndex = 2);

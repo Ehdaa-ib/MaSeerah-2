@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,12 +30,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int photosCount = 0;
   List<Map<String, dynamic>> userJourneys = [];
   List<Map<String, dynamic>> userFeedbacks = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _hydrateFromAuthSync();
     _loadUserData();
+  }
+
+  /// Name/email from Firebase Auth — no network; shows immediately on open.
+  void _hydrateFromAuthSync() {
+    final u = _auth.currentUser;
+    if (u == null) return;
+    final fromEmail = u.email?.split('@').first;
+    final dn = u.displayName?.trim();
+    userName = (dn != null && dn.isNotEmpty) ? dn : (fromEmail ?? 'User');
+    joinedDate = '…';
   }
 
   String _formatDate(DateTime date) {
@@ -45,32 +56,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return "${months[date.month - 1]} ${date.year}";
   }
 
+  /// Prefer Firestore `createdAt` (user doc); fall back to legacy `joinedDate` / snake_case aliases.
+  DateTime? _readJoinDateFromUserDoc(Map<String, dynamic>? data) {
+    if (data == null) return null;
+    final v = data['createdAt'] ??
+        data['created_at'] ??
+        data['joinedDate'] ??
+        data['joined_at'];
+    if (v is Timestamp) return v.toDate();
+    if (v is DateTime) return v;
+    return null;
+  }
+
+  void _applyUserDocument(
+    DocumentSnapshot<Map<String, dynamic>> userDoc,
+    User user,
+  ) {
+    if (userDoc.exists) {
+      final data = userDoc.data();
+      userName = (data?['name'] as String?)?.trim().isNotEmpty == true
+          ? data!['name'] as String
+          : user.email?.split('@').first ?? 'User';
+      final join = _readJoinDateFromUserDoc(data);
+      joinedDate = join != null ? _formatDate(join) : 'Unknown';
+    } else {
+      userName = user.email?.split('@').first ?? 'User';
+      joinedDate = 'Unknown';
+    }
+  }
+
   Future<void> _loadUserData() async {
-    setState(() => _isLoading = true);
     final user = _auth.currentUser;
     if (user == null) return;
 
+    final uid = user.uid;
     try {
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      if (userDoc.exists) {
-        final data = userDoc.data();
-        userName = data?['name'] ?? user.email?.split('@').first ?? "User";
-        final joinedTimestamp = data?['joinedDate'] as Timestamp?;
-        if (joinedTimestamp != null) {
-          joinedDate = _formatDate(joinedTimestamp.toDate());
-        } else {
-          joinedDate = "Unknown";
-        }
-      } else {
-        userName = user.email?.split('@').first ?? "User";
-        joinedDate = "Unknown";
-      }
-
-      final completionHistSnap = await _firestore
+      // Fire user doc + independent reads together; paint header as soon as user doc returns.
+      final userDocFuture = _firestore.collection('users').doc(uid).get();
+      final photosFuture =
+          _firestore.collection('photos').where('userId', isEqualTo: uid).get();
+      final completionFuture = _firestore
           .collection('users')
-          .doc(user.uid)
+          .doc(uid)
           .collection(JourneyCompletionDataSource.userCompletionHistorySubcollection)
           .get();
+      final feedbackRootFuture =
+          _firestore.collection('feedback').where('userId', isEqualTo: uid).get();
+      final feedbackProfileFuture = _firestore
+          .collection('users')
+          .doc(uid)
+          .collection(FeedbackDataSource.userFeedbackSubcollection)
+          .get();
+
+      final userDoc = await userDocFuture;
+      if (!mounted) return;
+      setState(() => _applyUserDocument(userDoc, user));
+
+      final photosAndCompletion = await Future.wait([photosFuture, completionFuture]);
+      if (!mounted) return;
+      photosCount = photosAndCompletion[0].docs.length;
+      final completionHistSnap = photosAndCompletion[1];
 
       if (completionHistSnap.docs.isNotEmpty) {
         userJourneys = await Future.wait(completionHistSnap.docs.map((doc) async {
@@ -93,8 +138,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         final userJourneysSnap = await _firestore
             .collection('user_journeys')
-            .where('userId', isEqualTo: user.uid)
+            .where('userId', isEqualTo: uid)
             .get();
+        if (!mounted) return;
         journeysCount = userJourneysSnap.docs.length;
         userJourneys = userJourneysSnap.docs.map((doc) {
           final data = doc.data();
@@ -105,24 +151,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }).toList();
       }
 
-      final photosSnap = await _firestore
-          .collection('photos')
-          .where('userId', isEqualTo: user.uid)
-          .get();
-      photosCount = photosSnap.docs.length;
+      if (!mounted) return;
+      setState(() {});
 
+      final feedbackSnaps = await Future.wait([feedbackRootFuture, feedbackProfileFuture]);
+      if (!mounted) return;
       final feedbackById = <String, Map<String, dynamic>>{};
-      final feedbackRootSnap =
-          await _firestore.collection('feedback').where('userId', isEqualTo: user.uid).get();
-      for (final doc in feedbackRootSnap.docs) {
+      for (final doc in feedbackSnaps[0].docs) {
         feedbackById[doc.id] = doc.data();
       }
-      final feedbackProfileSnap = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection(FeedbackDataSource.userFeedbackSubcollection)
-          .get();
-      for (final doc in feedbackProfileSnap.docs) {
+      for (final doc in feedbackSnaps[1].docs) {
         feedbackById.putIfAbsent(doc.id, () => doc.data());
       }
 
@@ -136,28 +174,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return tb.compareTo(ta);
         });
 
-      for (final e in mergedFeedback) {
+      userFeedbacks = await Future.wait(mergedFeedback.map((e) async {
         final data = e.value;
         final journeyId = data['journeyId'];
-        String journeyName = 'General';
+        var journeyName = 'General';
         if (journeyId != null && journeyId != 'all') {
-          final journeyDoc = await _firestore.collection('journeys').doc(journeyId as String).get();
+          final journeyDoc =
+              await _firestore.collection('journeys').doc(journeyId as String).get();
           if (journeyDoc.exists) {
             journeyName = journeyDoc.data()?['name'] ?? 'Unknown Journey';
           }
         }
-        userFeedbacks.add({
+        return {
           'rating': data['overallRating'] ?? 0,
           'comment': data['overallComment'] ?? '',
           'date': (data['createdAt'] as Timestamp?)?.toDate(),
           'journeyName': journeyName,
-        });
-      }
+        };
+      }));
     } catch (e) {
-      print(e);
+      if (kDebugMode) debugPrint('[Profile] load error: $e');
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) setState(() {});
   }
 
   String _formatRelativeDate(DateTime? date) {
@@ -484,10 +523,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       bottomNavigationBar: AppBottomNav(
         selectedIndex: 2,
-        onHomeTap: () => Navigator.of(context).pop(),
+        onHomeTap: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
         onActiveJourneysTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const JourneyListScreen()),
+          final nav = Navigator.of(context);
+          nav.popUntil((route) => route.isFirst);
+          nav.push(
+            MaterialPageRoute<void>(builder: (_) => const JourneyListScreen()),
           );
         },
         onProfileTap: () {},

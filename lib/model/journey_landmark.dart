@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../challenge/challenge_quiz_parser.dart';
 import 'challenge_model.dart';
@@ -20,9 +21,29 @@ class JourneyLandmark {
     this.nextLandmarkId,
   });
 
-  /// Must match Firestore field names exactly (camelCase).
+  /// Canonical Firestore field names (also try [firestoreDistanceAliases] / [firestoreWalkingTimeAliases]).
   static const String firestoreFieldDistanceFromPreviousMeters = 'distanceFromPreviousMeters';
   static const String firestoreFieldWalkingTimeFromPreviousMinutes = 'walkingTimeFromPreviousMinutes';
+
+  static const List<String> firestoreDistanceAliases = [
+    firestoreFieldDistanceFromPreviousMeters,
+    'distance_from_previous_meters',
+    'distanceFromPrevious',
+    'distance_from_previous',
+    'distanceMeters',
+    'distance_meters',
+  ];
+
+  static const List<String> firestoreWalkingTimeAliases = [
+    firestoreFieldWalkingTimeFromPreviousMinutes,
+    'walking_time_from_previous_minutes',
+    'walkingTimeFromPrevious',
+    'walking_time_from_previous',
+    'walkingMinutesFromPrevious',
+    'walking_minutes_from_previous',
+    'avgWalkingTimeMinutes',
+    'avg_walking_time_minutes',
+  ];
 
   final String documentId;
   final String journeyId;
@@ -35,8 +56,9 @@ class JourneyLandmark {
   final String? description;
 
   /// Leg from the previous landmark in the journey (meaningful for [order] > 1).
-  final int? distanceFromPreviousMeters;
-  final int? walkingTimeFromPreviousMinutes;
+  /// Stored in Firestore as numeric (often [double]); parsed without rounding away decimals.
+  final double? distanceFromPreviousMeters;
+  final double? walkingTimeFromPreviousMinutes;
 
   /// Destination coordinates for external Google Maps.
   final double? latitude;
@@ -72,14 +94,8 @@ class JourneyLandmark {
           ? data['name'] as String
           : 'Landmark',
       description: _readDescription(data),
-      distanceFromPreviousMeters: _readFirestoreInt(
-        data,
-        firestoreFieldDistanceFromPreviousMeters,
-      ),
-      walkingTimeFromPreviousMinutes: _readFirestoreInt(
-        data,
-        firestoreFieldWalkingTimeFromPreviousMinutes,
-      ),
+      distanceFromPreviousMeters: _readDistanceFromLandmarkData(data),
+      walkingTimeFromPreviousMinutes: _readWalkingTimeFromLandmarkData(data, docId),
       latitude: lat,
       longitude: lng,
       challenge: ChallengeQuizParser.tryParse(
@@ -96,6 +112,115 @@ class JourneyLandmark {
       if (v is String && v.trim().isNotEmpty) return v.trim();
     }
     return null;
+  }
+
+  static Map<String, dynamic>? _asStringKeyedMap(Object? o) {
+    if (o == null) return null;
+    if (o is Map<String, dynamic>) return o;
+    if (o is Map) return o.map((k, v) => MapEntry(k.toString(), v));
+    return null;
+  }
+
+  /// First non-null finite numeric among [keys] on [data] (top-level).
+  static double? _readFirstDoubleFromKeys(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      if (!data.containsKey(key)) continue;
+      final v = _coerceToDouble(data[key]);
+      if (v != null && v.isFinite) return v;
+    }
+    return null;
+  }
+
+  /// Same as [_readFirstDoubleFromKeys], then common nested maps used by CMS (`route`, `leg`, …).
+  static double? _readNumericFromLandmarkData(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
+    final top = _readFirstDoubleFromKeys(data, keys);
+    if (top != null) return top;
+    for (final nest in ['route', 'leg', 'segment', 'navigation', 'meta', 'details']) {
+      final inner = _asStringKeyedMap(data[nest]);
+      if (inner == null) continue;
+      final v = _readFirstDoubleFromKeys(inner, keys);
+      if (v != null) return v;
+    }
+    return null;
+  }
+
+  static double? _readDistanceFromLandmarkData(Map<String, dynamic> data) {
+    return _readNumericFromLandmarkData(data, firestoreDistanceAliases);
+  }
+
+  static String _normalizeFieldKey(String k) =>
+      k.replaceAll(RegExp(r'[\s_-]'), '').toLowerCase();
+
+  static const String _walkingCanonicalNorm = 'walkingtimefrompreviousminutes';
+
+  /// Reads `walkingTimeFromPreviousMinutes` with **case-insensitive** key match (Firestore / CMS typos).
+  /// Also checks nested `route` / `leg` / … maps for the same field.
+  static double? walkingTimeFromPreviousMinutesFromRawMap(
+    Map<String, dynamic> data, {
+    String? debugDocId,
+  }) {
+    for (final e in data.entries) {
+      if (_normalizeFieldKey(e.key) == _walkingCanonicalNorm) {
+        return parseWalkingTimeFromPreviousMinutesValue(e.value, debugDocId: debugDocId);
+      }
+    }
+    for (final nest in ['route', 'leg', 'segment', 'navigation', 'meta', 'details']) {
+      final inner = _asStringKeyedMap(data[nest]);
+      if (inner == null) continue;
+      for (final e in inner.entries) {
+        if (_normalizeFieldKey(e.key) == _walkingCanonicalNorm) {
+          return parseWalkingTimeFromPreviousMinutesValue(
+            e.value,
+            debugDocId: '${debugDocId ?? '?'}/$nest',
+          );
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Parses Firestore field [walkingTimeFromPreviousMinutes] only (exact name).
+  /// Handles [int], [double], [num], and numeric [String].
+  static double? parseWalkingTimeFromPreviousMinutesValue(
+    Object? raw, {
+    String? debugDocId,
+  }) {
+    if (raw == null) return null;
+    double? out;
+    if (raw is int) {
+      out = raw.toDouble();
+    } else if (raw is double) {
+      out = raw.isFinite ? raw : null;
+    } else if (raw is num) {
+      final d = raw.toDouble();
+      out = d.isFinite ? d : null;
+    } else if (raw is String) {
+      var t = raw.trim();
+      if (t.isEmpty) return null;
+      if (t.contains(',') && !t.contains('.')) {
+        t = t.replaceFirst(',', '.');
+      }
+      out = double.tryParse(t);
+    } else {
+      out = double.tryParse(raw.toString());
+    }
+    if (kDebugMode) {
+      debugPrint(
+        '[JourneyLandmark] walkingTimeFromPreviousMinutes doc=${debugDocId ?? '?'} '
+        'raw=$raw runtimeType=${raw.runtimeType} parsed=$out',
+      );
+    }
+    return out;
+  }
+
+  static double? _readWalkingTimeFromLandmarkData(Map<String, dynamic> data, String docId) {
+    final flex = walkingTimeFromPreviousMinutesFromRawMap(data, debugDocId: docId);
+    if (flex != null) return flex;
+
+    return _readNumericFromLandmarkData(data, firestoreWalkingTimeAliases);
   }
 
   /// Reads a nullable int from [data] for [key]. Null-safe; supports Firestore [int], [double]/[num]
@@ -179,8 +304,12 @@ class JourneyLandmark {
     if (value is int) return value.toDouble();
     if (value is num) return value.toDouble();
     if (value is String) {
-      final t = value.trim();
+      var t = value.trim();
       if (t.isEmpty) return null;
+      // Locale-friendly: "12,5" minutes / meters
+      if (t.contains(',') && !t.contains('.')) {
+        t = t.replaceFirst(',', '.');
+      }
       return double.tryParse(t);
     }
     try {
