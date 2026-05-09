@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/map_button_styles.dart';
+import '../../core/map_design_tokens.dart';
+import '../../core/map_text_styles.dart';
 import '../../core/error_messages.dart';
 import '../../data/firebase/journey_completion_data_source.dart';
 import '../../data/firebase/journey_data_source.dart';
@@ -15,14 +18,21 @@ import '../../challenge/challenge_renderer.dart';
 import '../../model/journey.dart';
 import '../../model/journey_landmark.dart';
 import '../../service/landmark_maps_launch_service.dart';
+import '../../service/recommendation_appearance_store.dart';
 import '../../util/place_image_asset.dart';
 import '../auth/login_screen.dart';
 import '../feedback/feedback_screen.dart';
 import 'journey_purchase_screen.dart';
+import 'recommendations/recommendation_details_popup.dart';
+import 'recommendations/recommendation_flow_dialog.dart';
+import 'recommendations/recommendation_icon_button.dart';
+import 'recommendations/recommendation_quick_popup.dart';
+import 'recommendations/recommendation_url.dart';
 import 'widgets/journey_svg_map.dart';
-
-/// High-contrast body text on beige (readability).
-const Color _kReadableBody = Color(0xFF4A2F2A);
+import 'widgets/map_overlay_sheet_size.dart';
+import 'widgets/map_popup_header.dart';
+import '../../data/firebase/recommendation_places_data_source.dart';
+import '../../model/recommendation_place.dart';
 
 List<String> _splitDescriptionParagraphs(String text) {
   final t = text.trim();
@@ -53,25 +63,9 @@ List<String> _splitDescriptionParagraphs(String text) {
 
 /// Parses `**bold**` and `"quoted"` segments for landmark copy.
 List<InlineSpan> _readableSpans(String segment) {
-  const base = TextStyle(
-    fontSize: 17,
-    height: 1.62,
-    color: _kReadableBody,
-    fontWeight: FontWeight.w400,
-  );
-  const bold = TextStyle(
-    fontSize: 17,
-    height: 1.62,
-    color: _kReadableBody,
-    fontWeight: FontWeight.w700,
-  );
-  const quoted = TextStyle(
-    fontSize: 17,
-    height: 1.62,
-    color: Color(0xFF6B4A3F),
-    fontStyle: FontStyle.italic,
-    fontWeight: FontWeight.w500,
-  );
+  final base = MapTextStyles.bodyReading;
+  final bold = MapTextStyles.bodyReadingBold;
+  final quoted = MapTextStyles.quotedInline;
 
   final spans = <InlineSpan>[];
   void addBoldChunks(String chunk) {
@@ -114,6 +108,8 @@ class JourneyMapScreen extends StatefulWidget {
     this.initialRegion,
     this.initialQubaChallengeCompleted = false,
     this.initialLastRegionChallengeCompleted = false,
+    /// When true (new journey / paid restart), clears local recommendation "seen" tracking before loading prefs.
+    this.clearRecommendationTracking = false,
   });
 
   final String journeyTitle;
@@ -124,6 +120,7 @@ class JourneyMapScreen extends StatefulWidget {
   final int? initialRegion;
   final bool initialQubaChallengeCompleted;
   final bool initialLastRegionChallengeCompleted;
+  final bool clearRecommendationTracking;
 
   @override
   State<JourneyMapScreen> createState() => _JourneyMapScreenState();
@@ -132,8 +129,29 @@ class JourneyMapScreen extends StatefulWidget {
 class _JourneyMapScreenState extends State<JourneyMapScreen> {
   final _landmarkDs = JourneyLandmarkDataSource();
   final _progressDs = JourneyProgressDataSource();
+  final _recDs = RecommendationPlacesDataSource();
+  final _recStore = RecommendationAppearanceStore();
   Timer? _saveProgressDebounce;
   Journey? _catalogJourney;
+  Timer? _recQuickTimer;
+
+  /// Pending quick popups (Firestore `order` ascending). Shown one at a time.
+  final List<RecommendationPlace> _recQuickQueue = [];
+
+  RecommendationPlace? _recQuickPlace;
+  bool _recQuickInTransition = false;
+  bool _recClosingSequence = false;
+  double _recQuickOpacity = 1;
+  Offset _recQuickSlide = Offset.zero;
+  int _recQuickGen = 0;
+
+  static const Duration _kRecQuickDisplay = Duration(seconds: 10);
+  static const Duration _kRecQuickFadeOut = Duration(milliseconds: 300);
+  static const Duration _kRecQuickAfterFadeGap = Duration(milliseconds: 420);
+  static const Duration _kRecQuickFadeIn = Duration(milliseconds: 320);
+
+  List<RecommendationPlace> _recommendations = const [];
+  Set<int> _recAppearedOrders = <int>{};
 
   /// Optional labels when Firestore has no doc yet for that [order]. DB name wins when present.
   /// Region 8 → Bustan Al-Mustazil (mirror in Firestore: `order: 8`, `name: "Bustan Al-Mustazil"`).
@@ -180,6 +198,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   /// From `journeys/{catalogJourneyId}`; overrides [widget.journeyTitle] when set.
   String? _journeyNameFromDb;
 
+  /// While recommendation details dialog is open, hide the map footer (single Maps CTA in modal).
+  bool _recommendationDetailsOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -195,13 +216,324 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     _lastRegionChallengeCompleted = widget.initialLastRegionChallengeCompleted;
     _loadLandmarks();
     _loadJourneyNameFromFirestore();
+    _bootstrapRecommendations();
+  }
+
+  Future<void> _bootstrapRecommendations() async {
+    if (widget.clearRecommendationTracking) {
+      _recQuickTimer?.cancel();
+      _recQuickTimer = null;
+      await _recStore.clearAppearedForJourney(
+        landmarksJourneyId: widget.landmarksJourneyId,
+        catalogJourneyId: widget.catalogJourneyId ??
+            RecommendationAppearanceStore.inferCatalogFromLandmarksId(widget.landmarksJourneyId),
+      );
+      if (!mounted) return;
+      setState(() {
+        _recAppearedOrders = {};
+        _recQuickPlace = null;
+        _recQuickQueue.clear();
+        _recQuickInTransition = false;
+        _recClosingSequence = false;
+        _recQuickOpacity = 1;
+        _recQuickSlide = Offset.zero;
+      });
+    }
+    await _loadRecommendations();
   }
 
   @override
   void dispose() {
     _saveProgressDebounce?.cancel();
     _centerMessageTimer?.cancel();
+    _recQuickTimer?.cancel();
+    _recQuickGen++;
     super.dispose();
+  }
+
+  String _recJourneyKey() {
+    return RecommendationAppearanceStore.journeyKey(
+      landmarksJourneyId: widget.landmarksJourneyId,
+      catalogJourneyId: _effectiveCatalogJourneyId(),
+    );
+  }
+
+  /// After final map challenge, always treat eligibility as region 9+ so tiers are not skipped on odd saves.
+  int _effectiveRegionForRecommendationEligibility() {
+    if (_lastRegionChallengeCompleted) return _mapRegionCount;
+    return currentRegion;
+  }
+
+  Future<void> _loadRecommendations() async {
+    List<RecommendationPlace> places = [];
+    try {
+      places = await _recDs.fetchForJourney(
+        landmarksJourneyId: widget.landmarksJourneyId,
+        catalogJourneyId: _effectiveCatalogJourneyId(),
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[Recommendations] fetch failed: $e\n$st');
+      }
+    }
+
+    Set<int> appeared = {};
+    try {
+      appeared = await _recStore.loadAppearedOrders(_recJourneyKey());
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[Recommendations] appearance prefs failed: $e\n$st');
+      }
+    }
+
+    if (!mounted) return;
+    final eligible = _eligibleAutoShowOrdersNowForPlaces(places);
+    final filteredAppeared = appeared.where(eligible.contains).toSet();
+    // Never persist an empty prune while no tier is unlocked — that would erase orders 1–3 before region 5.
+    var nextAppeared = appeared;
+    if (eligible.isNotEmpty && filteredAppeared.length != appeared.length) {
+      try {
+        await _recStore.writeAppearedOrders(_recJourneyKey(), filteredAppeared);
+        nextAppeared = filteredAppeared;
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    setState(() {
+      _recommendations = places;
+      _recAppearedOrders = nextAppeared;
+    });
+    _scheduleRecommendationTrigger();
+  }
+
+  /// Eligibility using a place list (used while applying appeared filter before [_recommendations] is set).
+  Set<int> _eligibleAutoShowOrdersNowForPlaces(List<RecommendationPlace> places) {
+    if (places.isEmpty) return {};
+    final region = _effectiveRegionForRecommendationEligibility().clamp(1, _mapRegionCount);
+    if (region < 5) return {};
+    final out = <int>{};
+    if (region >= 5) {
+      for (final p in places) {
+        if (p.order == 1 || p.order == 2 || p.order == 3) out.add(p.order);
+      }
+    }
+    if (region >= 7) {
+      for (final p in places) {
+        if (p.order == 4) out.add(p.order);
+      }
+    }
+    if (region >= 9) {
+      for (final p in places) {
+        if (p.order == 5) out.add(p.order);
+      }
+    }
+    return out;
+  }
+
+  /// Retries briefly so popups appear after overlays clear or late layout (not only when challenge advances).
+  void _scheduleRecommendationTrigger() {
+    _maybeTriggerRecommendations();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maybeTriggerRecommendations();
+    });
+    Future<void>.delayed(const Duration(milliseconds: 600), () {
+      if (!mounted) return;
+      _maybeTriggerRecommendations();
+    });
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      _maybeTriggerRecommendations();
+    });
+    Future<void>.delayed(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      _maybeTriggerRecommendations();
+    });
+  }
+
+  /// Unlock Firestore recommendation `order` values 1–3 after region 5, 4 after 7, 5 after 9.
+  Set<int> _eligibleAutoShowOrdersNow() =>
+      _eligibleAutoShowOrdersNowForPlaces(_recommendations);
+
+  void _refillRecQuickQueue() {
+    final eligible = _eligibleAutoShowOrdersNow();
+    if (eligible.isEmpty) return;
+    final sorted = _recommendations
+        .where((p) => eligible.contains(p.order) && !_recAppearedOrders.contains(p.order))
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final ids = _recQuickQueue.map((e) => e.id).toSet();
+    for (final p in sorted) {
+      if (ids.add(p.id)) _recQuickQueue.add(p);
+    }
+  }
+
+  void _dequeueShowNextQuickRecommendation() {
+    if (!mounted) return;
+    if (_recommendationDetailsOpen || !_footerVisible) return;
+    if (_recQuickPlace != null || _recQuickInTransition || _recClosingSequence) return;
+    if (_recQuickQueue.isEmpty) return;
+    final place = _recQuickQueue.removeAt(0);
+    unawaited(_openQuickRecommendationPopup(place));
+  }
+
+  Future<void> _openQuickRecommendationPopup(RecommendationPlace place) async {
+    if (kDebugMode) {
+      debugPrint(
+        '[Recommendations] showing popup order=${place.order} name=${place.name} '
+        'key=${_recJourneyKey()}',
+      );
+    }
+    try {
+      await _recStore.markAppeared(_recJourneyKey(), place.order);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _recAppearedOrders = {..._recAppearedOrders, place.order};
+      _recQuickPlace = place;
+      _recQuickOpacity = 0;
+      _recQuickSlide = const Offset(0.08, 0);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _recQuickPlace?.id != place.id) return;
+      setState(() {
+        _recQuickOpacity = 1;
+        _recQuickSlide = Offset.zero;
+      });
+    });
+    _recQuickTimer?.cancel();
+    _recQuickTimer = Timer(_kRecQuickDisplay, _onRecommendationQuickTimerEnd);
+  }
+
+  void _onRecommendationQuickTimerEnd() {
+    if (!mounted) return;
+    _recQuickTimer = null;
+    unawaited(_closeQuickRecommendationPopupSequence(advance: true));
+  }
+
+  Future<void> _closeQuickRecommendationPopupSequence({required bool advance}) async {
+    if (_recClosingSequence) return;
+    if (_recQuickPlace == null) {
+      if (!_recQuickInTransition && advance) {
+        _dequeueShowNextQuickRecommendation();
+      }
+      return;
+    }
+    _recClosingSequence = true;
+    final gen = ++_recQuickGen;
+    _recQuickTimer?.cancel();
+    _recQuickTimer = null;
+    _recQuickInTransition = true;
+    if (mounted) {
+      setState(() {
+        _recQuickOpacity = 0;
+        _recQuickSlide = const Offset(-0.06, 0);
+      });
+    }
+    await Future<void>.delayed(_kRecQuickFadeOut + const Duration(milliseconds: 40));
+    if (!mounted || gen != _recQuickGen) {
+      _recClosingSequence = false;
+      _recQuickInTransition = false;
+      return;
+    }
+    setState(() {
+      _recQuickPlace = null;
+    });
+    await Future<void>.delayed(_kRecQuickAfterFadeGap);
+    if (!mounted || gen != _recQuickGen) {
+      _recClosingSequence = false;
+      _recQuickInTransition = false;
+      return;
+    }
+    setState(() {
+      _recQuickInTransition = false;
+      _recQuickOpacity = 1;
+      _recQuickSlide = const Offset(0.08, 0);
+    });
+    _recClosingSequence = false;
+    if (advance) {
+      _dequeueShowNextQuickRecommendation();
+    }
+  }
+
+  void _dismissQuickRecommendation({bool advance = true}) {
+    _recQuickTimer?.cancel();
+    _recQuickTimer = null;
+    unawaited(_closeQuickRecommendationPopupSequence(advance: advance));
+  }
+
+  void _maybeTriggerRecommendations() {
+    if (!mounted) return;
+    if (_recommendationDetailsOpen) return;
+    if (!_footerVisible) return;
+    _refillRecQuickQueue();
+    if (_recQuickPlace != null || _recQuickInTransition || _recClosingSequence) return;
+    if (kDebugMode) {
+      final eff = _effectiveRegionForRecommendationEligibility().clamp(1, _mapRegionCount);
+      final elig = _eligibleAutoShowOrdersNow();
+      if (eff >= 5 && _recQuickQueue.isEmpty) {
+        if (_recommendations.isEmpty) {
+          debugPrint(
+            '[Recommendations] Firestore returned no places (check collection/rules/auth); '
+            'region=$currentRegion eff=$eff footer=$_footerVisible',
+          );
+        } else if (elig.isNotEmpty) {
+          final hasUnshown = _recommendations.any(
+            (p) => elig.contains(p.order) && !_recAppearedOrders.contains(p.order),
+          );
+          if (!hasUnshown) {
+            debugPrint(
+              '[Recommendations] all unlocked slots already shown: eligibleOrders=$elig '
+              'appeared=$_recAppearedOrders loaded=${_recommendations.map((p) => p.order).toList()}',
+            );
+          }
+        }
+      }
+    }
+    _dequeueShowNextQuickRecommendation();
+  }
+
+  List<RecommendationPlace> _appearedRecommendationPlaces() {
+    final eligible = _eligibleAutoShowOrdersNow();
+    final set = _recAppearedOrders;
+    final out = _recommendations
+        .where((p) => set.contains(p.order) && eligible.contains(p.order))
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    return out;
+  }
+
+  Future<void> _openRecommendationDetails(RecommendationPlace place) async {
+    setState(() => _recommendationDetailsOpen = true);
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        barrierColor: Colors.black.withValues(alpha: 0.48),
+        builder: (_) => RecommendationDetailsPopup(place: place),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _recommendationDetailsOpen = false);
+        _maybeTriggerRecommendations();
+      }
+    }
+  }
+
+  Future<void> _openRecommendationList() async {
+    final appeared = _appearedRecommendationPlaces();
+    setState(() => _recommendationDetailsOpen = true);
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.35),
+        builder: (_) => RecommendationFlowDialog(places: appeared),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _recommendationDetailsOpen = false);
+        _maybeTriggerRecommendations();
+      }
+    }
   }
 
   void _schedulePersistProgress() {
@@ -284,9 +616,13 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   bool get _footerVisible =>
       _regionSheetRegion == null && !_emptyChallengeOverlay;
 
+  /// Map page footer bar (not shown during region sheet / challenge / recommendation details).
+  bool get _mapFooterChromeVisible =>
+      _footerVisible && !_recommendationDetailsOpen;
+
   /// Bottom gap under the scrollable map so the last pixels can scroll above the overlay footer.
   double _mapScrollBottomInset(BuildContext context) {
-    if (!_footerVisible) return 24;
+    if (!_mapFooterChromeVisible) return 24;
     return MediaQuery.viewPaddingOf(context).bottom + 136;
   }
 
@@ -378,7 +714,10 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
         } catch (_) {}
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _schedulePersistProgress();
+        if (mounted) {
+          _schedulePersistProgress();
+          _scheduleRecommendationTrigger();
+        }
       });
     } on FirebaseException catch (_) {
       if (!mounted) return;
@@ -506,6 +845,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       if (r < _mapRegionCount) currentRegion += 1;
     });
     _schedulePersistProgress();
+    _maybeTriggerRecommendations();
   }
 
   @override
@@ -518,17 +858,16 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       },
       child: Scaffold(
       appBar: AppBar(
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
         title: Text(
           _appBarTitle(),
-          style: const TextStyle(
-            color: AppColors.brown,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+          style: MapTextStyles.appBarTitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        backgroundColor: AppColors.green,
+        backgroundColor: AppColors.beige,
         centerTitle: true,
         foregroundColor: AppColors.brown,
         elevation: 0,
@@ -597,89 +936,120 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
               ),
             ),
           ),
-          if (_footerVisible)
+          if (_mapFooterChromeVisible)
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: SafeArea(
-                top: false,
-                child: Material(
-                  elevation: 10,
-                  color: AppColors.beige,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (!_showFinishJourneyInFooter) ...[
-                          Text(
-                            _footerPlaceName(),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: _kReadableBody,
-                              height: 1.25,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_showFinishJourneyInFooter)
-                          FilledButton.icon(
-                            onPressed: _finishJourneyAndFeedback,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.orange,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              minimumSize: const Size(64, 52),
-                              tapTargetSize: MaterialTapTargetSize.padded,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            icon: const Icon(Icons.rate_review_outlined, size: 22, color: Colors.white),
-                            label: const Text(
-                              'Finish Journey & Leave Feedback',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, height: 1.2),
-                              maxLines: 2,
+              child: AbsorbPointer(
+                absorbing: _recQuickPlace != null,
+                child: SafeArea(
+                  top: false,
+                  child: Material(
+                    elevation: 10,
+                    color: AppColors.beige,
+                    child: Padding(
+                      padding: MapDesignTokens.paddingFooter,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (!_showFinishJourneyInFooter) ...[
+                            Text(
+                              _footerPlaceName(),
                               textAlign: TextAlign.center,
+                              style: MapTextStyles.footerPlaceName,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          )
-                        else
-                          FilledButton.icon(
-                            onPressed: _canOpenMapsForCurrentRegion()
-                                ? _openGoogleMapsForCurrentRegion
-                                : null,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.orange,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              minimumSize: const Size(64, 52),
-                              tapTargetSize: MaterialTapTargetSize.padded,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                            const SizedBox(height: MapDesignTokens.spaceMd),
+                          ],
+                          if (_showFinishJourneyInFooter)
+                            FilledButton.icon(
+                              onPressed: _finishJourneyAndFeedback,
+                              style: MapButtonStyles.primaryFilled(verticalPadding: 16),
+                              icon: Icon(
+                                Icons.rate_review_outlined,
+                                size: MapDesignTokens.iconStandard,
+                                color: Colors.white,
                               ),
+                              label: Text(
+                                'Finish Journey & Leave Feedback',
+                                style: MapTextStyles.buttonLabel,
+                                maxLines: 2,
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            )
+                          else
+                            FilledButton.icon(
+                              onPressed: _canOpenMapsForCurrentRegion()
+                                  ? _openGoogleMapsForCurrentRegion
+                                  : null,
+                              style: MapButtonStyles.primaryFilled(verticalPadding: 16),
+                              icon: Icon(
+                                Icons.map_outlined,
+                                size: MapDesignTokens.iconStandard,
+                                color: Colors.white,
+                              ),
+                              label: const Text('Open in Google Maps'),
                             ),
-                            icon: const Icon(Icons.map_outlined, size: 22, color: Colors.white),
-                            label: const Text(
-                              'Open in Google Maps',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: SafeArea(
+              child: RecommendationIconButton(
+                count: _appearedRecommendationPlaces().length,
+                onPressed: _openRecommendationList,
+              ),
+            ),
+          ),
           if (_regionSheetRegion != null) _buildRegionSheet(context),
           if (_emptyChallengeOverlay) _buildEmptyChallengeOverlay(context),
           if (_centerMessage != null) _buildCenterMessageOverlay(),
+          if (_recQuickPlace != null)
+            Positioned(
+              top: 72,
+              right: 12,
+              left: 12,
+              child: SafeArea(
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: AnimatedOpacity(
+                    opacity: _recQuickOpacity,
+                    duration: _kRecQuickFadeIn,
+                    curve: Curves.easeOut,
+                    child: AnimatedSlide(
+                      offset: _recQuickSlide,
+                      duration: _kRecQuickFadeIn,
+                      curve: Curves.easeOutCubic,
+                      child: RecommendationQuickPopup(
+                        key: ValueKey<String>(_recQuickPlace!.id),
+                        place: _recQuickPlace!,
+                        onClose: () => _dismissQuickRecommendation(),
+                        onDirections: () => launchRecommendationLocationUrl(
+                          context,
+                          _recQuickPlace!.locationUrl,
+                        ),
+                        onView: () async {
+                          final p = _recQuickPlace!;
+                          await _closeQuickRecommendationPopupSequence(advance: false);
+                          if (!mounted) return;
+                          await _openRecommendationDetails(p);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     ),
@@ -696,26 +1066,15 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 40),
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
               decoration: BoxDecoration(
-                color: AppColors.beige,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.brown.withValues(alpha: 0.2)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: MapDesignTokens.popupBackground,
+                borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
+                border: Border.all(color: MapDesignTokens.borderMedium(0.2)),
+                boxShadow: MapDesignTokens.shadowSoft,
               ),
               child: Text(
                 _centerMessage!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: _kReadableBody,
-                  height: 1.45,
-                ),
+                style: MapTextStyles.bodyBold.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -736,25 +1095,14 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       });
     }
     return Positioned.fill(
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.35),
-        child: Center(
-          child: Container(
-            width: size.width * 0.88,
-            height: size.height * 0.72,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.beige,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.brown.withValues(alpha: 0.12)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
+        child: Material(
+          color: MapDesignTokens.scrimOverMap(),
+          child: Center(
+            child: Container(
+            width: size.width * MapOverlaySheetSize.widthFraction,
+            height: size.height * MapOverlaySheetSize.heightFraction,
+            margin: MapDesignTokens.sheetOuterMargin,
+            decoration: MapDesignTokens.sheetInnerDecoration(),
             clipBehavior: Clip.antiAlias,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -854,9 +1202,8 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                         : Center(
                             child: Text(
                               'Challenge coming soon.',
-                              style: TextStyle(
+                              style: MapTextStyles.body.copyWith(
                                 color: AppColors.brown.withValues(alpha: 0.75),
-                                fontSize: 16,
                               ),
                             ),
                           ),
@@ -870,6 +1217,12 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     );
   }
 
+  void _dismissRegionSheetOnly() {
+    if (_regionSheetRegion == null) return;
+    setState(() => _regionSheetRegion = null);
+    _scheduleRecommendationTrigger();
+  }
+
   Widget _buildRegionSheet(BuildContext context) {
     final region = _regionSheetRegion!;
     final title = _landmarksLoading ? 'Region $region' : _placeTitle(region);
@@ -880,24 +1233,25 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     return Positioned.fill(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _regionSheetRegion = null),
+        onTap: _dismissRegionSheetOnly,
         child: Material(
-          color: Colors.black.withValues(alpha: 0.35),
+          color: MapDesignTokens.scrimOverMap(),
           child: Center(
             child: GestureDetector(
               onTap: () {},
               child: _RegionLandmarkChallengeSheet(
-                width: size.width * 0.92,
-                height: size.height * 0.88,
+                width: size.width * MapOverlaySheetSize.widthFraction,
+                height: size.height * MapOverlaySheetSize.heightFraction,
                 title: title,
                 description: description,
-                onClose: () => setState(() => _regionSheetRegion = null),
+                onClose: _dismissRegionSheetOnly,
                 onGoChallenge: () {
                   setState(() {
                     _regionSheetRegion = null;
                     _emptyChallengeOverlay = true;
                     _noChallengeAutoAdvanceScheduled = false;
                   });
+                  _scheduleRecommendationTrigger();
                 },
               ),
             ),
@@ -1008,10 +1362,9 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
         textAlign: TextAlign.center,
         text: TextSpan(
           text: 'Add a description for this landmark in Firestore (field: description).',
-          style: TextStyle(
-            fontSize: 16,
+          style: MapTextStyles.body.copyWith(
             height: 1.58,
-            color: _kReadableBody.withValues(alpha: 0.52),
+            color: MapDesignTokens.bodyColor.withValues(alpha: 0.52),
             fontStyle: FontStyle.italic,
           ),
         ),
@@ -1039,83 +1392,40 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
     return Container(
       width: widget.width,
       height: widget.height,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.beige,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.brown.withValues(alpha: 0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.14),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      margin: MapDesignTokens.sheetOuterMargin,
+      decoration: MapDesignTokens.landmarkSheetDecoration(),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            height: 56,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: Icon(Icons.close, color: _kReadableBody.withValues(alpha: 0.88), size: 24),
-                    tooltip: 'Close',
-                    onPressed: widget.onClose,
+          MapPopupHeaderLeadingClose(
+            title: widget.title,
+            onClose: widget.onClose,
+            trailing: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.brown.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                child: Text(
+                  _formatCountdown(),
+                  style: MapTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                    color: challengeReady
+                        ? MapDesignTokens.primaryAccent
+                        : MapDesignTokens.bodyColor.withValues(alpha: 0.82),
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 100),
-                  child: Text(
-                    widget.title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: _kReadableBody,
-                      height: 1.25,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: AppColors.brown.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        child: Text(
-                          _formatCountdown(),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
-                            color: challengeReady ? AppColors.orange : _kReadableBody.withValues(alpha: 0.82),
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-          Divider(height: 1, thickness: 1, color: AppColors.brown.withValues(alpha: 0.14)),
+          Divider(height: 1, thickness: 1, color: MapDesignTokens.borderSubtle(0.14)),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(22, 18, 22, 12),
+              padding: MapDesignTokens.paddingLandmarkScroll,
               child: Align(
                 alignment: Alignment.topCenter,
                 child: FractionallySizedBox(
@@ -1126,7 +1436,7 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
                     children: [
                       if (_placeImageAsset != null || _imageLoading) ...[
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(MapDesignTokens.radiusChip),
                           child: AspectRatio(
                             aspectRatio: 16 / 9,
                             child: _placeImageAsset != null
@@ -1139,7 +1449,7 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
                                       alignment: Alignment.center,
                                       child: Text(
                                         'Image failed to load',
-                                        style: TextStyle(
+                                        style: MapTextStyles.caption.copyWith(
                                           color: AppColors.brown.withValues(alpha: 0.7),
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -1172,33 +1482,25 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 28, 22, 22),
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: challengeReady ? widget.onGoChallenge : null,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.orange,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: AppColors.orange.withValues(alpha: 0.4),
-                    disabledForegroundColor: Colors.white.withValues(alpha: 0.88),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: challengeReady ? 3 : 1,
-                    shadowColor: AppColors.brown.withValues(alpha: 0.35),
+                  style: MapButtonStyles.primaryFilled(
+                    enabled: challengeReady,
+                    verticalPadding: 16,
+                  ).copyWith(
+                    elevation: MaterialStateProperty.all(challengeReady ? 3.0 : 1.0),
                   ),
                   icon: Icon(
                     Icons.flag_rounded,
-                    size: 22,
+                    size: MapDesignTokens.iconStandard,
                     color: Colors.white.withValues(alpha: challengeReady ? 1 : 0.88),
                   ),
                   label: Text(
                     'Start Challenge',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17,
+                    style: MapTextStyles.buttonLabelDense.copyWith(
                       letterSpacing: 0.2,
                       color: Colors.white.withValues(alpha: challengeReady ? 1 : 0.9),
                     ),

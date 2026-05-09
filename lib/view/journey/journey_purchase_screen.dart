@@ -388,6 +388,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                   journeyTitle: _journey?.name ?? 'Journey',
                   landmarksJourneyId: widget.journeyId.replaceAll('_', ''),
                   catalogJourneyId: widget.journeyId,
+                  clearRecommendationTracking: true,
                 ),
               ),
             );
@@ -589,6 +590,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
               journeyTitle: _journey?.name ?? 'Journey',
               landmarksJourneyId: widget.journeyId.replaceAll('_', ''),
               catalogJourneyId: widget.journeyId,
+              clearRecommendationTracking: true,
             ),
           ),
         );

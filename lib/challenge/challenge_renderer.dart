@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/app_colors.dart';
+import '../core/map_button_styles.dart';
+import '../core/map_design_tokens.dart';
+import '../core/map_text_styles.dart';
 import '../model/challenge_model.dart';
 import '../model/challenge_stage_model.dart';
 import '../model/challenge_type.dart';
@@ -329,14 +332,18 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                   color: AppColors.orange.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_rounded, color: AppColors.orange, size: 34),
+                child: Icon(
+                  Icons.check_rounded,
+                  color: AppColors.orange,
+                  size: MapDesignTokens.iconHero * 0.75,
+                ),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: ChallengeStyles.titleStyle.copyWith(fontSize: 20),
+              style: MapTextStyles.popupTitle,
             ),
             const SizedBox(height: 14),
             _ResultCard(
@@ -424,12 +431,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                     nextLandmarkDocumentId: widget.nextLandmarkDocumentId,
                   );
                 },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.orange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
+                style: MapButtonStyles.primaryFilled(),
                 child: Text(primaryLabel),
               ),
             ),
@@ -474,11 +476,11 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
         if (shownHint != null) ...[
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(MapDesignTokens.spaceMd),
             decoration: BoxDecoration(
-              color: AppColors.beige,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.brown.withValues(alpha: 0.12)),
+              color: MapDesignTokens.popupBackground,
+              borderRadius: BorderRadius.circular(MapDesignTokens.radiusChip),
+              border: Border.all(color: MapDesignTokens.borderSubtle(0.12)),
             ),
             child: Text(
               shownHint,
@@ -495,7 +497,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
             _feedback!,
             style: ChallengeStyles.bodyStyle.copyWith(
               fontWeight: FontWeight.w700,
-              color: _lastCorrect ? const Color(0xFF2E7D32) : AppColors.brown,
+              color: _lastCorrect ? MapDesignTokens.successColor : AppColors.brown,
             ),
           ),
         ],
@@ -504,9 +506,9 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
           top: false,
           // Beige backing removes any stray visual separator/line in the button gutter.
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
             child: ColoredBox(
-              color: AppColors.beige,
+              color: MapDesignTokens.popupBackground,
               child: Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Row(
@@ -516,41 +518,40 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                         child: _hintEnabled
                             ? FilledButton(
                                 onPressed: _onShowHint,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.brown,
-                                  foregroundColor: AppColors.beige,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                style: MapButtonStyles.challengeFooterHintEnabled(),
+                                child: Text(
+                                  'Show Hint',
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                child: const Text('Show Hint'),
                               )
                             : OutlinedButton(
                                 onPressed: null,
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  side: BorderSide(color: AppColors.brown.withValues(alpha: 0.25)),
-                                  foregroundColor: AppColors.brown.withValues(alpha: 0.55),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                style: MapButtonStyles.challengeFooterHintDisabled(),
+                                child: Text(
+                                  'Show Hint',
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                child: const Text('Show Hint'),
                               ),
                       ),
-                      // Explicit beige separator prevents any underlying color peeking through.
-                      const ColoredBox(
-                        color: AppColors.beige,
-                        child: SizedBox(width: 12, height: 1),
+                      ColoredBox(
+                        color: MapDesignTokens.popupBackground,
+                        child: SizedBox(width: MapDesignTokens.spaceMd, height: 1),
                       ),
                     ],
                     Expanded(
                       child: FilledButton(
                         onPressed: _busy ? null : _onCheckAnswer,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.orange,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        style: MapButtonStyles.challengeFooterCheck(enabled: !_busy),
+                        child: Text(
+                          'Check Your Answer',
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        child: const Text('Check Your Answer'),
                       ),
                     ),
                   ],
@@ -667,9 +668,9 @@ class _ResultCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.brown.withValues(alpha: 0.12)),
+        color: MapDesignTokens.cardOnBeige(0.62),
+        borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
+        border: Border.all(color: MapDesignTokens.borderSubtle(0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -744,13 +745,13 @@ class _MetricCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.brown.withValues(alpha: 0.12)),
+        color: MapDesignTokens.cardOnBeige(0.62),
+        borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
+        border: Border.all(color: MapDesignTokens.borderSubtle(0.12)),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.brown),
+          Icon(icon, size: MapDesignTokens.iconSmall, color: AppColors.brown),
           const SizedBox(width: 10),
           Expanded(
             child: Column(

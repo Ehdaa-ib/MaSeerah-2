@@ -9,9 +9,34 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Users can read and write only their own document (users/{uid})
+    // Own profile document: read anytime; create only for signup shape; update only safe fields.
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['email', 'name', 'role', 'createdAt'])
+        && request.resource.data.email is string
+        && request.resource.data.name is string
+        && request.resource.data.role is string
+        && request.resource.data.createdAt is timestamp;
+
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'username',
+          'email',
+          'phoneNumber',
+          'gender',
+          'nationality',
+          'dateOfBirth',
+          'profileImageUrl',
+          'updatedAt',
+          'name',
+        ])
+        && (!('role' in resource.data) || request.resource.data.role == resource.data.role)
+        && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
+        && (!('isAdmin' in resource.data) || request.resource.data.isAdmin == resource.data.isAdmin);
+
+      allow delete: if false;
     }
 
     // Append-only: each time a journey is finished, a row is added (never deleted by replay).
@@ -116,6 +141,35 @@ service cloud.firestore {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
+    // Optional user-uploaded gallery (profile "Your photos"). Not used by core journey flow.
+    match /photos/{photoId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create, update: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Legacy journey list for profile (if present in project data).
+    match /user_journeys/{docId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Curated recommendation places (FR-21/FR-22). Read-only for signed-in users.
+    match /recommendation_places/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+    // Optional alternate collection ids used by the client when migrating data.
+    match /recommendations/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+    match /recommended_places/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // Journeys: anyone can read (browse), authenticated users can write
     match /journeys/{journeyId} {
       allow read: if true;

@@ -12,6 +12,10 @@ import '../faq/faqs_page.dart';
 import '../journey/journey_list_screen.dart';
 import '../auth/login_screen.dart';
 import 'landing_page.dart';
+import 'edit_profile_screen.dart';
+
+/// Matches [JourneyCompletionDataSource] root collection (private there).
+const String _journeyCompletionsCollection = 'journeyCompletions';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,10 +30,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String userName = "";
   String joinedDate = "";
+  String? profileImageUrl;
   int journeysCount = 0;
   int photosCount = 0;
   List<Map<String, dynamic>> userJourneys = [];
   List<Map<String, dynamic>> userFeedbacks = [];
+  /// Each entry: `url` (String), optional `journeyName`, `createdAt` (DateTime?), `source` (String).
+  List<Map<String, dynamic>> userPhotos = [];
 
   @override
   void initState() {
@@ -74,15 +81,100 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ) {
     if (userDoc.exists) {
       final data = userDoc.data();
-      userName = (data?['name'] as String?)?.trim().isNotEmpty == true
-          ? data!['name'] as String
-          : user.email?.split('@').first ?? 'User';
+      final un = (data?['username'] as String?)?.trim();
+      final nm = (data?['name'] as String?)?.trim();
+      userName = (un != null && un.isNotEmpty)
+          ? un
+          : (nm != null && nm.isNotEmpty)
+              ? nm
+              : user.email?.split('@').first ?? 'User';
+      final rawUrl = (data?['profileImageUrl'] as String?)?.trim();
+      profileImageUrl = (rawUrl != null && rawUrl.isNotEmpty) ? rawUrl : null;
       final join = _readJoinDateFromUserDoc(data);
       joinedDate = join != null ? _formatDate(join) : 'Unknown';
     } else {
       userName = user.email?.split('@').first ?? 'User';
+      profileImageUrl = null;
       joinedDate = 'Unknown';
     }
+  }
+
+  DateTime? _coerceToDateTime(dynamic v) {
+    if (v == null) return null;
+    if (v is Timestamp) return v.toDate();
+    if (v is DateTime) return v;
+    if (v is String) {
+      final t = DateTime.tryParse(v.trim());
+      if (t != null) return t;
+    }
+    return null;
+  }
+
+  String? _photoUrlFromDoc(Map<String, dynamic> d) {
+    const keys = [
+      'url',
+      'imageUrl',
+      'downloadUrl',
+      'photoUrl',
+      'downloadURL',
+      'imageURL',
+      'src',
+      'uri',
+    ];
+    for (final k in keys) {
+      final v = d[k];
+      if (v is String) {
+        final t = v.trim();
+        if (t.isNotEmpty && t.startsWith('http')) return t;
+      }
+    }
+    return null;
+  }
+
+  Future<Map<String, String>> _resolveJourneyNames(Iterable<String> ids) async {
+    final out = <String, String>{};
+    final unique = ids.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet();
+    await Future.wait(unique.map((journeyId) async {
+      try {
+        final jd = await _firestore.collection('journeys').doc(journeyId).get();
+        if (jd.exists) {
+          final n = (jd.data()?['name'] as String?)?.trim();
+          if (n != null && n.isNotEmpty) out[journeyId] = n;
+        }
+      } catch (_) {}
+    }));
+    return out;
+  }
+
+  void _openPhotoViewer(String url) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => GestureDetector(
+        onTap: () => Navigator.of(ctx).pop(),
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4,
+          child: Center(
+            child: Image.network(
+              url,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return const Padding(
+                  padding: EdgeInsets.all(48),
+                  child: CircularProgressIndicator(color: AppColors.beige),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) => const Padding(
+                padding: EdgeInsets.all(24),
+                child: Icon(Icons.broken_image_outlined, color: Colors.white70, size: 64),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadUserData() async {
@@ -90,108 +182,274 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user == null) return;
 
     final uid = user.uid;
+
+    Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> safeDocs(
+      Future<QuerySnapshot<Map<String, dynamic>>> future,
+      String label,
+    ) async {
+      try {
+        return (await future).docs;
+      } catch (e) {
+        if (kDebugMode) debugPrint('[Profile] $label failed (other data still loads): $e');
+        return [];
+      }
+    }
+
     try {
-      // Fire user doc + independent reads together; paint header as soon as user doc returns.
       final userDocFuture = _firestore.collection('users').doc(uid).get();
-      final photosFuture =
-          _firestore.collection('photos').where('userId', isEqualTo: uid).get();
-      final completionFuture = _firestore
-          .collection('users')
-          .doc(uid)
-          .collection(JourneyCompletionDataSource.userCompletionHistorySubcollection)
-          .get();
-      final feedbackRootFuture =
-          _firestore.collection('feedback').where('userId', isEqualTo: uid).get();
-      final feedbackProfileFuture = _firestore
-          .collection('users')
-          .doc(uid)
-          .collection(FeedbackDataSource.userFeedbackSubcollection)
-          .get();
+      final photosFuture = safeDocs(
+        _firestore.collection('photos').where('userId', isEqualTo: uid).get(),
+        'photos',
+      );
+      final completionFuture = safeDocs(
+        _firestore
+            .collection('users')
+            .doc(uid)
+            .collection(JourneyCompletionDataSource.userCompletionHistorySubcollection)
+            .get(),
+        'journeyCompletionHistory',
+      );
+      final userJourneysLegacyFuture = safeDocs(
+        _firestore.collection('user_journeys').where('userId', isEqualTo: uid).get(),
+        'user_journeys',
+      );
+      final journeyCompletionsFuture = safeDocs(
+        _firestore.collection(_journeyCompletionsCollection).where('userId', isEqualTo: uid).get(),
+        'journeyCompletions',
+      );
+      final feedbackRootFuture = safeDocs(
+        _firestore.collection('feedback').where('userId', isEqualTo: uid).get(),
+        'feedback',
+      );
+      final feedbackProfileFuture = safeDocs(
+        _firestore
+            .collection('users')
+            .doc(uid)
+            .collection(FeedbackDataSource.userFeedbackSubcollection)
+            .get(),
+        'journeyFeedback',
+      );
 
       final userDoc = await userDocFuture;
       if (!mounted) return;
-      setState(() => _applyUserDocument(userDoc, user));
 
-      final photosAndCompletion = await Future.wait([photosFuture, completionFuture]);
-      if (!mounted) return;
-      photosCount = photosAndCompletion[0].docs.length;
-      final completionHistSnap = photosAndCompletion[1];
-
-      if (completionHistSnap.docs.isNotEmpty) {
-        userJourneys = await Future.wait(completionHistSnap.docs.map((doc) async {
-          final data = doc.data();
-          final journeyId = data['journeyId'] as String? ?? '';
-          var name = journeyId;
-          if (journeyId.isNotEmpty) {
-            final jd = await _firestore.collection('journeys').doc(journeyId).get();
-            if (jd.exists) {
-              name = (jd.data()?['name'] as String?)?.trim() ?? journeyId;
-            }
+      var docForApply = userDoc;
+      final authEmail = user.email?.trim() ?? '';
+      final fsEmail = (userDoc.data()?['email'] as String?)?.trim() ?? '';
+      var didSync = false;
+      if (authEmail.isNotEmpty && authEmail.toLowerCase() != fsEmail.toLowerCase()) {
+        try {
+          await _firestore.collection('users').doc(uid).set(
+            {
+              'email': authEmail,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+          didSync = true;
+          if (kDebugMode) {
+            debugPrint('[Profile] synced Firestore email from Auth uid=$uid');
           }
-          final ts = data['completedAt'] as Timestamp?;
-          return {
-            'name': name,
-            'date': ts != null ? _formatDate(ts.toDate()) : '',
-          };
-        }));
-        journeysCount = userJourneys.length;
-      } else {
-        final userJourneysSnap = await _firestore
-            .collection('user_journeys')
-            .where('userId', isEqualTo: uid)
-            .get();
-        if (!mounted) return;
-        journeysCount = userJourneysSnap.docs.length;
-        userJourneys = userJourneysSnap.docs.map((doc) {
+        } catch (e) {
+          if (kDebugMode) debugPrint('[Profile] email sync skipped: $e');
+        }
+      }
+      if (didSync) {
+        docForApply = await _firestore.collection('users').doc(uid).get();
+      }
+      if (!mounted) return;
+      setState(() => _applyUserDocument(docForApply, user));
+
+      final batch = await Future.wait<List<QueryDocumentSnapshot<Map<String, dynamic>>>>([
+        photosFuture,
+        completionFuture,
+        userJourneysLegacyFuture,
+        journeyCompletionsFuture,
+      ]);
+      if (!mounted) return;
+
+      final photoDocs = batch[0];
+      final completionHistDocs = batch[1];
+      final legacyJourneyDocs = batch[2];
+      final completionsDocs = batch[3];
+
+      final journeyRows = <Map<String, dynamic>>[];
+
+      for (final doc in completionHistDocs) {
+        final data = doc.data();
+        final journeyId = (data['journeyId'] as String?)?.trim() ?? '';
+        final ts = data['completedAt'];
+        final sort = _coerceToDateTime(ts);
+        journeyRows.add({
+          'journeyId': journeyId,
+          'name': journeyId,
+          'dateLabel': sort != null ? _formatDate(sort) : '',
+          'sort': sort ?? DateTime.fromMillisecondsSinceEpoch(0),
+          'source': 'history',
+        });
+      }
+
+      for (final doc in legacyJourneyDocs) {
+        final data = doc.data();
+        final name = (data['journeyName'] as String?)?.trim() ?? '';
+        final sort = _coerceToDateTime(data['date']) ?? _coerceToDateTime(data['completedAt']);
+        final journeyId = (data['journeyId'] as String?)?.trim() ?? '';
+        journeyRows.add({
+          'journeyId': journeyId,
+          'name': name.isNotEmpty ? name : (journeyId.isNotEmpty ? journeyId : 'Journey'),
+          'dateLabel': sort != null ? _formatDate(sort) : (data['date']?.toString() ?? ''),
+          'sort': sort ?? DateTime.fromMillisecondsSinceEpoch(0),
+          'source': 'legacy',
+        });
+      }
+
+      if (journeyRows.isEmpty && completionsDocs.isNotEmpty) {
+        for (final doc in completionsDocs) {
           final data = doc.data();
-          return {
-            'name': data['journeyName'] ?? '',
-            'date': data['date'] ?? '',
-          };
-        }).toList();
+          final journeyId = (data['journeyId'] as String?)?.trim() ?? '';
+          final ts = data['completedAt'];
+          final sort = _coerceToDateTime(ts);
+          journeyRows.add({
+            'journeyId': journeyId,
+            'name': journeyId,
+            'dateLabel': sort != null ? _formatDate(sort) : '',
+            'sort': sort ?? DateTime.fromMillisecondsSinceEpoch(0),
+            'source': 'completion',
+          });
+        }
+      }
+
+      journeyRows.sort((a, b) => (b['sort'] as DateTime).compareTo(a['sort'] as DateTime));
+
+      final idsForNames = journeyRows.map((r) => r['journeyId'] as String).where((s) => s.isNotEmpty);
+      final nameById = await _resolveJourneyNames(idsForNames);
+      for (final row in journeyRows) {
+        final jid = row['journeyId'] as String? ?? '';
+        if (jid.isNotEmpty && nameById.containsKey(jid)) {
+          row['name'] = nameById[jid]!;
+        } else if ((row['name'] as String).isEmpty || row['name'] == jid) {
+          if (jid.isNotEmpty) row['name'] = jid;
+        }
+      }
+
+      userJourneys = journeyRows
+          .map((r) => {
+                'name': r['name'],
+                'date': r['dateLabel'],
+              })
+          .toList();
+      journeysCount = userJourneys.length;
+
+      final photoEntries = <Map<String, dynamic>>[];
+      for (final doc in photoDocs) {
+        final data = doc.data();
+        final url = _photoUrlFromDoc(data);
+        if (url == null) continue;
+        photoEntries.add({
+          'url': url,
+          'journeyName': data['journeyName']?.toString() ?? data['journey']?.toString(),
+          'createdAt': _coerceToDateTime(data['createdAt'] ?? data['takenAt'] ?? data['timestamp']),
+          'source': 'photos',
+        });
       }
 
       if (!mounted) return;
       setState(() {});
 
-      final feedbackSnaps = await Future.wait([feedbackRootFuture, feedbackProfileFuture]);
+      final feedbackBatch = await Future.wait([
+        feedbackRootFuture,
+        feedbackProfileFuture,
+      ]);
       if (!mounted) return;
+      final feedbackRootDocs = feedbackBatch[0];
+      final feedbackProfileDocs = feedbackBatch[1];
+      if (kDebugMode) {
+        debugPrint(
+          '[Profile] loaded counts: history=${completionHistDocs.length} '
+          'legacy=${legacyJourneyDocs.length} completions=${completionsDocs.length} '
+          'feedbackRoot=${feedbackRootDocs.length} feedbackProfile=${feedbackProfileDocs.length}',
+        );
+      }
       final feedbackById = <String, Map<String, dynamic>>{};
-      for (final doc in feedbackSnaps[0].docs) {
+      for (final doc in feedbackRootDocs) {
         feedbackById[doc.id] = doc.data();
       }
-      for (final doc in feedbackSnaps[1].docs) {
+      for (final doc in feedbackProfileDocs) {
         feedbackById.putIfAbsent(doc.id, () => doc.data());
+      }
+
+      int feedbackSortKey(Map<String, dynamic> data) {
+        final ts = data['createdAt'];
+        if (ts is Timestamp) return ts.millisecondsSinceEpoch;
+        return 0;
       }
 
       final mergedFeedback = feedbackById.entries.toList()
         ..sort((a, b) {
-          final ta = a.value['createdAt'];
-          final tb = b.value['createdAt'];
-          if (ta is! Timestamp && tb is! Timestamp) return 0;
-          if (ta is! Timestamp) return 1;
-          if (tb is! Timestamp) return -1;
-          return tb.compareTo(ta);
+          final ka = feedbackSortKey(a.value);
+          final kb = feedbackSortKey(b.value);
+          if (ka != 0 || kb != 0) return kb.compareTo(ka);
+          return b.key.compareTo(a.key);
         });
 
-      userFeedbacks = await Future.wait(mergedFeedback.map((e) async {
+      final feedbackJourneyIds = mergedFeedback
+          .map((e) => e.value['journeyId'])
+          .whereType<String>()
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty && s != 'all');
+      final fbNameById = await _resolveJourneyNames(feedbackJourneyIds);
+
+      userFeedbacks = mergedFeedback.map((e) {
         final data = e.value;
         final journeyId = data['journeyId'];
         var journeyName = 'General';
         if (journeyId != null && journeyId != 'all') {
-          final journeyDoc =
-              await _firestore.collection('journeys').doc(journeyId as String).get();
-          if (journeyDoc.exists) {
-            journeyName = journeyDoc.data()?['name'] ?? 'Unknown Journey';
-          }
+          final jid = journeyId.toString();
+          journeyName = fbNameById[jid] ?? 'Unknown Journey';
         }
+        final rawPhotos = data['photos'];
+        final urls = rawPhotos is List
+            ? rawPhotos.whereType<String>().where((u) => u.trim().startsWith('http')).toList()
+            : <String>[];
+        final rating = (data['overallRating'] as num?)?.toInt() ??
+            (data['rating'] as num?)?.toInt() ??
+            0;
+        final comment = (data['overallComment'] as String?)?.trim().isNotEmpty == true
+            ? data['overallComment'] as String
+            : (data['comment'] as String?) ?? '';
         return {
-          'rating': data['overallRating'] ?? 0,
-          'comment': data['overallComment'] ?? '',
+          'rating': rating.clamp(0, 5),
+          'comment': comment,
           'date': (data['createdAt'] as Timestamp?)?.toDate(),
           'journeyName': journeyName,
+          'photos': urls,
         };
-      }));
+      }).toList();
+
+      for (final fb in userFeedbacks) {
+        final urls = fb['photos'] as List<dynamic>;
+        for (final u in urls) {
+          if (u is! String || !u.trim().startsWith('http')) continue;
+          photoEntries.add({
+            'url': u.trim(),
+            'journeyName': fb['journeyName'],
+            'createdAt': fb['date'] as DateTime?,
+            'source': 'feedback',
+          });
+        }
+      }
+
+      photoEntries.sort((a, b) {
+        final ta = a['createdAt'] as DateTime?;
+        final tb = b['createdAt'] as DateTime?;
+        if (ta == null && tb == null) return 0;
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return tb.compareTo(ta);
+      });
+
+      userPhotos = photoEntries;
+      photosCount = userPhotos.length;
     } catch (e) {
       if (kDebugMode) debugPrint('[Profile] load error: $e');
     }
@@ -255,8 +513,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             children: [
               IconButton(
-                icon: Icon(Icons.settings, color: AppColors.brown),
-                onPressed: () {},
+                tooltip: 'Edit profile',
+                icon: Icon(Icons.edit_outlined, color: AppColors.brown),
+                onPressed: () async {
+                  final changed = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute<bool>(builder: (_) => const EditProfileScreen()),
+                  );
+                  if (changed == true && mounted) {
+                    _hydrateFromAuthSync();
+                    await _loadUserData();
+                  }
+                },
               ),
               IconButton(
                 icon: Icon(Icons.help_outline, color: AppColors.brown),
@@ -312,11 +579,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: CircleAvatar(
                           radius: 50,
                           backgroundColor: AppColors.beige.withValues(alpha: 0.88),
-                          child: Icon(
-                            Icons.person,
-                            size: 50,
-                            color: AppColors.brown.withOpacity(0.7),
-                          ),
+                          backgroundImage: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                              ? NetworkImage(profileImageUrl!)
+                              : null,
+                          onBackgroundImageError: profileImageUrl != null
+                              ? (Object o, StackTrace? st) {
+                                  if (kDebugMode) debugPrint('[Profile] avatar load error: $o');
+                                  if (mounted) setState(() => profileImageUrl = null);
+                                }
+                              : null,
+                          child: profileImageUrl == null || profileImageUrl!.isEmpty
+                              ? Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: AppColors.brown.withOpacity(0.7),
+                                )
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -372,13 +650,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       userJourneys.isEmpty
                           ? _emptyBox("No journeys yet")
                           : SizedBox(
-                              height: 130,
+                              height: 148,
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: userJourneys.length,
-                                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                                separatorBuilder: (_, _) => const SizedBox(width: 12),
                                 itemBuilder: (context, index) {
                                   final journey = userJourneys[index];
+                                  final title = journey['name']?.toString() ?? 'Journey';
+                                  final dateStr = journey['date']?.toString() ?? '';
                                   return Container(
                                     width: 200,
                                     padding: const EdgeInsets.all(12),
@@ -391,27 +671,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Text(
-                                          journey['name'],
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.brown,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
                                         Row(
                                           children: [
-                                            const Icon(Icons.calendar_today, size: 12),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              journey['date'],
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors.brown.withOpacity(0.7),
+                                            Icon(Icons.route,
+                                                size: 18, color: AppColors.brown.withOpacity(0.85)),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                title,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 14,
+                                                  color: AppColors.brown,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
+                                        if (dateStr.isNotEmpty) ...[
+                                          const SizedBox(height: 10),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.calendar_today,
+                                                  size: 12, color: AppColors.brown.withOpacity(0.6)),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  dateStr,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: AppColors.brown.withOpacity(0.7),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   );
@@ -431,15 +730,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       userFeedbacks.isEmpty
                           ? _emptyBox("No feedback yet")
                           : SizedBox(
-                              height: 200,
+                              height: 248,
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: userFeedbacks.length,
-                                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                                separatorBuilder: (_, _) => const SizedBox(width: 12),
                                 itemBuilder: (context, index) {
                                   final fb = userFeedbacks[index];
+                                  final stars = (fb['rating'] as num?)?.toInt() ?? 0;
+                                  final photos =
+                                      (fb['photos'] as List?)?.whereType<String>().toList() ?? [];
                                   return Container(
-                                    width: 280,
+                                    width: 288,
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: AppColors.beige.withValues(alpha: 0.88),
@@ -450,7 +752,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          fb['journeyName'],
+                                          fb['journeyName']?.toString() ?? '',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
@@ -459,22 +763,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Row(
-                                          children: List.generate(5, (i) => Icon(
-                                            i < fb['rating'] ? Icons.star : Icons.star_border,
-                                            color: Colors.amber,
-                                            size: 14,
-                                          )),
+                                          children: List.generate(
+                                            5,
+                                            (i) => Icon(
+                                              i < stars ? Icons.star : Icons.star_border,
+                                              color: Colors.amber,
+                                              size: 16,
+                                            ),
+                                          ),
                                         ),
                                         const SizedBox(height: 6),
-                                        Text(
-                                          fb['comment'],
-                                          maxLines: 3,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 12, color: AppColors.brown),
+                                        Expanded(
+                                          child: Text(
+                                            fb['comment']?.toString() ?? '',
+                                            maxLines: 4,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                fontSize: 12, color: AppColors.brown),
+                                          ),
                                         ),
+                                        if (photos.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          SizedBox(
+                                            height: 64,
+                                            child: ListView.separated(
+                                              scrollDirection: Axis.horizontal,
+                                              itemCount: photos.length,
+                                              separatorBuilder: (_, _) =>
+                                                  const SizedBox(width: 8),
+                                              itemBuilder: (_, i) =>
+                                                  _photoThumbnail(photos[i], size: 64),
+                                            ),
+                                          ),
+                                        ],
                                         const SizedBox(height: 6),
                                         Text(
-                                          _formatRelativeDate(fb['date']).toUpperCase(),
+                                          _formatRelativeDate(fb['date'] as DateTime?)
+                                              .toUpperCase(),
                                           style: TextStyle(
                                             fontSize: 10,
                                             color: AppColors.brown.withOpacity(0.6),
@@ -488,30 +813,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                       const SizedBox(height: 30),
                       const Text(
-                        "Journey Memories",
+                        "Your photos",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                           color: AppColors.brown,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.beige.withValues(alpha: 0.88),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.brown.withOpacity(0.2)),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text("View All", style: TextStyle(fontSize: 14, color: AppColors.brown)),
-                            Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.brown),
-                          ],
+                      const SizedBox(height: 8),
+                      Text(
+                        "From feedback uploads and saved journey photos.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.brown.withOpacity(0.65),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      userPhotos.isEmpty
+                          ? _emptyBox("No photos yet")
+                          : SizedBox(
+                              height: 104,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: userPhotos.length,
+                                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                                itemBuilder: (context, index) {
+                                  final url = userPhotos[index]['url'] as String;
+                                  return _photoThumbnail(url, size: 96);
+                                },
+                              ),
+                            ),
                       const SizedBox(height: 120),
                     ],
                   ),
@@ -534,6 +865,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         },
         onProfileTap: () {},
+      ),
+    );
+  }
+
+  Widget _photoThumbnail(String url, {double size = 96}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Material(
+        color: AppColors.brown.withValues(alpha: 0.1),
+        child: InkWell(
+          onTap: () => _openPhotoViewer(url),
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Icon(
+                Icons.broken_image_outlined,
+                color: AppColors.brown.withOpacity(0.45),
+              ),
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.brown.withOpacity(0.45),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
       ),
     );
   }

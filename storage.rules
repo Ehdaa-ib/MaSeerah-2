@@ -1,8 +1,8 @@
 rules_version = '2';
 
-// MaSeerah — client Storage is only used for journey feedback images.
-// Path: feedbackPhotos/{userId}/{journeyId}/{fileName}
-// (see lib/data/firebase/feedback_data_source.dart)
+// MaSeerah — client Storage: feedback images + user profile avatars.
+// feedbackPhotos: lib/data/firebase/feedback_data_source.dart
+// profilePhotos: lib/data/firebase/profile_photo_data_source.dart
 service firebase.storage {
   match /b/{bucket}/o {
     function isSignedIn() {
@@ -14,6 +14,10 @@ service firebase.storage {
         && journeyId.size() <= 128
         && fileName.size() > 0
         && fileName.size() <= 256;
+    }
+
+    function isReasonableFileName(fileName) {
+      return fileName.size() > 0 && fileName.size() <= 256;
     }
 
     function isImageUpload() {
@@ -32,6 +36,19 @@ service firebase.storage {
       allow write: if isSignedIn()
         && request.auth.uid == userId
         && isReasonablePath(journeyId, fileName)
+        && request.resource != null
+        && isImageUpload()
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    match /profilePhotos/{userId}/{fileName} {
+      allow read: if isSignedIn()
+        && request.auth.uid == userId
+        && isReasonableFileName(fileName);
+
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && isReasonableFileName(fileName)
         && request.resource != null
         && isImageUpload()
         && request.resource.size < 10 * 1024 * 1024;
