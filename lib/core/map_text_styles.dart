@@ -104,7 +104,7 @@ abstract final class MapTextStyles {
   /// Challenge overlay footer (Show Hint / Check Your Answer) — compact single-line labels.
   static const TextStyle buttonLabelChallengeFooter = TextStyle(
     fontWeight: FontWeight.w700,
-    fontSize: 12,
+    fontSize: 14,
     height: 1.1,
   );
 
