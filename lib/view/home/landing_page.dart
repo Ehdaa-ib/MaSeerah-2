@@ -58,8 +58,36 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   void _openSignIn() {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    final landingContext = context;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (sheetContext) => LoginScreen(
+          hideBackButton: true,
+          authBottomNav: AppBottomNav(
+            selectedIndex: 2,
+            onHomeTap: () {
+              Navigator.of(sheetContext).pop();
+              setState(() => _selectedNavIndex = 0);
+            },
+            onActiveJourneysTap: () {
+              Navigator.of(sheetContext).pop();
+              setState(() => _selectedNavIndex = 1);
+              Navigator.of(landingContext).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const JourneyListScreen(),
+                ),
+              ).then((_) {
+                if (mounted) setState(() => _selectedNavIndex = 0);
+              });
+            },
+            onProfileTap: () {
+              Navigator.of(sheetContext).pop();
+              setState(() => _selectedNavIndex = 2);
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   void _openJourney(Journey? journey) {
@@ -74,9 +102,14 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   void _openActiveJourneys() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const JourneyListScreen()),
-    );
+    setState(() => _selectedNavIndex = 1);
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute<void>(builder: (_) => const JourneyListScreen()),
+    )
+        .then((_) {
+      if (mounted) setState(() => _selectedNavIndex = 0);
+    });
   }
 
   @override
@@ -109,7 +142,10 @@ class _LandingPageState extends State<LandingPage> {
           ),
           bottomNavigationBar: AppBottomNav(
             selectedIndex: _selectedNavIndex,
-            onHomeTap: () => setState(() => _selectedNavIndex = 0),
+            onHomeTap: () {
+              setState(() => _selectedNavIndex = 0);
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
             onActiveJourneysTap: _openActiveJourneys,
             onProfileTap: () {
               setState(() => _selectedNavIndex = 2);

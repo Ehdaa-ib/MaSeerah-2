@@ -6,7 +6,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/app_colors.dart';
 import '../../data/firebase/feedback_data_source.dart';
+import '../../data/firebase/journey_completion_data_source.dart';
+import '../../data/firebase/journey_repurchase_gate_data_source.dart';
 import '../../model/feedback.dart';
+import '../home/landing_page.dart';
 
 class FeedbackScreen extends StatefulWidget {
   final String journeyId;
@@ -60,7 +63,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     if (!_overallRatingValid) {
       setState(() {
         _isLoading = false;
-        _error = 'Please rate Overall (1–5).';
+        _error = 'overall rating is required';
       });
       return;
     }
@@ -79,7 +82,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       final photoUrls = await ds.uploadPhotos(
         userId: uid,
         journeyId: widget.journeyId,
-        files: _photos.map((x) => File(x.path)).toList(),
+        files: _photos,
       );
 
       final entry = FeedbackEntry(
@@ -95,11 +98,27 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
       await ds.create(entry: entry);
 
+      try {
+        await JourneyCompletionDataSource().clearCompletion(
+          userId: uid,
+          journeyId: widget.journeyId,
+        );
+      } catch (_) {}
+      try {
+        await JourneyRepurchaseGateDataSource().setRequiresRepurchase(
+          userId: uid,
+          journeyId: widget.journeyId,
+        );
+      } catch (_) {}
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Thank you for your feedback!')),
       );
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pushAndRemoveUntil<void>(
+        MaterialPageRoute<void>(builder: (_) => const LandingPage()),
+        (_) => false,
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
@@ -263,13 +282,28 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                           const SizedBox(height: 16),
 
                           // Specifics Section
-                          Text(
-                            'Specifics',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.brown,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                'Specifics',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.brown,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '(optional)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 16),
 

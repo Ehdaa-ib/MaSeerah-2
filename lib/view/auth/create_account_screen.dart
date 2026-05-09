@@ -7,7 +7,14 @@ import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
 
 class CreateAccountScreen extends StatefulWidget {
-  const CreateAccountScreen({super.key});
+  const CreateAccountScreen({
+    super.key,
+    this.hideBackButton = false,
+    this.authBottomNav,
+  });
+
+  final bool hideBackButton;
+  final Widget? authBottomNav;
 
   @override
   State<CreateAccountScreen> createState() => _CreateAccountScreenState();
@@ -71,53 +78,74 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     Navigator.of(context).pop();
   }
 
+  void _handleBack() {
+    if (_isLoading) return;
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
+      bottomNavigationBar: widget.authBottomNav,
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('images/image3.png'), 
+            image: AssetImage('images/image3.png'),
             fit: BoxFit.cover,
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-              child: Transform.translate(
-                offset: const Offset(0, -20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'images/name.png',
-                      width: 150,
-                      height: 150,
-                      fit: BoxFit.contain,
-                    ),
-
-                    const SizedBox(height: 0),
-
-                    Container(
-                      width: MediaQuery.of(context).size.width * 0.95,
-                      constraints: BoxConstraints(
-                        minHeight: MediaQuery.of(context).size.height * 0.7,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 35),
-                      decoration: BoxDecoration(
-                        color: AppColors.beige.withOpacity(0.92),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 20,
-                            offset: const Offset(0, 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!widget.hideBackButton)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.brown),
+                    tooltip: 'Back',
+                    onPressed: _handleBack,
+                  ),
+                )
+              else
+                const SizedBox(height: 6),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    child: Transform.translate(
+                      offset: const Offset(0, -8),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'images/name.png',
+                            width: 128,
+                            height: 128,
+                            fit: BoxFit.contain,
                           ),
-                        ],
-                      ),
-                      child: Form(
+                          const SizedBox(height: 8),
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.95,
+                            constraints: BoxConstraints(
+                              minHeight: MediaQuery.of(context).size.height * 0.62,
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+                            decoration: BoxDecoration(
+                              color: AppColors.beige.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Form(
                         key: _formKey,
                         child: Column(
                           mainAxisSize: MainAxisSize.max,
@@ -534,6 +562,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 ),
               ),
             ),
+          ),
+        ),
+            ],
           ),
         ),
       ),

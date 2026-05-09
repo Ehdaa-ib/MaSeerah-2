@@ -43,7 +43,7 @@ void main() {
     await tester.tap(find.text('Submit Review'));
     await tester.pump();
 
-    expect(find.text('Please rate Overall (1–5).'), findsOneWidget);
+    expect(find.text('overall rating is required'), findsOneWidget);
   });
 
   testWidgets('With Overall rating set, signed-out user sees sign-in error', (tester) async {

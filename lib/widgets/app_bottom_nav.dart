@@ -45,27 +45,9 @@ class AppBottomNav extends StatelessWidget {
                 isSelected: selectedIndex == 0,
                 onTap: onHomeTap,
               ),
-              GestureDetector(
+              _ActiveJourneysNavItem(
+                isSelected: selectedIndex == 1,
                 onTap: onActiveJourneysTap,
-                behavior: HitTestBehavior.opaque,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      height: 48,
-                      width: 100,
-                      child: Image.asset(
-                        'images/active journeys.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      'Active Journeys',
-                      style: TextStyle(fontSize: 12, color: AppColors.brown),
-                    ),
-                  ],
-                ),
               ),
               _NavItem(
                 icon: Icons.person_rounded,
@@ -77,6 +59,43 @@ class AppBottomNav extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ActiveJourneysNavItem extends StatelessWidget {
+  const _ActiveJourneysNavItem({
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelColor = isSelected ? AppColors.orange : AppColors.brown;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            height: 48,
+            width: 100,
+            child: Image.asset(
+              'images/active journeys.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            'Active Journeys',
+            style: TextStyle(fontSize: 12, color: labelColor),
+          ),
+        ],
       ),
     );
   }

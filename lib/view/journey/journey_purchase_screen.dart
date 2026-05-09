@@ -19,9 +19,12 @@ import '../../service/access_service.dart';
 import '../../service/order_service.dart';
 import '../../service/payment_service.dart';
 import '../../core/app_colors.dart';
-import '../auth/login_screen.dart';
-import '../feedback/feedback_screen.dart';
 import '../../data/firebase/journey_completion_data_source.dart';
+import '../../data/firebase/journey_progress_data_source.dart';
+import '../../data/firebase/journey_repurchase_gate_data_source.dart';
+import '../../service/journey_user_status_service.dart';
+import '../feedback/feedback_screen.dart';
+import '../auth/login_screen.dart';
 import 'journey_map_screen.dart';
 
 /// Journey description and purchase page. Collapsing header, About, Good to know, sticky payment button.
@@ -29,12 +32,14 @@ class JourneyPurchaseScreen extends StatefulWidget {
   final AppUser? user;
   final String journeyId;
   final Journey? initialJourney;
+  final ActiveJourneyProgress? initialSavedProgress;
 
   const JourneyPurchaseScreen({
     super.key,
     this.user,
     this.journeyId = 'journey_1',
     this.initialJourney,
+    this.initialSavedProgress,
   });
 
   @override
@@ -49,9 +54,27 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   Journey? _journey;
   Order? _order;
   AppUser? _user;
+  String? _uid;
   bool _loading = true;
   String? _error;
   bool _descriptionExpanded = false;
+
+  /// At least one paid order for this journey (supports a newer pending order while repaying).
+  bool _hasPaidAccess = false;
+
+  /// Firestore completion doc exists — user must pay again before the next playthrough.
+  bool _journeyCompleted = false;
+
+  /// Journey finished on the map, but feedback not submitted yet.
+  bool _awaitingFeedback = false;
+
+  /// Set after submitting feedback; cleared when a new payment succeeds.
+  bool _requiresRepurchaseAfterFeedback = false;
+
+  /// Saved map progress (in-progress journey); used for Continue + Active Journeys list.
+  ActiveJourneyProgress? _savedProgress;
+
+  JourneyUserStatus _journeyStatus = JourneyUserStatus.loading;
 
   JourneyRepositoryFirebase get journeyRepo =>
       JourneyRepositoryFirebase(JourneyDataSource());
@@ -65,7 +88,10 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     _orderService = OrderService(journeyRepo: journeyRepo, orderRepo: orderRepo);
     _paymentService = PaymentService(orderRepo: orderRepo, paymentRepo: paymentRepo);
     _accessService = AccessService(journeyRepo: journeyRepo, orderRepo: orderRepo);
+    _uid = FirebaseAuth.instance.currentUser?.uid;
     _user = widget.user;
+    _savedProgress = widget.initialSavedProgress;
+    _journeyStatus = JourneyUserStatus.loading;
     if (widget.initialJourney != null) {
       _journey = widget.initialJourney;
       _loading = false;
@@ -74,6 +100,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   }
 
   Future<void> _load() async {
+    if (kDebugMode) debugPrint('[JourneyDetails] screen open journeyId=${widget.journeyId}');
     final hasInitial = widget.initialJourney != null;
     if (!hasInitial) {
       setState(() {
@@ -82,19 +109,135 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       });
     }
     try {
-      _user ??= await _getCurrentUser();
+      // Always load the journey first (public read) so the intro screen is usable even if
+      // user-scoped reads fail due to auth state / rules.
       Journey? journey = hasInitial ? _journey : await journeyRepo.getById(widget.journeyId);
+
+      _uid = FirebaseAuth.instance.currentUser?.uid;
+      final uidNow = _uid;
+      if (uidNow != null && uidNow.trim().isNotEmpty) {
+        if (kDebugMode) debugPrint('[JourneyDetails] status fetch start userId=$uidNow journeyId=${widget.journeyId}');
+        try {
+          final s = await JourneyUserStatusService().getStatus(
+            userId: uidNow,
+            journeyId: widget.journeyId,
+          );
+          if (!mounted) return;
+          setState(() {
+            _journeyStatus = s.status;
+            if (s.progress != null) _savedProgress = s.progress;
+          });
+          if (kDebugMode) {
+            debugPrint(
+              '[JourneyDetails] status fetch complete userId=$uidNow journeyId=${widget.journeyId} '
+              'status=${s.status.name} progressDocId=${s.progress?.journeyId ?? 'none'}',
+            );
+          }
+        } catch (e) {
+          if (!mounted) return;
+          setState(() => _journeyStatus = JourneyUserStatus.notStarted);
+          if (kDebugMode) debugPrint('[JourneyDetails] status fetch failed: $e');
+        }
+      } else {
+        if (mounted) setState(() => _journeyStatus = JourneyUserStatus.notStarted);
+      }
+
+      AppUser? user;
+      try {
+        user = await _getCurrentUser();
+      } catch (_) {
+        user = null;
+      }
+      _user = user ?? widget.user;
       Order? order;
-      if (_user != null) {
-        order = await _orderService.getUserOrderForJourney(
-          userId: _user!.userId,
-          journeyId: widget.journeyId,
-        );
+      var hasPaidAccess = false;
+      var journeyCompleted = false;
+      var awaitingFeedback = false;
+      var requiresRepurchase = false;
+      final uid = _uid;
+      if (uid != null && uid.trim().isNotEmpty) {
+        // 1) Always check progress first (same source of truth as Active Journeys tab).
+        // This must not be blocked by order/completion reads, which can fail independently.
+        ActiveJourneyProgress? progress;
+        try {
+          progress = await JourneyProgressDataSource().getUserJourneyProgress(
+            userId: uid,
+            journeyId: widget.journeyId,
+          );
+          if (progress != null) {
+            _savedProgress = progress;
+            _journeyStatus = JourneyUserStatus.active;
+          }
+        } catch (_) {
+          // Keep any optimistic progress already in state.
+        }
+
+        try {
+          order = await _orderService.getUserOrderForJourney(
+            userId: uid,
+            journeyId: widget.journeyId,
+          );
+          hasPaidAccess = await _orderService.userHasPaidForJourney(
+            userId: uid,
+            journeyId: widget.journeyId,
+          );
+          journeyCompleted = await JourneyCompletionDataSource().isCompleted(
+            userId: uid,
+            journeyId: widget.journeyId,
+          );
+          if (journeyCompleted) {
+            awaitingFeedback = await JourneyCompletionDataSource().isAwaitingFeedback(
+              userId: uid,
+              journeyId: widget.journeyId,
+            );
+          }
+          requiresRepurchase = await JourneyRepurchaseGateDataSource().requiresNewPurchase(
+            userId: uid,
+            journeyId: widget.journeyId,
+          );
+          // If the journey is truly completed (not just awaiting feedback) or requires repurchase,
+          // clear progress so "Continue" doesn't show for the next run.
+          if ((journeyCompleted && !awaitingFeedback) || requiresRepurchase) {
+            _savedProgress = null;
+          }
+        } catch (_) {
+          // If any user-scoped reads fail (e.g. temporarily signed out), still show the journey intro.
+          order = null;
+          // IMPORTANT: do not overwrite prior known flags on transient failures.
+          // Otherwise the button can incorrectly regress to "Unlock Journey" for already-paid journeys.
+          hasPaidAccess = _hasPaidAccess;
+          journeyCompleted = _journeyCompleted;
+          awaitingFeedback = _awaitingFeedback;
+          requiresRepurchase = _requiresRepurchaseAfterFeedback;
+          // Preserve any optimistic progress passed from the map screen (and any existing _savedProgress).
+        }
+
+        if (kDebugMode) {
+          debugPrint(
+            '[JourneyDetails] userId=$uid journeyId=${widget.journeyId} '
+            'progressDocId=${_savedProgress?.journeyId ?? 'none'} '
+            'currentRegion=${_savedProgress?.currentRegion.toString() ?? 'n/a'} '
+            'isCompleted=$journeyCompleted awaitingFeedback=$awaitingFeedback requiresRepurchase=$requiresRepurchase',
+          );
+        }
+      } else {
+        _savedProgress = null;
       }
       if (mounted) {
         setState(() {
           _journey ??= journey;
           _order = order;
+          _hasPaidAccess = hasPaidAccess;
+          _journeyCompleted = journeyCompleted;
+          _awaitingFeedback = awaitingFeedback;
+          _requiresRepurchaseAfterFeedback = requiresRepurchase;
+          if (_journeyStatus == JourneyUserStatus.loading) {
+            _journeyStatus = (_savedProgress != null)
+                ? JourneyUserStatus.active
+                : (journeyCompleted || requiresRepurchase)
+                    ? JourneyUserStatus.completed
+                    : JourneyUserStatus.notStarted;
+          }
           _loading = false;
         });
       }
@@ -123,13 +266,29 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
 
   void _openSignIn() {
     Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const LoginScreen()))
-        .then((_) => _load());
+        .push<bool>(
+          MaterialPageRoute<bool>(
+            builder: (_) => const LoginScreen(returnToCallerOnSuccess: true),
+          ),
+        )
+        .then((signedIn) {
+      if (signedIn == true && mounted) {
+        _load();
+      }
+    });
   }
 
   Future<void> _purchaseAndPay() async {
-    if (_user == null) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    _uid = uid;
+    if (uid == null) {
       _openSignIn();
+      return;
+    }
+    final canResumePaidRun =
+        _savedProgress != null || (_hasPaidAccess && !_journeyCompleted && !_requiresRepurchaseAfterFeedback);
+    if (canResumePaidRun) {
+      await _startJourney();
       return;
     }
     setState(() {
@@ -137,13 +296,18 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     });
     try {
       Order order;
-      if (_order == null || _order!.status == OrderStatus.cancelled) {
+      final o = _order;
+      final mustCreateNewOrder = o == null ||
+          o.status == OrderStatus.cancelled ||
+          (o.status == OrderStatus.paid && _journeyCompleted) ||
+          (o.status == OrderStatus.paid && _requiresRepurchaseAfterFeedback);
+      if (mustCreateNewOrder) {
         order = await _orderService.createOrder(
-          userId: _user!.userId,
+          userId: uid,
           journeyId: widget.journeyId,
         );
       } else {
-        order = _order!;
+        order = o;
       }
       final payment = await _paymentService.processPayment(
         orderId: order.orderId!,
@@ -194,12 +358,40 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
               paymentId: payment.paymentId!,
               gatewayTransactionId: gatewayId,
             );
+            final uid = FirebaseAuth.instance.currentUser?.uid;
+            if (uid != null) {
+              try {
+                await JourneyCompletionDataSource().clearCompletion(
+                  userId: uid,
+                  journeyId: widget.journeyId,
+                );
+              } catch (_) {
+                // Allow navigation even if rules block delete; user may need rules update.
+              }
+              try {
+                await JourneyRepurchaseGateDataSource().clearRepurchaseGate(
+                  userId: uid,
+                  journeyId: widget.journeyId,
+                );
+              } catch (_) {}
+              try {
+                await JourneyProgressDataSource().delete(
+                  userId: uid,
+                  journeyId: widget.journeyId,
+                );
+              } catch (_) {}
+            }
             if (!mounted) return;
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const JourneyMapScreen(),
-  ),
-);
+                builder: (_) => JourneyMapScreen(
+                  journeyTitle: _journey?.name ?? 'Journey',
+                  landmarksJourneyId: widget.journeyId.replaceAll('_', ''),
+                  catalogJourneyId: widget.journeyId,
+                  clearRecommendationTracking: true,
+                ),
+              ),
+            );
           } catch (e) {
             if (mounted) setState(() => _error = toUserFriendlyMessage(e));
           }
@@ -329,47 +521,80 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   }
 
   Future<void> _startJourney() async {
-  if (_user == null) {
-    _openSignIn();
-    return;
-  }
-  setState(() {
-    _error = null;
-  });
-  try {
-    await _accessService.startJourney(
-      userId: _user!.userId,
-      journeyId: widget.journeyId,
-    );
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const JourneyMapScreen(),
-        ),
-      );
-    }
-  } catch (e) {
-    if (mounted) setState(() => _error = toUserFriendlyMessage(e));
-  }
-}
-
-  Future<void> _finishJourney() async {
-    if (_user == null) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    _uid = uid;
+    if (uid == null) {
       _openSignIn();
       return;
     }
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+    });
+
+    ActiveJourneyProgress? effectiveProg = _savedProgress;
     try {
-      await JourneyCompletionDataSource().markCompleted(
-        userId: _user!.userId,
+      final prog = await JourneyProgressDataSource()
+          .get(userId: uid, journeyId: widget.journeyId)
+          .timeout(const Duration(seconds: 2));
+      effectiveProg = prog ?? effectiveProg;
+    } catch (_) {}
+
+    // Resuming mid-journey: go to the map immediately (do not wait on access/order reads).
+    if (effectiveProg != null) {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => JourneyMapScreen(
+              journeyTitle: _journey?.name ?? effectiveProg?.journeyTitle ?? 'Journey',
+              landmarksJourneyId: effectiveProg?.landmarksJourneyId ?? widget.journeyId.replaceAll('_', ''),
+              catalogJourneyId: widget.journeyId,
+              initialRegion: effectiveProg?.currentRegion,
+              initialQubaChallengeCompleted: effectiveProg?.qubaChallengeCompleted ?? false,
+              initialLastRegionChallengeCompleted: effectiveProg?.lastRegionChallengeCompleted ?? false,
+            ),
+          ),
+        );
+      }
+      // Optional: reconcile access in background (does not block navigation).
+      Future<void>(() async {
+        try {
+          await _accessService.startJourney(userId: uid, journeyId: widget.journeyId);
+        } catch (_) {}
+      });
+      return;
+    }
+
+    try {
+      await _accessService.startJourney(
+        userId: uid,
         journeyId: widget.journeyId,
       );
-      if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => FeedbackScreen(journeyId: widget.journeyId),
-        ),
-      );
+      // First time starting: create an "active journey" record immediately so if the
+      // user goes back to Home (or logs out) they still see "Continue your journey".
+      try {
+        await JourneyProgressDataSource().upsert(
+          userId: uid,
+          journeyId: widget.journeyId,
+          journeyTitle: _journey?.name ?? 'Journey',
+          landmarksJourneyId: widget.journeyId.replaceAll('_', ''),
+          catalogJourneyId: widget.journeyId,
+          currentRegion: 1,
+          qubaChallengeCompleted: false,
+          lastRegionChallengeCompleted: false,
+        );
+      } catch (_) {}
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => JourneyMapScreen(
+              journeyTitle: _journey?.name ?? 'Journey',
+              landmarksJourneyId: widget.journeyId.replaceAll('_', ''),
+              catalogJourneyId: widget.journeyId,
+              clearRecommendationTracking: true,
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) setState(() => _error = toUserFriendlyMessage(e));
     }
@@ -379,6 +604,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
+        backgroundColor: AppColors.green,
         appBar: AppBar(
           backgroundColor: AppColors.brown,
           foregroundColor: Colors.white,
@@ -389,6 +615,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     }
     if (_journey == null) {
       return Scaffold(
+        backgroundColor: AppColors.green,
         appBar: AppBar(
           backgroundColor: AppColors.brown,
           foregroundColor: Colors.white,
@@ -407,12 +634,48 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       );
     }
     final journey = _journey!;
-    final isPaid = _order?.status == OrderStatus.paid;
-    final canPay = _order != null && _order!.status == OrderStatus.pendingPayment;
+    // If progress exists, we should always offer "Continue" (same behavior as Active Journeys).
+    final hasSavedProgress = _savedProgress != null;
+    final shouldGiveFeedback = _journeyCompleted && _awaitingFeedback && !_requiresRepurchaseAfterFeedback;
+    final canResumePaidRun =
+        hasSavedProgress || (_hasPaidAccess && !_journeyCompleted && !_requiresRepurchaseAfterFeedback);
+    final canPay = _order != null &&
+        _order!.status == OrderStatus.pendingPayment &&
+        !canResumePaidRun;
     final showPurchase = _order == null ||
         _order!.status == OrderStatus.cancelled ||
         _order!.status == OrderStatus.pendingPayment;
-    final needsLogin = _user == null;
+    final needsLogin = FirebaseAuth.instance.currentUser == null;
+    final isStatusLoading = !needsLogin && _journeyStatus == JourneyUserStatus.loading;
+    final canStartJourney = !isStatusLoading &&
+        (hasSavedProgress || (_hasPaidAccess && !_journeyCompleted && !_requiresRepurchaseAfterFeedback));
+    final showJourneyFooter = needsLogin ||
+        isStatusLoading ||
+        showPurchase ||
+        canPay ||
+        canStartJourney ||
+        shouldGiveFeedback ||
+        (_user != null && journey.price > 0 && (_journeyCompleted || _requiresRepurchaseAfterFeedback));
+
+    if (kDebugMode) {
+      final buttonState = needsLogin
+          ? 'needsLogin'
+          : shouldGiveFeedback
+              ? 'giveFeedback'
+              : canStartJourney
+                  ? 'continueOrStart'
+                  : canPay
+                      ? 'payPending'
+                      : 'unlock';
+      debugPrint(
+        '[JourneyDetails] resolvedButtonState=$buttonState '
+        'userId=${FirebaseAuth.instance.currentUser?.uid ?? 'null'} '
+        'journeyId=${widget.journeyId} '
+        'hasSavedProgress=$hasSavedProgress hasPaidAccess=$_hasPaidAccess '
+        'orderStatus=${_order?.status.name ?? 'none'} '
+        'completed=$_journeyCompleted awaitingFeedback=$_awaitingFeedback repurchaseGate=$_requiresRepurchaseAfterFeedback',
+      );
+    }
 
     final description = journey.description ?? '';
     const previewLength = 200;
@@ -420,13 +683,15 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     return Scaffold(
       backgroundColor: AppColors.green,
       appBar: AppBar(
-        title: const Text(
-          'Darb Al-Sunnah',
-          style: TextStyle(
+        title: Text(
+          journey.name,
+          style: const TextStyle(
             color: AppColors.brown,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         centerTitle: true,
         backgroundColor: AppColors.green,
@@ -527,7 +792,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
               ),
             ],
           ),
-          if (showPurchase || canPay || isPaid)
+          if (showJourneyFooter)
             Positioned(
               left: 0,
               right: 0,
@@ -537,9 +802,13 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                 child: _buildBottomButton(
                   journey: journey,
                   needsLogin: needsLogin,
-                  isPaid: isPaid,
+                  canStartJourney: canStartJourney,
                   canPay: canPay,
                   showPurchase: showPurchase,
+                  shouldGiveFeedback: shouldGiveFeedback,
+                  isStatusLoading: isStatusLoading,
+                  startJourneyLabel:
+                      (_savedProgress != null) ? 'Continue your journey' : 'Start your journey',
                 ),
               ),
             ),
@@ -657,9 +926,12 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   Widget _buildBottomButton({
     required Journey journey,
     required bool needsLogin,
-    required bool isPaid,
+    required bool canStartJourney,
     required bool canPay,
     required bool showPurchase,
+    required bool shouldGiveFeedback,
+    required bool isStatusLoading,
+    required String startJourneyLabel,
   }) {
     if (needsLogin) {
       return _PaymentButton(
@@ -668,31 +940,54 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
         onTap: _openSignIn,
       );
     }
-    if (isPaid) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _PaymentButton(
-            price: 0,
-            label: 'Start Your Journey',
-            onTap: _startJourney,
-            isGreen: false,
-            centered: true,
-          ),
-          _PaymentButton(
-            price: 0,
-            label: 'Finish Journey & Leave Feedback',
-            onTap: _finishJourney,
-            isGreen: true,
-            centered: true,
-          ),
-        ],
+    if (isStatusLoading) {
+      return _PaymentButton(
+        price: 0,
+        label: 'Loading…',
+        onTap: null,
+        isGreen: false,
+        centered: true,
+      );
+    }
+    if (shouldGiveFeedback) {
+      return _PaymentButton(
+        price: 0,
+        label: 'Give feedback',
+        onTap: () {
+          Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => FeedbackScreen(journeyId: widget.journeyId),
+            ),
+          );
+        },
+        isGreen: false,
+        centered: true,
+      );
+    }
+    if (canPay) {
+      return _PaymentButton(
+        price: journey.price,
+        label: 'Unlock Journey',
+        onTap: _purchaseAndPay,
+        isGreen: false,
+        centered: false,
+      );
+    }
+    if (canStartJourney) {
+      return _PaymentButton(
+        price: 0,
+        label: startJourneyLabel,
+        onTap: _startJourney,
+        isGreen: false,
+        centered: true,
       );
     }
     return _PaymentButton(
       price: journey.price,
       label: 'Unlock Journey',
       onTap: _purchaseAndPay,
+      isGreen: false,
+      centered: false,
     );
   }
 }
@@ -736,7 +1031,7 @@ class _DetailCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(
-                '8',
+                '7',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -807,7 +1102,7 @@ class _InfoItem extends StatelessWidget {
 class _PaymentButton extends StatelessWidget {
   final double price;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool isGreen;
   final bool centered;
 

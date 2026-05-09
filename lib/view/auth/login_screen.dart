@@ -8,10 +8,24 @@ import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
 import '../faq/faqs_page.dart';
 import 'forget_password_page.dart';
+import 'create_account_screen.dart';
 import '../home/landing_page.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    /// When true, successful sign-in pops this route with `true` instead of navigating home
+    /// (e.g. user opened login from journey purchase and should return there).
+    this.returnToCallerOnSuccess = false,
+    /// Guest flow from main bottom nav (Profile): hide app-bar back; use [authBottomNav] only.
+    this.hideBackButton = false,
+    /// Same bottom bar as landing (Home / Active Journeys / Profile). Omit for modal flows (e.g. purchase).
+    this.authBottomNav,
+  });
+
+  final bool returnToCallerOnSuccess;
+  final bool hideBackButton;
+  final Widget? authBottomNav;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -98,6 +112,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (mounted) {
         setState(() => _isLoading = false);
+        if (widget.returnToCallerOnSuccess) {
+          Navigator.of(context).pop(true);
+          return;
+        }
         final role = user.role.trim().toLowerCase();
         if (role == 'admin') {
           Navigator.of(context).popUntil((route) => route.isFirst);
@@ -120,55 +138,83 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _goToCreateAccount() {
-    Navigator.of(context).pushNamed('/create');
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CreateAccountScreen(
+          hideBackButton: widget.hideBackButton,
+          authBottomNav: widget.authBottomNav,
+        ),
+      ),
+    );
+  }
+
+  void _handleBack() {
+    if (_isLoading) return;
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
+      bottomNavigationBar: widget.authBottomNav,
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('images/image3.png'), 
+            image: AssetImage('images/image3.png'),
             fit: BoxFit.cover,
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-              child: Transform.translate(
-                offset: const Offset(0, -30),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'images/name.png', 
-                      width: 150,
-                      height: 150,
-                      fit: BoxFit.contain,
-                    ),
-                    
-                    const SizedBox(height: 0), 
-                    
-                    Container(
-                      width: MediaQuery.of(context).size.width * 0.95, 
-                      constraints: BoxConstraints(  
-                        minHeight: MediaQuery.of(context).size.height * 0.7,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 45),
-                      decoration: BoxDecoration(
-                        color: AppColors.beige.withOpacity(0.92),
-                        borderRadius: BorderRadius.circular(20), 
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 20,
-                            offset: const Offset(0, 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!widget.hideBackButton)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.brown),
+                    tooltip: 'Back',
+                    onPressed: _handleBack,
+                  ),
+                )
+              else
+                const SizedBox(height: 6),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    child: Transform.translate(
+                      offset: const Offset(0, -8),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'images/name.png',
+                            width: 128,
+                            height: 128,
+                            fit: BoxFit.contain,
                           ),
-                        ],
-                      ),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.95,
+                            constraints: BoxConstraints(
+                              minHeight: MediaQuery.of(context).size.height * 0.62,
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+                            decoration: BoxDecoration(
+                              color: AppColors.beige.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
                       child: Form(
                         key: _formKey,
                         child: Column(
@@ -491,6 +537,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+          ),
+        ),
+            ],
           ),
         ),
       ),

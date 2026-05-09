@@ -1,12 +1,14 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../model/feedback.dart';
 
 class FeedbackDataSource {
   static const String _collection = 'feedback';
+
+  /// Mirror of [feedback] under `users/{userId}/…` for profile history (same doc id).
+  static const String userFeedbackSubcollection = 'journeyFeedback';
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -27,27 +29,53 @@ class FeedbackDataSource {
     return FeedbackEntry.fromMap(Map<String, dynamic>.from(snap.docs.first.data()));
   }
 
+  static String _extensionFromPath(String path) {
+    final dot = path.lastIndexOf('.');
+    if (dot <= 0 || dot >= path.length - 1) return '.jpg';
+    return path.substring(dot).toLowerCase();
+  }
+
+  static String _contentTypeForPath(String path) {
+    switch (_extensionFromPath(path)) {
+      case '.png':
+        return 'image/png';
+      case '.gif':
+        return 'image/gif';
+      case '.webp':
+        return 'image/webp';
+      case '.heic':
+      case '.heif':
+        return 'image/heic';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
   Future<List<String>> uploadPhotos({
     required String userId,
     required String journeyId,
-    required List<File> files,
+    required List<XFile> files,
   }) async {
     if (files.isEmpty) return const [];
 
     final urls = <String>[];
-    for (final f in files) {
+    for (var i = 0; i < files.length; i++) {
+      final x = files[i];
       try {
-        final name = DateTime.now().microsecondsSinceEpoch.toString();
+        final bytes = await x.readAsBytes();
+        final ext = _extensionFromPath(x.path);
+        final name =
+            '${DateTime.now().microsecondsSinceEpoch}_$i$ext';
         final ref = _storage
             .ref()
             .child('feedbackPhotos')
             .child(userId)
             .child(journeyId)
-            .child('$name.jpg');
+            .child(name);
 
-        final snapshot = await ref.putFile(
-          f,
-          SettableMetadata(contentType: 'image/jpeg'),
+        final snapshot = await ref.putData(
+          bytes,
+          SettableMetadata(contentType: _contentTypeForPath(x.path)),
         );
         final url = await snapshot.ref.getDownloadURL();
         urls.add(url);
@@ -72,10 +100,30 @@ class FeedbackDataSource {
   Future<void> create({
     required FeedbackEntry entry,
   }) async {
-    await _firestore.collection(_collection).add({
-      ...entry.toMap(),
+    // Explicit map so optional ratings (0) are always sent; avoids rules
+    // treating omitted fields as missing.
+    final data = <String, dynamic>{
+      'userId': entry.userId,
+      'journeyId': entry.journeyId,
+      'overallRating': entry.overallRating,
+      'contentRating': entry.contentRating,
+      'recommendationRating': entry.recommendationRating,
+      'challengeRating': entry.challengeRating,
+      'overallComment': entry.overallComment,
+      'photos': entry.photos,
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    final rootRef = _firestore.collection(_collection).doc();
+    final profileRef = _firestore
+        .collection('users')
+        .doc(entry.userId)
+        .collection(userFeedbackSubcollection)
+        .doc(rootRef.id);
+
+    final batch = _firestore.batch();
+    batch.set(rootRef, data);
+    batch.set(profileRef, data);
+    await batch.commit();
   }
 }
-

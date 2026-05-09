@@ -1,15 +1,57 @@
 rules_version = '2';
+
+// MaSeerah — client Storage: feedback images + user profile avatars.
+// feedbackPhotos: lib/data/firebase/feedback_data_source.dart
+// profilePhotos: lib/data/firebase/profile_photo_data_source.dart
 service firebase.storage {
   match /b/{bucket}/o {
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Feedback photos are uploaded to:
-    // feedbackPhotos/{userId}/{journeyId}/{filename}
+    function isReasonablePath(journeyId, fileName) {
+      return journeyId.size() > 0
+        && journeyId.size() <= 128
+        && fileName.size() > 0
+        && fileName.size() <= 256;
+    }
+
+    function isReasonableFileName(fileName) {
+      return fileName.size() > 0 && fileName.size() <= 256;
+    }
+
+    function isImageUpload() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/.*');
+    }
+
     match /feedbackPhotos/{userId}/{journeyId}/{fileName} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      // Owner can list/read their own feedback images only.
+      allow read: if isSignedIn()
+        && request.auth.uid == userId
+        && isReasonablePath(journeyId, fileName);
+
+      // Upload / replace (no deletes). Deletes are denied because
+      // request.resource is null on delete.
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && isReasonablePath(journeyId, fileName)
+        && request.resource != null
+        && isImageUpload()
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    match /profilePhotos/{userId}/{fileName} {
+      allow read: if isSignedIn()
+        && request.auth.uid == userId
+        && isReasonableFileName(fileName);
+
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && isReasonableFileName(fileName)
+        && request.resource != null
+        && isImageUpload()
+        && request.resource.size < 10 * 1024 * 1024;
     }
   }
 }
-

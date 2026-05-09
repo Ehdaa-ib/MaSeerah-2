@@ -28,10 +28,61 @@ class Journey {
     this.city,
   });
 
+  static String? _coerceName(dynamic v) {
+    if (v == null) return null;
+    if (v is String) {
+      final t = v.trim();
+      return t.isEmpty ? null : t;
+    }
+    final t = v.toString().trim();
+    return t.isEmpty ? null : t;
+  }
+
+  /// Resolves a human-readable title from whatever fields exist on `journeys/{id}`.
+  static String _nameFromFirestore(Map<String, dynamic> map) {
+    const preferredKeys = [
+      'journey_name',
+      'name',
+      'title',
+      'journeyName',
+      'displayName',
+      'journeyTitle',
+      'tripName',
+      'label',
+      'journey_title',
+      'name_en',
+      'nameEn',
+      'journeyLabel',
+    ];
+    for (final key in preferredKeys) {
+      final s = _coerceName(map[key]);
+      if (s != null) return s;
+    }
+    const wantedNormalized = <String>{
+      'journeyname',
+      'name',
+      'title',
+      'displayname',
+      'journeytitle',
+      'tripname',
+      'label',
+      'nameen',
+      'journeylabel',
+    };
+    for (final e in map.entries) {
+      final normalized =
+          e.key.toLowerCase().replaceAll(RegExp(r'[_\s-]'), '');
+      if (!wantedNormalized.contains(normalized)) continue;
+      final s = _coerceName(e.value);
+      if (s != null) return s;
+    }
+    return 'Journey';
+  }
+
   factory Journey.fromMap(Map<String, dynamic> map, {String? id}) {
     return Journey(
       journeyId: id ?? map['journeyId'] as String? ?? '',
-      name: map['name'] as String? ?? 'Journey',
+      name: _nameFromFirestore(map),
       price: (map['price'] as num?)?.toDouble() ?? 0,
       description: map['description'] as String?,
       startPoint: map['startPoint'] as String?,
