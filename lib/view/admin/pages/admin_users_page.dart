@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../util/wait_for_auth.dart';
 import '../../../core/error_messages.dart';
 import '../../../data/firebase/user_data_source.dart';
 import '../../../data/repoImp/user_repository_firebase.dart';
@@ -40,6 +41,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       _error = null;
     });
     try {
+      await waitForAuth();
       final users = await _repo.getAll();
       users.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
       if (!mounted) return;

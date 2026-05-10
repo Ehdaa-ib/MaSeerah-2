@@ -20,6 +20,7 @@ import '../../model/journey_landmark.dart';
 import '../../service/landmark_maps_launch_service.dart';
 import '../../service/recommendation_appearance_store.dart';
 import '../../util/place_image_asset.dart';
+import '../../util/wait_for_auth.dart';
 import '../auth/login_screen.dart';
 import '../feedback/feedback_screen.dart';
 import 'journey_purchase_screen.dart';
@@ -214,9 +215,13 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     }
     _qubaChallengeCompleted = widget.initialQubaChallengeCompleted;
     _lastRegionChallengeCompleted = widget.initialLastRegionChallengeCompleted;
-    _loadLandmarks();
-    _loadJourneyNameFromFirestore();
-    _bootstrapRecommendations();
+    Future<void>(() async {
+      await waitForAuth();
+      if (!mounted) return;
+      _loadLandmarks();
+      _loadJourneyNameFromFirestore();
+      _bootstrapRecommendations();
+    });
   }
 
   Future<void> _bootstrapRecommendations() async {
@@ -272,6 +277,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
         catalogJourneyId: _effectiveCatalogJourneyId(),
       );
     } catch (e, st) {
+      debugPrint('Firestore blocked until auth ready: $e');
       if (kDebugMode) {
         debugPrint('[Recommendations] fetch failed: $e\n$st');
       }
@@ -665,7 +671,8 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       if (name.isEmpty || name == 'Journey') return;
       setState(() => _journeyNameFromDb = name);
       _schedulePersistProgress();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Firestore blocked until auth ready: $e');
       // Keep [widget.journeyTitle] as fallback.
     }
   }
@@ -719,14 +726,16 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
           _scheduleRecommendationTrigger();
         }
       });
-    } on FirebaseException catch (_) {
+    } on FirebaseException catch (e) {
+      debugPrint('Firestore blocked until auth ready: $e');
       if (!mounted) return;
       setState(() {
         _landmarks = [];
         _regionLandmarksByDocumentId.clear();
         _landmarksLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Firestore blocked until auth ready: $e');
       if (!mounted) return;
       setState(() {
         _landmarks = [];

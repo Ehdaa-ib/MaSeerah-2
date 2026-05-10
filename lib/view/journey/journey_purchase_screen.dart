@@ -23,6 +23,7 @@ import '../../data/firebase/journey_completion_data_source.dart';
 import '../../data/firebase/journey_progress_data_source.dart';
 import '../../data/firebase/journey_repurchase_gate_data_source.dart';
 import '../../service/journey_user_status_service.dart';
+import '../../util/wait_for_auth.dart';
 import '../feedback/feedback_screen.dart';
 import '../auth/login_screen.dart';
 import 'journey_map_screen.dart';
@@ -271,9 +272,10 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
             builder: (_) => const LoginScreen(returnToCallerOnSuccess: true),
           ),
         )
-        .then((signedIn) {
+        .then((signedIn) async {
       if (signedIn == true && mounted) {
-        _load();
+        await waitForAuth();
+        if (mounted) _load();
       }
     });
   }
@@ -381,6 +383,8 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                 );
               } catch (_) {}
             }
+            if (!mounted) return;
+            await waitForAuth();
             if (!mounted) return;
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
@@ -542,6 +546,8 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     // Resuming mid-journey: go to the map immediately (do not wait on access/order reads).
     if (effectiveProg != null) {
       if (mounted) {
+        await waitForAuth();
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => JourneyMapScreen(
@@ -584,6 +590,8 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
         );
       } catch (_) {}
       if (mounted) {
+        await waitForAuth();
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => JourneyMapScreen(

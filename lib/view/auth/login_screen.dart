@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_colors.dart';
+import '../../util/wait_for_auth.dart';
 import '../../core/error_messages.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
@@ -110,6 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      await waitForAuth();
       if (mounted) {
         setState(() => _isLoading = false);
         if (widget.returnToCallerOnSuccess) {
