@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../util/wait_for_auth.dart';
 import '../../../core/error_messages.dart';
 import '../../../model/journey.dart';
 
@@ -38,6 +39,7 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
     });
 
     try {
+      await waitForAuth();
       final usersCountFuture =
           FirebaseFirestore.instance.collection('users').count().get();
       final journeysCountFuture =

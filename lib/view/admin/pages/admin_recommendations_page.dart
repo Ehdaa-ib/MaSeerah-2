@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../util/wait_for_auth.dart';
 import '../../../core/error_messages.dart';
 import '../../../data/firebase/recommendation_places_admin_data_source.dart';
 import '../../../model/recommendation_place.dart';
@@ -41,6 +42,7 @@ class _AdminRecommendationsPageState extends State<AdminRecommendationsPage> {
       _error = null;
     });
     try {
+      await waitForAuth();
       final list = await _ds.fetchAll();
       if (!mounted) return;
       setState(() {

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../util/wait_for_auth.dart';
 import '../../../core/error_messages.dart';
 import '../../../data/firebase/journey_landmark_data_source.dart';
 import '../../../model/journey_landmark.dart';
@@ -47,6 +48,7 @@ class _AdminJourneyLandmarksPageState extends State<AdminJourneyLandmarksPage> {
       _error = null;
     });
     try {
+      await waitForAuth();
       final docs =
           await _ds.getLandmarkDocsForJourneyAdmin(widget.landmarksJourneyId);
       if (!mounted) return;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../util/wait_for_auth.dart';
 import '../../../core/error_messages.dart';
 import '../../../core/landmarks_journey_id.dart';
 import '../../../data/firebase/journey_data_source.dart';
@@ -42,6 +43,7 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
       _error = null;
     });
     try {
+      await waitForAuth();
       final journeys = await _repo.getAll();
       journeys.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
       if (!mounted) return;

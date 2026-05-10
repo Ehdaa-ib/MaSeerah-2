@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../util/wait_for_auth.dart';
 import '../../../core/error_messages.dart';
 import '../../../data/firebase/feedback_admin_data_source.dart';
 import '../../../model/feedback.dart';
@@ -40,6 +41,7 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
       _error = null;
     });
     try {
+      await waitForAuth();
       final rows = await _ds.fetchAll();
       if (!mounted) return;
       setState(() {
