@@ -892,8 +892,8 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
               color: AppColors.beige,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  const svgWidth = 430.0;
-                  const svgHeight = 850.0;
+                  const svgWidth = 860.0;
+                  const svgHeight = 1700.0;
                   final w = constraints.maxWidth;
                   final h = w * (svgHeight / svgWidth);
                   const topInset = 6.0;

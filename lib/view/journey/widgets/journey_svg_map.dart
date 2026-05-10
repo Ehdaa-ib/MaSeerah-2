@@ -82,7 +82,7 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
             return Image.asset(
               widget.activeMapAssetPath,
               fit: BoxFit.contain,
-              filterQuality: FilterQuality.low,
+              filterQuality: FilterQuality.medium,
             );
           }
           return const Center(child: Icon(Icons.map_outlined));
@@ -107,7 +107,7 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
                   Image.asset(
                     widget.activeMapAssetPath,
                     fit: BoxFit.contain,
-                    filterQuality: FilterQuality.low,
+                    filterQuality: FilterQuality.medium,
                     cacheWidth: cw,
                     cacheHeight: ch,
                     gaplessPlayback: true,
@@ -123,7 +123,7 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
                     child: Image.asset(
                       widget.inactiveMapAssetPath,
                       fit: BoxFit.contain,
-                      filterQuality: FilterQuality.low,
+                      filterQuality: FilterQuality.medium,
                       cacheWidth: cw,
                       cacheHeight: ch,
                       gaplessPlayback: true,
@@ -162,7 +162,7 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
             Image.asset(
               top,
               fit: BoxFit.contain,
-              filterQuality: FilterQuality.low,
+              filterQuality: FilterQuality.medium,
               cacheWidth: cw,
               cacheHeight: ch,
               gaplessPlayback: true,
@@ -385,7 +385,7 @@ class _SvgSplitter {
 
   static String _extractViewBox(String svg) {
     final m = RegExp(r'viewBox="([^"]+)"', caseSensitive: false).firstMatch(svg);
-    return m?.group(1) ?? '0 0 430 850';
+    return m?.group(1) ?? '0 0 860 1700';
   }
 
   static String? _extractElementById(String svg, String id) {
@@ -578,10 +578,10 @@ class _ViewBox {
         .where((p) => p.isNotEmpty)
         .toList();
     if (parts.length != 4) {
-      return const _ViewBox(x: 0, y: 0, width: 430, height: 850);
+      return const _ViewBox(x: 0, y: 0, width: 860, height: 1700);
     }
     double p(int i, double fallback) => double.tryParse(parts[i]) ?? fallback;
-    return _ViewBox(x: p(0, 0), y: p(1, 0), width: p(2, 430), height: p(3, 850));
+    return _ViewBox(x: p(0, 0), y: p(1, 0), width: p(2, 860), height: p(3, 1700));
   }
 }
 
