@@ -9,20 +9,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Must match lib/core/validators.dart `_adminEmails` (lowercase).
-    function adminEmails() {
-      return [
-        'ehdaa.test@admin.com',
-        'q.test@admin.com',
-        'm.test@admin.com',
-        'r.test@admin.com',
-      ];
-    }
-
+    // Admin list must stay aligned with lib/core/validators.dart (any casing in token is OK).
+    // Case-insensitive match: Auth token email casing can differ from the allowlist.
     function isAdmin() {
       return isSignedIn()
         && request.auth.token.email != null
-        && request.auth.token.email in adminEmails();
+        && request.auth.token.email.matches(
+          '(?i)^(ehdaa\\.test|q\\.test|m\\.test|r\\.test)@admin\\.com$'
+        );
     }
 
     // Own profile document: read anytime; create only for signup shape; update only safe fields.
@@ -187,18 +181,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Curated recommendation places (FR-21/FR-22). Read-only for signed-in users.
+    // Curated recommendation places (FR-21/FR-22). Same visibility model as [journeys]:
+    // public read so the map can load POIs even when Auth is not ready yet (e.g. post-payment flow).
     match /recommendation_places/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
     // Optional alternate collection ids used by the client when migrating data.
     match /recommendations/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
     match /recommended_places/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -208,9 +203,9 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
-    // Journey landmarks (names / map order). Read for signed-in users; writes via Admin only.
+    // Journey landmarks: editorial/map content. Public read (like [journeys]); writes admin-only.
     match /journey_landmarks/{landmarkId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
