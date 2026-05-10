@@ -13,6 +13,9 @@ class Journey {
   final String? languages;
   final String? city;
 
+  /// Firestore `journey_landmarks.journeyId` value (e.g. `journey1`). Optional catalog hint for admins.
+  final String? landmarksJourneyId;
+
   Journey({
     required this.journeyId,
     required this.name,
@@ -26,6 +29,7 @@ class Journey {
     this.goodToKnow,
     this.languages,
     this.city,
+    this.landmarksJourneyId,
   });
 
   static String? _coerceName(dynamic v) {
@@ -79,6 +83,17 @@ class Journey {
     return 'Journey';
   }
 
+  static String? _optionalString(Map<String, dynamic> map, List<String> keys) {
+    for (final k in keys) {
+      final v = map[k];
+      if (v is String) {
+        final t = v.trim();
+        if (t.isNotEmpty) return t;
+      }
+    }
+    return null;
+  }
+
   factory Journey.fromMap(Map<String, dynamic> map, {String? id}) {
     return Journey(
       journeyId: id ?? map['journeyId'] as String? ?? '',
@@ -93,6 +108,11 @@ class Journey {
       goodToKnow: map['goodToKnow'] as String?,
       languages: map['languages'] as String?,
       city: map['city'] as String?,
+      landmarksJourneyId: _optionalString(map, const [
+        'landmarksJourneyId',
+        'landmarks_journey_id',
+        'landmarkJourneyId',
+      ]),
     );
   }
 }

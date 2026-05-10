@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../core/error_messages.dart';
+import '../../../core/landmarks_journey_id.dart';
 import '../../../data/firebase/journey_data_source.dart';
 import '../../../data/repoImp/journey_repository_firebase.dart';
 import '../../../model/journey.dart';
+import 'admin_journey_landmarks_page.dart';
 
 class AdminJourneysPage extends StatefulWidget {
   const AdminJourneysPage({super.key});
@@ -85,6 +87,31 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
         ),
       );
     }
+  }
+
+  void _openLandmarks(Journey j) {
+    final explicit = j.landmarksJourneyId?.trim();
+    final inferred = inferLandmarksJourneyIdFromCatalogId(j.journeyId);
+    final lm = (explicit != null && explicit.isNotEmpty) ? explicit : inferred;
+    if (lm == null || lm.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Set “Landmarks journey ID” on this journey (or use a journey_# ID) to manage landmarks.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AdminJourneyLandmarksPage(
+          landmarksJourneyId: lm,
+          titleLabel: j.name,
+        ),
+      ),
+    );
   }
 
   Future<void> _openEdit(Journey journey) async {
@@ -181,10 +208,20 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
                         style: const TextStyle(color: AppColors.brown),
                       ),
                       isThreeLine: true,
-                      trailing: IconButton(
-                        tooltip: 'Edit journey',
-                        onPressed: () => _openEdit(j),
-                        icon: const Icon(Icons.edit_rounded, color: AppColors.brown),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Stories, clues & landmarks',
+                            onPressed: () => _openLandmarks(j),
+                            icon: const Icon(Icons.place_rounded, color: AppColors.brown),
+                          ),
+                          IconButton(
+                            tooltip: 'Edit journey',
+                            onPressed: () => _openEdit(j),
+                            icon: const Icon(Icons.edit_rounded, color: AppColors.brown),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -232,6 +269,7 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
   late final TextEditingController _goodToKnowController;
   late final TextEditingController _languagesController;
   late final TextEditingController _cityController;
+  late final TextEditingController _landmarksJourneyIdController;
 
   bool get _isEdit => widget.existing != null;
 
@@ -254,6 +292,8 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
     _goodToKnowController = TextEditingController(text: j?.goodToKnow ?? '');
     _languagesController = TextEditingController(text: j?.languages ?? '');
     _cityController = TextEditingController(text: j?.city ?? '');
+    _landmarksJourneyIdController =
+        TextEditingController(text: j?.landmarksJourneyId ?? '');
   }
 
   @override
@@ -270,6 +310,7 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
     _goodToKnowController.dispose();
     _languagesController.dispose();
     _cityController.dispose();
+    _landmarksJourneyIdController.dispose();
     super.dispose();
   }
 
@@ -291,6 +332,7 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
       goodToKnow: _nullIfEmpty(_goodToKnowController.text),
       languages: _nullIfEmpty(_languagesController.text),
       city: _nullIfEmpty(_cityController.text),
+      landmarksJourneyId: _nullIfEmpty(_landmarksJourneyIdController.text),
     );
 
     Navigator.of(context).pop(_JourneyFormResult(journeyId: journeyId, journey: journey));
@@ -364,6 +406,17 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
                     controller: _cityController,
                     style: const TextStyle(color: AppColors.brown),
                     decoration: _inputDecoration(hintText: 'Enter city'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _LabeledTextField(
+                  label: 'Landmarks journey ID (optional)',
+                  child: TextFormField(
+                    controller: _landmarksJourneyIdController,
+                    style: const TextStyle(color: AppColors.brown),
+                    decoration: _inputDecoration(
+                      hintText: 'e.g. journey1 — links catalog journey to journey_landmarks',
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),

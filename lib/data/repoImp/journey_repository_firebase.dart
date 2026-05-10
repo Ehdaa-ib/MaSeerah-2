@@ -56,6 +56,7 @@ class JourneyRepositoryFirebase implements JourneyRepository {
       'goodToKnow': journey.goodToKnow,
       'languages': journey.languages,
       'city': journey.city,
+      'landmarksJourneyId': journey.landmarksJourneyId,
     }..removeWhere((key, value) => value == null);
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../core/error_messages.dart';
+import '../../../model/journey.dart';
 
 class AdminDashboardHomePage extends StatefulWidget {
   const AdminDashboardHomePage({super.key});
@@ -16,6 +17,12 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
   String? _error;
   int _totalUsers = 0;
   int _totalJourneys = 0;
+  int _totalFeedback = 0;
+  int _totalCompletions = 0;
+  double _avgOverallRating = 0;
+  int _ratingSamples = 0;
+  int _completionsLast7Days = 0;
+  List<_TopJourneyRow> _topJourneys = const [];
   List<_RecentUser> _recentUsers = const [];
 
   @override
@@ -53,21 +60,39 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
         }).toList();
       }).catchError((_) => <_RecentUser>[]);
 
+      final feedbackCountFuture =
+          _safeCount(FirebaseFirestore.instance.collection('feedback'));
+      final completionsCountFuture =
+          _safeCount(FirebaseFirestore.instance.collection('journeyCompletions'));
+      final analyticsFuture = _loadEngagementAnalytics();
+
       final results = await Future.wait([
         usersCountFuture,
         journeysCountFuture,
         recentUsersFuture,
+        feedbackCountFuture,
+        completionsCountFuture,
+        analyticsFuture,
       ]);
 
       final usersAgg = results[0] as AggregateQuerySnapshot;
       final journeysAgg = results[1] as AggregateQuerySnapshot;
       final recentUsers = results[2] as List<_RecentUser>;
+      final feedbackCount = results[3] as int;
+      final completionsCount = results[4] as int;
+      final analytics = results[5] as _EngagementAnalytics;
 
       if (!mounted) return;
       setState(() {
         _totalUsers = usersAgg.count ?? 0;
         _totalJourneys = journeysAgg.count ?? 0;
         _recentUsers = recentUsers;
+        _totalFeedback = feedbackCount;
+        _totalCompletions = completionsCount;
+        _avgOverallRating = analytics.avgOverallRating;
+        _ratingSamples = analytics.ratingSamples;
+        _completionsLast7Days = analytics.completionsLast7Days;
+        _topJourneys = analytics.topJourneys;
         _loading = false;
       });
     } catch (e) {
@@ -77,6 +102,105 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
         _loading = false;
       });
     }
+  }
+
+  Future<int> _safeCount(
+    CollectionReference<Map<String, dynamic>> collection,
+  ) async {
+    try {
+      final a = await collection.count().get();
+      return a.count ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<_EngagementAnalytics> _loadEngagementAnalytics() async {
+    var avgOverall = 0.0;
+    var ratingN = 0;
+    try {
+      final fb =
+          await FirebaseFirestore.instance.collection('feedback').limit(400).get();
+      for (final d in fb.docs) {
+        final r = d.data()['overallRating'];
+        if (r is num) {
+          avgOverall += r.toDouble();
+          ratingN++;
+        }
+      }
+    } catch (_) {}
+
+    final avg = ratingN > 0 ? avgOverall / ratingN : 0.0;
+
+    var completed7d = 0;
+    try {
+      final weekAgo = Timestamp.fromDate(
+        DateTime.now().subtract(const Duration(days: 7)),
+      );
+      final q = await FirebaseFirestore.instance
+          .collection('journeyCompletions')
+          .where('completedAt', isGreaterThanOrEqualTo: weekAgo)
+          .get();
+      completed7d = q.docs.length;
+    } catch (_) {
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('journeyCompletions')
+            .limit(500)
+            .get();
+        final cutoff = DateTime.now().subtract(const Duration(days: 7));
+        for (final d in snap.docs) {
+          final ts = d.data()['completedAt'];
+          if (ts is Timestamp && ts.toDate().isAfter(cutoff)) {
+            completed7d++;
+          }
+        }
+      } catch (_) {}
+    }
+
+    final counts = <String, int>{};
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('journeyCompletions')
+          .limit(500)
+          .get();
+      for (final d in snap.docs) {
+        final jid = d.data()['journeyId'] as String?;
+        if (jid == null || jid.isEmpty) continue;
+        counts[jid] = (counts[jid] ?? 0) + 1;
+      }
+    } catch (_) {}
+
+    final topEntries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topFive = topEntries.take(5).toList();
+
+    final rows = <_TopJourneyRow>[];
+    for (final e in topFive) {
+      var label = e.key;
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('journeys')
+            .doc(e.key)
+            .get();
+        if (doc.exists && doc.data() != null) {
+          label = Journey.fromMap(
+            Map<String, dynamic>.from(doc.data()!),
+            id: doc.id,
+          ).name;
+        }
+      } catch (_) {}
+      rows.add(
+        _TopJourneyRow(journeyId: e.key, title: label, completions: e.value),
+      );
+    }
+
+    return _EngagementAnalytics(
+      avgOverallRating: avg,
+      ratingSamples: ratingN,
+      completionsLast7Days: completed7d,
+      topJourneys: rows,
+    );
   }
 
   @override
@@ -112,6 +236,80 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _SummaryCard(
+                    title: 'Feedback entries',
+                    value: _totalFeedback.toString(),
+                    icon: Icons.feedback_outlined,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _SummaryCard(
+                    title: 'Journey completions',
+                    value: _totalCompletions.toString(),
+                    icon: Icons.flag_rounded,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _SummaryCard(
+                    title: 'Avg overall rating',
+                    value: _ratingSamples == 0
+                        ? '—'
+                        : _avgOverallRating.toStringAsFixed(2),
+                    icon: Icons.star_rounded,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _SummaryCard(
+                    title: 'Completions (7 days)',
+                    value: _completionsLast7Days.toString(),
+                    icon: Icons.trending_up_rounded,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _SectionCard(
+              title: 'Most completed journeys (sample)',
+              child: _topJourneys.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'No completion data in the sampled window.',
+                        style: TextStyle(color: AppColors.brown),
+                      ),
+                    )
+                  : Column(
+                      children: _topJourneys
+                          .map(
+                            (r) => ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.route_rounded,
+                                  color: AppColors.brown),
+                              title: Text(
+                                r.title,
+                                style: const TextStyle(color: AppColors.brown),
+                              ),
+                              subtitle: Text(
+                                '${r.journeyId} • ${r.completions} completions',
+                                style: const TextStyle(color: AppColors.brown),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
             ),
             const SizedBox(height: 16),
             _SectionCard(
@@ -309,5 +507,31 @@ class _RecentUser {
   final String name;
   final String email;
   const _RecentUser({required this.name, required this.email});
+}
+
+class _TopJourneyRow {
+  final String journeyId;
+  final String title;
+  final int completions;
+
+  const _TopJourneyRow({
+    required this.journeyId,
+    required this.title,
+    required this.completions,
+  });
+}
+
+class _EngagementAnalytics {
+  final double avgOverallRating;
+  final int ratingSamples;
+  final int completionsLast7Days;
+  final List<_TopJourneyRow> topJourneys;
+
+  const _EngagementAnalytics({
+    required this.avgOverallRating,
+    required this.ratingSamples,
+    required this.completionsLast7Days,
+    required this.topJourneys,
+  });
 }
 

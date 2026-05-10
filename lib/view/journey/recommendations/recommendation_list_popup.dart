@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
@@ -88,21 +90,7 @@ class RecommendationListPopup extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
                             child: Row(
                               children: [
-                                CircleAvatar(
-                                  radius: 22,
-                                  backgroundColor: AppColors.green.withValues(alpha: 0.4),
-                                  backgroundImage: p.primaryImageUrl != null &&
-                                          p.primaryImageUrl!.startsWith('http')
-                                      ? NetworkImage(p.primaryImageUrl!)
-                                      : null,
-                                  child: p.primaryImageUrl == null ||
-                                          !p.primaryImageUrl!.startsWith('http')
-                                      ? Icon(
-                                          Icons.place_outlined,
-                                          color: MapDesignTokens.iconMuted(0.5),
-                                        )
-                                      : null,
-                                ),
+                                _RecommendationListLeadingImages(urls: p.imageUrls),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
@@ -147,6 +135,107 @@ class RecommendationListPopup extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RecommendationListLeadingImages extends StatelessWidget {
+  const _RecommendationListLeadingImages({required this.urls});
+
+  final List<String> urls;
+
+  static const double _mainRadius = 22;
+  static const double _extraDiameter = 22;
+
+  @override
+  Widget build(BuildContext context) {
+    if (urls.isEmpty) {
+      return CircleAvatar(
+        radius: _mainRadius,
+        backgroundColor: AppColors.green.withValues(alpha: 0.4),
+        child: Icon(
+          Icons.place_outlined,
+          color: MapDesignTokens.iconMuted(0.5),
+        ),
+      );
+    }
+
+    final first = urls.first;
+    final hasNetworkFirst = first.startsWith('http');
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(
+          radius: _mainRadius,
+          backgroundColor: AppColors.green.withValues(alpha: 0.4),
+          backgroundImage: hasNetworkFirst ? NetworkImage(first) : null,
+          child: !hasNetworkFirst
+              ? Icon(
+                  Icons.place_outlined,
+                  color: MapDesignTokens.iconMuted(0.5),
+                )
+              : null,
+        ),
+        if (urls.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: SizedBox(
+              height: _mainRadius * 2,
+              width: math.min((urls.length - 1) * 26.0, 78),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.zero,
+                itemCount: urls.length - 1,
+                separatorBuilder: (_, _) => const SizedBox(width: 4),
+                itemBuilder: (context, i) {
+                  final url = urls[i + 1];
+                  if (!url.startsWith('http')) {
+                    return SizedBox(
+                      width: _extraDiameter,
+                      height: _extraDiameter,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppColors.green.withValues(alpha: 0.35),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.place_outlined,
+                          size: 12,
+                          color: MapDesignTokens.iconMuted(0.45),
+                        ),
+                      ),
+                    );
+                  }
+                  return ClipOval(
+                    child: Image.network(
+                      url,
+                      width: _extraDiameter,
+                      height: _extraDiameter,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => SizedBox(
+                        width: _extraDiameter,
+                        height: _extraDiameter,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: AppColors.green.withValues(alpha: 0.35),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.place_outlined,
+                            size: 12,
+                            color: MapDesignTokens.iconMuted(0.45),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

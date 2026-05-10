@@ -30,7 +30,7 @@ class RecommendationDetailsModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gallery = _galleryUrls(place);
+    final gallery = place.imageUrls;
     final priceCategories = place.order == 5
         ? parseRecommendationNestedPrices(place.pricesRaw)
         : const <RecommendationPriceCategory>[];
@@ -189,20 +189,6 @@ class RecommendationDetailsModal extends StatelessWidget {
     return SizedBox.expand(child: body);
   }
 
-  static List<String> _galleryUrls(RecommendationPlace p) {
-    final u = <String>[];
-    final seen = <String>{};
-    void add(String? s) {
-      final t = s?.trim() ?? '';
-      if (t.startsWith('http') && seen.add(t)) u.add(t);
-    }
-
-    add(p.primaryImageUrl);
-    for (final x in p.imageUrls) {
-      add(x);
-    }
-    return u;
-  }
 }
 
 class _PriceCategoryCard extends StatelessWidget {

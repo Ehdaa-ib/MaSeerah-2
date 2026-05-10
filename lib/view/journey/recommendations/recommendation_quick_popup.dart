@@ -42,7 +42,7 @@ class RecommendationQuickPopup extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _Thumb(url: place.primaryImageUrl),
+                      _ThumbStrip(urls: place.imageUrls),
                       const SizedBox(width: MapDesignTokens.spaceMd),
                       Expanded(
                         child: Column(
@@ -135,6 +135,38 @@ class RecommendationQuickPopup extends StatelessWidget {
   }
 }
 
+/// Horizontal thumbnails from [urls]; same dimensions as the legacy single [_Thumb].
+class _ThumbStrip extends StatelessWidget {
+  const _ThumbStrip({required this.urls});
+
+  final List<String> urls;
+
+  static const double _size = 76;
+  static const double _maxStripWidth = 220;
+
+  @override
+  Widget build(BuildContext context) {
+    if (urls.isEmpty) {
+      return _Thumb(url: null);
+    }
+    if (urls.length == 1) {
+      return _Thumb(url: urls.first);
+    }
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _maxStripWidth, maxHeight: _size),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        shrinkWrap: true,
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.zero,
+        itemCount: urls.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (context, i) => _Thumb(url: urls[i]),
+      ),
+    );
+  }
+}
+
 class _Thumb extends StatelessWidget {
   const _Thumb({this.url});
 
@@ -142,7 +174,7 @@ class _Thumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const size = 76.0;
+    const size = _ThumbStrip._size;
     if (url != null && url!.trim().startsWith('http')) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(MapDesignTokens.radiusThumb),
@@ -151,7 +183,7 @@ class _Thumb extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _placeholder(size),
+          errorBuilder: (_, _, _) => _placeholder(size),
         ),
       );
     }

@@ -12,7 +12,6 @@ class RecommendationPlace {
     required this.distanceLabel,
     required this.walkingLabel,
     this.rating,
-    this.primaryImageUrl,
     this.imageUrls = const [],
     this.pricesRaw,
     this.landmarksJourneyId,
@@ -34,8 +33,11 @@ class RecommendationPlace {
   final String walkingLabel;
   final double? rating;
 
-  final String? primaryImageUrl;
+  /// Download URLs from Firestore `images` (http/https only).
   final List<String> imageUrls;
+
+  /// First image URL; same as [imageUrls.first] when non-empty.
+  String? get primaryImageUrl => imageUrls.isEmpty ? null : imageUrls.first;
 
   /// Raw map/list from Firestore for the detailed popup.
   final Object? pricesRaw;
@@ -87,7 +89,7 @@ class RecommendationPlace {
 
     final rating = _readRating(d['rating'] ?? d['googleRating'] ?? d['stars']);
 
-    final images = _collectImageUrls(d);
+    final images = _imagesFromFirestore(d);
 
     return RecommendationPlace(
       id: doc.id,
@@ -99,7 +101,6 @@ class RecommendationPlace {
       distanceLabel: distanceLabel,
       walkingLabel: walkingLabel,
       rating: rating,
-      primaryImageUrl: images.isNotEmpty ? images.first : null,
       imageUrls: images,
       pricesRaw: d['prices'],
       landmarksJourneyId: _readString(d, const ['landmarksJourneyId', 'landmarks_journey_id', 'journeyLandmarksId']),
@@ -140,22 +141,22 @@ class RecommendationPlace {
     return s.isEmpty ? '—' : s;
   }
 
-  static List<String> _collectImageUrls(Map<String, dynamic> d) {
-    final out = <String>[];
-    void addUrl(Object? o) {
-      if (o is String) {
-        final t = o.trim();
-        if (t.startsWith('http')) out.add(t);
-      }
-    }
+  /// Reads only Firestore field [images]; keeps order; skips invalid entries and `gs://`.
+  static List<String> _imagesFromFirestore(Map<String, dynamic> d) {
+    final raw = d['images'];
+    if (raw == null) return [];
+    if (raw is! List) return [];
 
-    addUrl(d['imageUrl'] ?? d['imageURL'] ?? d['photoUrl']);
-    final imgs = d['images'] ?? d['imageUrls'] ?? d['photos'];
-    if (imgs is List) {
-      for (final e in imgs) {
-        addUrl(e);
-      }
+    final out = <String>[];
+    final seen = <String>{};
+    for (final e in raw) {
+      if (e is! String) continue;
+      final t = e.trim();
+      if (t.isEmpty) continue;
+      if (!t.startsWith('http')) continue;
+      if (!seen.add(t)) continue;
+      out.add(t);
     }
-    return out.toSet().toList();
+    return out;
   }
 }

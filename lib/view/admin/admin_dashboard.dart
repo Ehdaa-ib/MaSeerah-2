@@ -6,7 +6,9 @@ import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
 import '../home/landing_page.dart';
 import 'pages/admin_dashboard_home_page.dart';
+import 'pages/admin_feedback_page.dart';
 import 'pages/admin_journeys_page.dart';
+import 'pages/admin_recommendations_page.dart';
 import 'pages/admin_users_page.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -23,6 +25,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _AdminDestination(label: 'Dashboard', icon: Icons.dashboard_rounded),
     _AdminDestination(label: 'Users', icon: Icons.people_alt_rounded),
     _AdminDestination(label: 'Journeys', icon: Icons.travel_explore_rounded),
+    _AdminDestination(label: 'Feedback', icon: Icons.feedback_outlined),
+    _AdminDestination(label: 'Places', icon: Icons.storefront_outlined),
   ];
 
   Future<void> _logout() async {
@@ -42,7 +46,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final body = switch (_index) {
       0 => const AdminDashboardHomePage(),
       1 => const AdminUsersPage(),
-      _ => const AdminJourneysPage(),
+      2 => const AdminJourneysPage(),
+      3 => const AdminFeedbackPage(),
+      _ => const AdminRecommendationsPage(),
     };
 
     return Scaffold(

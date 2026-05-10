@@ -9,9 +9,25 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Must match lib/core/validators.dart `_adminEmails` (lowercase).
+    function adminEmails() {
+      return [
+        'ehdaa.test@admin.com',
+        'q.test@admin.com',
+        'm.test@admin.com',
+        'r.test@admin.com',
+      ];
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email in adminEmails();
+    }
+
     // Own profile document: read anytime; create only for signup shape; update only safe fields.
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
 
       allow create: if isOwner(userId)
         && request.resource.data.keys().hasOnly(['email', 'name', 'role', 'createdAt'])
@@ -36,6 +52,11 @@ service cloud.firestore {
         && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
         && (!('isAdmin' in resource.data) || request.resource.data.isAdmin == resource.data.isAdmin);
 
+      allow update: if isAdmin()
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'role']);
+
       allow delete: if false;
     }
 
@@ -44,7 +65,7 @@ service cloud.firestore {
       allow create: if isOwner(userId)
         && request.resource.data.userId == userId
         && request.resource.data.journeyId is string;
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
       allow update, delete: if false;
     }
 
@@ -107,7 +128,7 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.journeyId is string;
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
       allow update: if isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
@@ -138,8 +159,19 @@ service cloud.firestore {
         && (!('photos' in request.resource.data)
           || (request.resource.data.photos is list
             && request.resource.data.photos.size() <= 20));
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
+      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.journeyId == resource.data.journeyId
+        && request.resource.data.overallRating == resource.data.overallRating
+        && request.resource.data.get('contentRating', 0) == resource.data.get('contentRating', 0)
+        && request.resource.data.get('recommendationRating', 0) == resource.data.get('recommendationRating', 0)
+        && request.resource.data.get('challengeRating', 0) == resource.data.get('challengeRating', 0)
+        && request.resource.data.get('overallComment', '') == resource.data.get('overallComment', '')
+        && request.resource.data.get('photos', []) == resource.data.get('photos', [])
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adminResponses']);
+      allow delete: if false;
     }
     // Optional user-uploaded gallery (profile "Your photos"). Not used by core journey flow.
     match /photos/{photoId} {
@@ -158,16 +190,16 @@ service cloud.firestore {
     // Curated recommendation places (FR-21/FR-22). Read-only for signed-in users.
     match /recommendation_places/{docId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow write: if isAdmin();
     }
     // Optional alternate collection ids used by the client when migrating data.
     match /recommendations/{docId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow write: if isAdmin();
     }
     match /recommended_places/{docId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
     // Journeys: anyone can read (browse), authenticated users can write
@@ -179,7 +211,7 @@ service cloud.firestore {
     // Journey landmarks (names / map order). Read for signed-in users; writes via Admin only.
     match /journey_landmarks/{landmarkId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
     // FAQs: anyone can read, no client writes.
