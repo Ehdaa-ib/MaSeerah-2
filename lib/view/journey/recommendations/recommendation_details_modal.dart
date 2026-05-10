@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
@@ -37,7 +38,7 @@ class RecommendationDetailsModal extends StatelessWidget {
 
     final body = MapPopupSurface(
       child: LayoutBuilder(
-        builder: (context, lc) {
+        builder: (context, _) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -45,6 +46,7 @@ class RecommendationDetailsModal extends StatelessWidget {
                   child: SafeArea(
                     bottom: false,
                     child: SingleChildScrollView(
+                      primary: false,
                       padding: EdgeInsets.zero,
                       physics: const BouncingScrollPhysics(),
                       child: Column(
@@ -54,7 +56,6 @@ class RecommendationDetailsModal extends StatelessWidget {
                             urls: gallery,
                             onBack: onBack,
                             onClose: () => Navigator.of(context).pop(),
-                            maxWidth: lc.maxWidth,
                           ),
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
@@ -251,70 +252,39 @@ class _PriceCategoryCard extends StatelessWidget {
   }
 }
 
-class _HeroGallery extends StatelessWidget {
+class _HeroGallery extends StatefulWidget {
   const _HeroGallery({
     required this.urls,
     this.onBack,
     required this.onClose,
-    required this.maxWidth,
   });
 
   final List<String> urls;
   final VoidCallback? onBack;
   final VoidCallback onClose;
-  final double maxWidth;
-
-  static const double _height = 200;
 
   @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        SizedBox(
-          height: _height,
-          width: double.infinity,
-          child: urls.isEmpty ? _placeholder() : _galleryBody(),
-        ),
-        if (onBack != null)
-          Positioned(
-            top: 8,
-            left: 8,
-            child: Material(
-              color: Colors.white.withValues(alpha: 0.92),
-              shape: const CircleBorder(),
-              elevation: 2,
-              child: IconButton(
-                visualDensity: VisualDensity.compact,
-                onPressed: onBack,
-                icon: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  size: MapDesignTokens.iconClose - 4,
-                  color: MapDesignTokens.iconMuted(0.85),
-                ),
-              ),
-            ),
-          ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Material(
-            color: Colors.white.withValues(alpha: 0.92),
-            shape: const CircleBorder(),
-            elevation: 2,
-            child: IconButton(
-              visualDensity: VisualDensity.compact,
-              onPressed: onClose,
-              icon: Icon(
-                Icons.close_rounded,
-                size: MapDesignTokens.iconClose,
-                color: MapDesignTokens.iconMuted(0.85),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+  State<_HeroGallery> createState() => _HeroGalleryState();
+}
+
+class _HeroGalleryState extends State<_HeroGallery> {
+  static const double _height = 200;
+
+  late final PageController _pageController;
+  int _pageIndex = 0;
+
+  List<String> get urls => widget.urls;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Widget _placeholder() {
@@ -339,31 +309,108 @@ class _HeroGallery extends StatelessWidget {
     );
   }
 
-  Widget _galleryBody() {
-    final slideW = (maxWidth * 0.92).clamp(260.0, 480.0);
-    if (urls.length == 1) {
-      return Image.network(
-        urls.first,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: _height,
-        errorBuilder: (_, _, _) => _placeholder(),
-      );
-    }
-    return ListView.separated(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.zero,
-      itemCount: urls.length,
-      separatorBuilder: (_, _) => const SizedBox(width: 6),
-      itemBuilder: (_, i) => Image.network(
-        urls[i],
-        fit: BoxFit.cover,
-        width: slideW,
-        height: _height,
-        errorBuilder: (_, _, _) =>
-            SizedBox(width: slideW, height: _height, child: _placeholder()),
-      ),
+  Widget _networkImage(String url) {
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: _height,
+      errorBuilder: (context, error, stackTrace) {
+        if (kDebugMode) {
+          debugPrint(
+            '[RecommendationImage.network] LOAD FAILED doc=hero '
+            'url=${url.length > 160 ? "${url.substring(0, 160)}…" : url} '
+            'error=$error',
+          );
+        }
+        return _placeholder();
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        SizedBox(
+          height: _height,
+          width: double.infinity,
+          child: urls.isEmpty
+              ? _placeholder()
+              : urls.length == 1
+                  ? _networkImage(urls.first)
+                  : PageView.builder(
+                      controller: _pageController,
+                      itemCount: urls.length,
+                      onPageChanged: (i) => setState(() => _pageIndex = i),
+                      itemBuilder: (_, i) => _networkImage(urls[i]),
+                    ),
+        ),
+        if (widget.onBack != null)
+          Positioned(
+            top: 8,
+            left: 8,
+            child: Material(
+              color: Colors.white.withValues(alpha: 0.92),
+              shape: const CircleBorder(),
+              elevation: 2,
+              child: IconButton(
+                visualDensity: VisualDensity.compact,
+                onPressed: widget.onBack,
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: MapDesignTokens.iconClose - 4,
+                  color: MapDesignTokens.iconMuted(0.85),
+                ),
+              ),
+            ),
+          ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Material(
+            color: Colors.white.withValues(alpha: 0.92),
+            shape: const CircleBorder(),
+            elevation: 2,
+            child: IconButton(
+              visualDensity: VisualDensity.compact,
+              onPressed: widget.onClose,
+              icon: Icon(
+                Icons.close_rounded,
+                size: MapDesignTokens.iconClose,
+                color: MapDesignTokens.iconMuted(0.85),
+              ),
+            ),
+          ),
+        ),
+        if (urls.length > 1)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 10,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(urls.length, (i) {
+                final active = i == _pageIndex;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: active ? 8 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      color: active
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.45),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+      ],
     );
   }
 }

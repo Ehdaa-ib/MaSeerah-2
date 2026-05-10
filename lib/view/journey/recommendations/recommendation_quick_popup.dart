@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
@@ -135,34 +136,118 @@ class RecommendationQuickPopup extends StatelessWidget {
   }
 }
 
-/// Horizontal thumbnails from [urls]; same dimensions as the legacy single [_Thumb].
+/// One image per page when multiple URLs; horizontal swipe. Same footprint as legacy single [_Thumb].
 class _ThumbStrip extends StatelessWidget {
   const _ThumbStrip({required this.urls});
 
   final List<String> urls;
 
   static const double _size = 76;
-  static const double _maxStripWidth = 220;
+
+  List<String> get _valid => urls.where((u) => u.trim().startsWith('http')).toList();
 
   @override
   Widget build(BuildContext context) {
-    if (urls.isEmpty) {
+    final valid = _valid;
+    if (valid.isEmpty) {
       return _Thumb(url: null);
     }
-    if (urls.length == 1) {
-      return _Thumb(url: urls.first);
+    if (valid.length == 1) {
+      return _Thumb(url: valid.first);
     }
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: _maxStripWidth, maxHeight: _size),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        shrinkWrap: true,
-        physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.zero,
-        itemCount: urls.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (context, i) => _Thumb(url: urls[i]),
+    return SizedBox(
+      width: _size,
+      height: _size,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(MapDesignTokens.radiusThumb),
+        child: _ThumbPager(urls: valid, size: _size),
       ),
+    );
+  }
+}
+
+class _ThumbPager extends StatefulWidget {
+  const _ThumbPager({required this.urls, required this.size});
+
+  final List<String> urls;
+  final double size;
+
+  @override
+  State<_ThumbPager> createState() => _ThumbPagerState();
+}
+
+class _ThumbPagerState extends State<_ThumbPager> {
+  late final PageController _controller;
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          controller: _controller,
+          itemCount: widget.urls.length,
+          onPageChanged: (i) => setState(() => _index = i),
+          itemBuilder: (_, i) => Image.network(
+            widget.urls[i],
+            fit: BoxFit.cover,
+            width: widget.size,
+            height: widget.size,
+            errorBuilder: (context, error, stackTrace) {
+              if (kDebugMode) {
+                final u = widget.urls[i];
+                debugPrint(
+                  '[RecommendationImage.network] LOAD FAILED context=quick_pager i=$i '
+                  'url=${u.length > 120 ? "${u.substring(0, 120)}…" : u} error=$error',
+                );
+              }
+              return ColoredBox(
+                color: AppColors.green.withValues(alpha: 0.55),
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: MapDesignTokens.iconMuted(0.45),
+                ),
+              );
+            },
+          ),
+        ),
+        if (widget.urls.length > 1)
+          Positioned(
+            bottom: 4,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(widget.urls.length, (i) {
+                final on = i == _index;
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  width: on ? 5 : 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    color: on
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.55),
+                  ),
+                );
+              }),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -183,7 +268,16 @@ class _Thumb extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _placeholder(size),
+          errorBuilder: (context, error, stackTrace) {
+            if (kDebugMode) {
+              final u = url!;
+              debugPrint(
+                '[RecommendationImage.network] LOAD FAILED context=quick_thumb '
+                'url=${u.length > 120 ? "${u.substring(0, 120)}…" : u} error=$error',
+              );
+            }
+            return _placeholder(size);
+          },
         ),
       );
     }

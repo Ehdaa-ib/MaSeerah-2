@@ -263,7 +263,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     );
   }
 
-  /// After final map challenge, always treat eligibility as region 9+ so tiers are not skipped on odd saves.
+  /// After final map challenge, always treat eligibility as full progress [_mapRegionCount] so tiers are not skipped on odd saves.
   int _effectiveRegionForRecommendationEligibility() {
     if (_lastRegionChallengeCompleted) return _mapRegionCount;
     return currentRegion;
@@ -295,7 +295,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     if (!mounted) return;
     final eligible = _eligibleAutoShowOrdersNowForPlaces(places);
     final filteredAppeared = appeared.where(eligible.contains).toSet();
-    // Never persist an empty prune while no tier is unlocked — that would erase orders 1–3 before region 5.
+    // Never persist an empty prune while no tier is unlocked — that would erase orders 1–3 before region 4.
     var nextAppeared = appeared;
     if (eligible.isNotEmpty && filteredAppeared.length != appeared.length) {
       try {
@@ -317,17 +317,17 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     final region = _effectiveRegionForRecommendationEligibility().clamp(1, _mapRegionCount);
     if (region < 5) return {};
     final out = <int>{};
-    if (region >= 5) {
+    if (region > 5) {
       for (final p in places) {
         if (p.order == 1 || p.order == 2 || p.order == 3) out.add(p.order);
       }
     }
-    if (region >= 7) {
+    if (region > 7) {
       for (final p in places) {
         if (p.order == 4) out.add(p.order);
       }
     }
-    if (region >= 9) {
+    if (region > 9) {
       for (final p in places) {
         if (p.order == 5) out.add(p.order);
       }
@@ -356,7 +356,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     });
   }
 
-  /// Unlock Firestore recommendation `order` values 1–3 after region 5, 4 after 7, 5 after 9.
+  /// Unlock Firestore recommendation `order` values 1–3 from region 4, 4 from region 6, 5 from region 8.
   Set<int> _eligibleAutoShowOrdersNow() =>
       _eligibleAutoShowOrdersNowForPlaces(_recommendations);
 

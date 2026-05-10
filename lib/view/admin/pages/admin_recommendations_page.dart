@@ -374,11 +374,13 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
     final distanceRaw = _distanceController.text.trim();
     final walkRaw = _walkingController.text.trim();
 
+    final loc = _locationUrlController.text.trim();
     final data = <String, dynamic>{
       'order': order,
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
-      'locationUrl': _locationUrlController.text.trim(),
+      'location': loc,
+      'locationUrl': loc,
       'averagePrice': _averagePriceController.text.trim().isEmpty
           ? '—'
           : _averagePriceController.text.trim(),
@@ -482,11 +484,13 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
                 ),
                 const SizedBox(height: 12),
                 _label(
-                  'Location URL',
+                  'Location (Google Maps)',
                   TextFormField(
                     controller: _locationUrlController,
                     style: const TextStyle(color: AppColors.brown),
-                    decoration: _dec(hintText: 'https://maps.google.com/…'),
+                    decoration: _dec(
+                      hintText: 'Firestore field `location` — https://maps.google.com/…',
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
