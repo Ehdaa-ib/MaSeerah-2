@@ -238,12 +238,17 @@ class _LandingPageState extends State<LandingPage> {
     final q = _searchController.text.trim().toLowerCase();
     final visibleIndices = _getVisibleCardIndices(q);
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 100),
+      padding: const EdgeInsets.fromLTRB(28, 12, 28, 100),
       itemCount: visibleIndices.length,
       itemBuilder: (context, i) {
         final index = visibleIndices[i];
+        final info = _journeyCardInfoForIndex(index);
         return _JourneyCard(
           imagePath: _imagePathForIndex(index),
+          title: info.title,
+          rating: info.rating,
+          duration: info.duration,
+          stopsLabel: info.stops,
           onTap: index == 0 ? () => _openJourney(darbJourney ?? (_journeys.isNotEmpty ? _journeys.first : null)) : null,
         );
       },
@@ -268,33 +273,154 @@ class _LandingPageState extends State<LandingPage> {
       case 1:
         return 'images/the-battle-of-uhud.png';
       case 2:
-        return 'images/the-vally-advanture.png';
+        return 'images/the-vally-advanture.jpg';
       default:
         return 'images/image3.png';
     }
   }
 
+  /// Display order: Darb, Uhud, Valley — matches [_imagePathForIndex].
+  static _JourneyCardInfo _journeyCardInfoForIndex(int index) {
+    switch (index) {
+      case 0:
+        return const _JourneyCardInfo(
+          title: 'Darb Al-Sunnah',
+          rating: 4.9,
+          duration: '3 Hours',
+          stops: '8 Stops',
+        );
+      case 1:
+        return const _JourneyCardInfo(
+          title: 'Uhud Battle',
+          rating: 4.5,
+          duration: '2 Hours',
+          stops: '5 Stops',
+        );
+      case 2:
+        return const _JourneyCardInfo(
+          title: 'The Vally Advanture',
+          rating: 4.3,
+          duration: '1.5 Hours',
+          stops: '3 Stops',
+        );
+      default:
+        return const _JourneyCardInfo(
+          title: '',
+          rating: 0,
+          duration: '',
+          stops: '',
+        );
+    }
+  }
+
+}
+
+class _JourneyCardInfo {
+  final String title;
+  final double rating;
+  final String duration;
+  final String stops;
+
+  const _JourneyCardInfo({
+    required this.title,
+    required this.rating,
+    required this.duration,
+    required this.stops,
+  });
 }
 
 class _JourneyCard extends StatelessWidget {
   final String imagePath;
+  final String title;
+  final double rating;
+  final String duration;
+  final String stopsLabel;
   final VoidCallback? onTap;
 
   const _JourneyCard({
     required this.imagePath,
+    required this.title,
+    required this.rating,
+    required this.duration,
+    required this.stopsLabel,
     this.onTap,
   });
 
+  static const _detailStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    height: 1.2,
+  );
+
   Widget _buildCardContent() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 2),
+      margin: const EdgeInsets.only(bottom: 16),
       width: double.infinity,
       height: 280,
-      child: Image.asset(
-        imagePath,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              imagePath,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.65),
+                    ],
+                    stops: const [0.45, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 0,
+                    runSpacing: 4,
+                    children: [
+                      Icon(Icons.star, size: 16, color: Colors.white.withValues(alpha: 0.95)),
+                      const SizedBox(width: 4),
+                      Text(rating.toStringAsFixed(1), style: _detailStyle),
+                      Text('  |  ', style: _detailStyle.copyWith(color: Colors.white70)),
+                      Text(duration, style: _detailStyle),
+                      Text('  |  ', style: _detailStyle.copyWith(color: Colors.white70)),
+                      Text(stopsLabel, style: _detailStyle),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
