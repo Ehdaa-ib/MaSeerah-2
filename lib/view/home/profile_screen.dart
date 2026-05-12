@@ -495,7 +495,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      height: 70,
+      padding: const EdgeInsets.fromLTRB(16, 10, 12, 12),
       decoration: BoxDecoration(
         color: AppColors.beige,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
