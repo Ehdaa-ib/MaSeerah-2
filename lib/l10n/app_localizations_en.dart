@@ -360,7 +360,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get challengeMatchingNoPairsInData => 'No matching pairs in data.';
 
   @override
-  String get challengeEliminationTapHint => 'Tap an item to remove it from the list.';
+  String get challengeEliminationTapHint =>
+      'Tap an item to remove it from the list.';
 
   @override
   String get journeyPurchasePayWithMoyasar => 'Pay with Moyasar';

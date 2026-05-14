@@ -17,6 +17,7 @@ class ChallengeHintSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (hints.isEmpty) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Container(

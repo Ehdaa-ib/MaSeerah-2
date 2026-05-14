@@ -741,9 +741,15 @@ abstract class AppLocalizations {
   String get challengeOrderTheEvents;
 
   /// No description provided for @challengeMatchingNoPairsInData.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching pairs in data.'**
   String get challengeMatchingNoPairsInData;
 
   /// No description provided for @challengeEliminationTapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap an item to remove it from the list.'**
   String get challengeEliminationTapHint;
 
   /// No description provided for @journeyPurchasePayWithMoyasar.

@@ -354,7 +354,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get challengeOrderTheEvents => 'رتّب الأحداث';
 
   @override
-  String get challengeMatchingNoPairsInData => 'لا توجد أزواج مطابقة في البيانات.';
+  String get challengeMatchingNoPairsInData =>
+      'لا توجد أزواج مطابقة في البيانات.';
 
   @override
   String get challengeEliminationTapHint => 'اضغط عنصرًا لإزالته من القائمة.';

@@ -75,6 +75,7 @@
     }
   },
   "recommendationQuickRatingGoogleSuffix": " Google",
+  "recommendationQuickDirections": "Directions",
   "recommendationQuickView": "View",
   "recommendationUrlNoLink": "No location link is available for this place.",
   "recommendationUrlInvalidLink": "The location link is not valid.",
