@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../core/app_colors.dart';
 import '../../data/firebase/journey_progress_data_source.dart';
 import '../../widgets/app_bottom_nav.dart';
@@ -35,9 +36,9 @@ class JourneyListScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.green,
       appBar: AppBar(
-        title: const Text(
-          'Active Journeys',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context)!.journeyListTitle,
+          style: const TextStyle(
             color: AppColors.brown,
             fontWeight: FontWeight.w800,
           ),
@@ -68,7 +69,7 @@ class JourneyListScreen extends StatelessWidget {
                         const SizedBox(width: 14),
                         Expanded(
                           child: Text(
-                            'Sign in to see journeys you have in progress. Your place is saved when you leave the map.',
+                            AppLocalizations.of(context)!.journeyListSignInPrompt,
                             style: TextStyle(
                               fontSize: 15,
                               height: 1.5,
@@ -101,7 +102,7 @@ class JourneyListScreen extends StatelessWidget {
                         Icon(Icons.route_outlined, size: 72, color: AppColors.brown.withValues(alpha: 0.45)),
                         const SizedBox(height: 20),
                         Text(
-                          'No active journeys',
+                          AppLocalizations.of(context)!.journeyListNoActive,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 20,
@@ -111,7 +112,7 @@ class JourneyListScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          'When you start a journey and step away, it will appear here so you can continue.',
+                          AppLocalizations.of(context)!.journeyListNoActiveSubtitle,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 15,
@@ -152,7 +153,7 @@ class JourneyListScreen extends StatelessWidget {
                       subtitle: Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          'Current stop: ${p.currentRegion}',
+                          AppLocalizations.of(context)!.journeyListCurrentStop(p.currentRegion),
                           style: TextStyle(color: AppColors.brown.withValues(alpha: 0.75)),
                         ),
                       ),

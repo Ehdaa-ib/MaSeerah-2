@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../core/app_colors.dart';
 import '../../model/challenge_stage_model.dart';
 import '../challenge_styles.dart';
@@ -22,8 +23,10 @@ class MatchingChallengeWidget extends StatefulWidget {
 class _MatchingChallengeWidgetState extends State<MatchingChallengeWidget> {
   final Map<String, String> _matches = {};
   String? _feedback;
+  bool _feedbackPositive = false;
 
   void _check() {
+    final l10n = AppLocalizations.of(context)!;
     final pairs = widget.stage.matchingPairs;
     final ok = pairs.isNotEmpty &&
         ChallengeValidation.validateMatchingAnswer(
@@ -31,11 +34,15 @@ class _MatchingChallengeWidgetState extends State<MatchingChallengeWidget> {
           expectedPairs: pairs,
         );
     debugPrint('[Matching] correct=$ok matches=$_matches');
-    setState(() => _feedback = ok ? 'Correct (placeholder)' : 'Not quite — try again.');
+    setState(() {
+      _feedbackPositive = ok;
+      _feedback = ok ? l10n.challengeFeedbackCorrect : l10n.challengeFeedbackTryAgain;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final pairs = widget.stage.matchingPairs;
     final rights = <String>[];
     for (final p in pairs) {

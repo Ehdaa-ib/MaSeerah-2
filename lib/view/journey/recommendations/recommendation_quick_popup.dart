@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/map_button_styles.dart';
 import '../../../core/map_design_tokens.dart';
@@ -25,6 +26,7 @@ class RecommendationQuickPopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Material(
       color: Colors.transparent,
       child: ConstrainedBox(
@@ -39,7 +41,7 @@ class RecommendationQuickPopup extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 4, 8),
+                  padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 4, 8),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -57,7 +59,7 @@ class RecommendationQuickPopup extends StatelessWidget {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Distance · ${place.distanceLabel}',
+                              l10n.recommendationQuickDistanceLine(place.distanceLabel),
                               style: MapTextStyles.caption.copyWith(
                                 color: MapDesignTokens.iconMuted(0.82),
                                 fontSize: 13,
@@ -66,7 +68,7 @@ class RecommendationQuickPopup extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              'Walk · ${place.walkingLabel}',
+                              l10n.recommendationQuickWalkLine(place.walkingLabel),
                               style: MapTextStyles.caption.copyWith(
                                 color: MapDesignTokens.iconMuted(0.82),
                                 fontSize: 13,
@@ -88,7 +90,7 @@ class RecommendationQuickPopup extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    ' Google',
+                                    l10n.recommendationQuickRatingGoogleSuffix,
                                     style: MapTextStyles.caption.copyWith(
                                       color: MapDesignTokens.iconMuted(0.55),
                                       fontSize: 12,
@@ -106,14 +108,14 @@ class RecommendationQuickPopup extends StatelessWidget {
                 ),
                 Divider(height: 1, color: MapDesignTokens.borderSubtle(0.12)),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 12, 12),
                   child: Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
                           onPressed: onDirections,
                           style: MapButtonStyles.secondaryOutlined(),
-                          child: const Text('Directions'),
+                          child: Text(l10n.recommendationQuickDirections),
                         ),
                       ),
                       const SizedBox(width: MapDesignTokens.spaceMd),
@@ -121,7 +123,7 @@ class RecommendationQuickPopup extends StatelessWidget {
                         child: FilledButton(
                           onPressed: onView,
                           style: MapButtonStyles.primaryFilled(),
-                          child: const Text('View'),
+                          child: Text(l10n.recommendationQuickView),
                         ),
                       ),
                     ],

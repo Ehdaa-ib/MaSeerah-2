@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../challenge_styles.dart';
 
 /// Reusable collapsible-style hint list for all challenge placeholders.
@@ -29,7 +30,7 @@ class ChallengeHintSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Hints',
+              l10n.challengeHintsHeading,
               style: ChallengeStyles.bodyStyle.copyWith(
                 fontWeight: FontWeight.w700,
                 fontSize: 13,

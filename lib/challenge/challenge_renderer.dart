@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
+import '../l10n/app_localizations.dart';
 import '../core/app_colors.dart';
 import '../core/map_button_styles.dart';
 import '../core/map_design_tokens.dart';
@@ -266,9 +267,10 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
     }
 
     if (ok) {
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
         _lastCorrect = true;
-        _feedback = 'Correct!';
+        _feedback = l10n.challengeFeedbackCorrect;
       });
       // Brief feedback then advance.
       await Future<void>.delayed(const Duration(milliseconds: 950));
@@ -280,18 +282,20 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
 
     // Wrong.
     final nextAttempts = _wrongAttempts + 1;
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _lastCorrect = false;
       _wrongAttempts = nextAttempts;
-      _feedback = 'Not quite — try again.';
+      _feedback = l10n.challengeFeedbackTryAgain;
       _busy = false;
     });
 
     // Auto-solve at 5 wrong attempts.
     if (nextAttempts >= 5 && mounted) {
       if (kDebugMode) debugPrint('[Challenge] autoSolve triggered stage=$_stageIndex');
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _feedback = 'Auto-solved.';
+        _feedback = l10n.challengeFeedbackAutoSolved;
         _lastCorrect = true;
       });
       await Future<void>.delayed(const Duration(milliseconds: 950));
@@ -314,11 +318,12 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
   @override
   Widget build(BuildContext context) {
     if (_resultKind != _ResultKind.none) {
+      final l10n = AppLocalizations.of(context)!;
       final next = _nextDestination;
       final isFinal = _resultKind == _ResultKind.finalResult;
       final isLast = isFinal && (next?.isLastRegion == true);
-      final title = _resultAutoSolved ? 'Puzzle solved for you' : 'Correct answer!';
-      final primaryLabel = isFinal ? (isLast ? 'Finish' : 'Next') : 'Next Stage';
+      final title = _resultAutoSolved ? l10n.challengeResultPuzzleSolvedTitle : l10n.challengeResultCorrectTitle;
+      final primaryLabel = isFinal ? (isLast ? l10n.challengeButtonFinish : l10n.challengeButtonNext) : l10n.challengeButtonNextStage;
       return SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -347,7 +352,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
             ),
             const SizedBox(height: 14),
             _ResultCard(
-              title: 'Correct answer',
+              title: l10n.challengeResultCorrectAnswerHeading,
               child: Text(
                 _correctAnswerDisplay ?? '—',
                 style: ChallengeStyles.bodyStyle.copyWith(fontWeight: FontWeight.w700),
@@ -356,11 +361,11 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
             if (isFinal) ...[
               const SizedBox(height: 12),
               _ResultCard(
-                title: isLast ? 'Your journey is completed' : 'Next destination',
+                title: isLast ? l10n.challengeResultJourneyCompletedHeading : l10n.challengeResultNextDestinationHeading,
                 child: Text(
                   isLast
-                      ? 'You have completed every landmark on this journey.'
-                      : (next?.name ?? 'Not available'),
+                      ? l10n.challengeResultJourneyCompletedBody
+                      : (next?.name ?? l10n.challengeResultNotAvailable),
                   style: ChallengeStyles.bodyStyle.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
@@ -374,7 +379,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                     cards.add(
                       _MetricCard(
                         icon: Icons.route_rounded,
-                        title: 'Distance for next landmark:',
+                        title: l10n.challengeResultDistanceNextTitle,
                         amount: dist,
                         unitLabel: 'm',
                       ),
@@ -382,7 +387,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                     cards.add(
                       _MetricCard(
                         icon: Icons.directions_walk_rounded,
-                        title: 'Average walking time',
+                        title: l10n.challengeResultWalkTimeTitle,
                         amount: walk,
                         unitLabel: 'min',
                       ),
@@ -442,6 +447,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
 
     final c = widget.challenge;
     final total = c.stageCount;
+    final l10n = AppLocalizations.of(context)!;
 
     final hints = _stage.hints;
     final hintIdx = _shownHintIndex;
@@ -454,7 +460,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Text(
-              'Stage ${_stageIndex + 1} of $total',
+              l10n.challengeStageProgress(_stageIndex + 1, total),
               style: ChallengeStyles.bodyStyle.copyWith(
                 fontWeight: FontWeight.w700,
                 color: ChallengeStyles.mutedBrown,
@@ -520,7 +526,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                                 onPressed: _onShowHint,
                                 style: MapButtonStyles.challengeFooterHintEnabled(),
                                 child: Text(
-                                  'Show Hint',
+                                  l10n.challengeShowHint,
                                   textAlign: TextAlign.center,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -530,7 +536,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                                 onPressed: null,
                                 style: MapButtonStyles.challengeFooterHintDisabled(),
                                 child: Text(
-                                  'Show Hint',
+                                  l10n.challengeShowHint,
                                   textAlign: TextAlign.center,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -547,7 +553,7 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                         onPressed: _busy ? null : _onCheckAnswer,
                         style: MapButtonStyles.challengeFooterCheck(enabled: !_busy),
                         child: Text(
-                          'Check Your Answer',
+                          l10n.challengeCheckYourAnswer,
                           textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -713,7 +719,7 @@ class _MetricCard extends StatelessWidget {
     final Widget valueRow;
     if (!_usableLegAmount(amount)) {
       valueRow = Text(
-        'Not available',
+        AppLocalizations.of(context)!.challengeResultNotAvailable,
         style: base.copyWith(
           fontWeight: FontWeight.w700,
           color: AppColors.brown.withValues(alpha: 0.65),

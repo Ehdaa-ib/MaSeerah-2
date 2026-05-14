@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 Future<bool> launchRecommendationLocationUrl(
   BuildContext context,
   String locationUrl, {
@@ -10,7 +12,7 @@ Future<bool> launchRecommendationLocationUrl(
   if (t.isEmpty) {
     if (showErrors) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No location link is available for this place.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.recommendationUrlNoLink)),
       );
     }
     return false;
@@ -20,7 +22,7 @@ Future<bool> launchRecommendationLocationUrl(
   if (!ok) {
     if (showErrors) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('The location link is not valid.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.recommendationUrlInvalidLink)),
       );
     }
     return false;
@@ -29,14 +31,14 @@ Future<bool> launchRecommendationLocationUrl(
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && showErrors && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open maps / browser.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.recommendationUrlCouldNotOpen)),
       );
     }
     return launched;
   } catch (_) {
     if (showErrors && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open maps / browser.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.recommendationUrlCouldNotOpen)),
       );
     }
     return false;

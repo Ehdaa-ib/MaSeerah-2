@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_locale_controller.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/firebase/feedback_data_source.dart';
@@ -13,6 +14,7 @@ import '../journey/journey_list_screen.dart';
 import '../auth/login_screen.dart';
 import 'landing_page.dart';
 import 'edit_profile_screen.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Matches [JourneyCompletionDataSource] root collection (private there).
 const String _journeyCompletionsCollection = 'journeyCompletions';
@@ -492,6 +494,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _pickAppLanguage() async {
+    final l10n = AppLocalizations.of(context)!;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.beige,
+          title: Text(
+            l10n.languagePickerTitle,
+            style: const TextStyle(color: AppColors.brown, fontWeight: FontWeight.w800),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.languagePickerSubtitle,
+                style: TextStyle(color: AppColors.brown.withValues(alpha: 0.85), height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.translate, color: AppColors.brown),
+                title: Text(l10n.languageEnglish, style: const TextStyle(color: AppColors.brown)),
+                onTap: () async {
+                  await AppLocaleController.instance.setLocale(const Locale('en'));
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.translate, color: AppColors.brown),
+                title: Text(l10n.languageArabic, style: const TextStyle(color: AppColors.brown)),
+                onTap: () async {
+                  await AppLocaleController.instance.setLocale(const Locale('ar'));
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -539,8 +584,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             children: [
               IconButton(
+                tooltip: AppLocalizations.of(context)?.languagePickerTitle ?? 'App language',
                 icon: Icon(Icons.language, color: AppColors.brown),
-                onPressed: () {},
+                onPressed: _pickAppLanguage,
               ),
               IconButton(
                 icon: Icon(Icons.logout, color: AppColors.brown),

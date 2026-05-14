@@ -78,7 +78,7 @@ class MapPopupHeaderLeadingClose extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: MapDesignTokens.spaceSm),
+            padding: const EdgeInsetsDirectional.only(end: MapDesignTokens.spaceSm),
             child: trailing ?? const SizedBox(width: _closeSlot),
           ),
         ],

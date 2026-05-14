@@ -1,0 +1,148 @@
+{
+  "@@locale": "en",
+  "languagePickerTitle": "App language",
+  "languagePickerSubtitle": "Choose how buttons and journey screens are labeled.",
+  "languageEnglish": "English",
+  "languageArabic": "Arabic",
+  "journeyListTitle": "Active Journeys",
+  "journeyListSignInPrompt": "Sign in to see journeys you have in progress. Your place is saved when you leave the map.",
+  "journeyListNoActive": "No active journeys",
+  "journeyListNoActiveSubtitle": "When you start a journey and step away, it will appear here so you can continue.",
+  "journeyListCurrentStop": "Current stop: {currentRegion}",
+  "@journeyListCurrentStop": {
+    "placeholders": {
+      "currentRegion": {"type": "int"}
+    }
+  },
+  "journeyPurchaseTitle": "Journey",
+  "journeyPurchaseNotFound": "Journey not found.",
+  "journeyPurchaseAbout": "About",
+  "journeyPurchaseReadMore": "read more",
+  "journeyPurchaseReadLess": "read less",
+  "journeyPurchaseStartPoint": "Start point",
+  "journeyPurchaseStopsAlongWay": "Stops along the way",
+  "journeyPurchaseEndPoint": "End point",
+  "journeyPurchaseGoodToKnow": "Good to know",
+  "journeyPurchaseGoodToKnow1": "Best time to explore is after Fajr or after Asr",
+  "journeyPurchaseGoodToKnow2": "Avoid exploring during midday due to the heat",
+  "journeyPurchaseGoodToKnow3": "You can enjoy the journey by walking, cycling, or using a golf cart",
+  "journeyPurchaseSignInToPurchase": "Sign in to purchase",
+  "journeyPurchaseLoading": "Loading…",
+  "journeyPurchaseGiveFeedback": "Give feedback",
+  "journeyPurchaseUnlockJourney": "Unlock Journey",
+  "journeyPurchaseContinueYourJourney": "Continue your journey",
+  "journeyPurchaseStartYourJourney": "Start your journey",
+  "googleMapPageTitle": "Google Map",
+  "googleMapPagePlaceholder": "Google Map will be here",
+  "mapCouldNotOpenGoogleMaps": "Could not open Google Maps.",
+  "mapCouldNotDetermineJourney": "Could not determine this journey. Try again from the journey list.",
+  "mapFinishJourneyFeedback": "Finish Journey & Leave Feedback",
+  "mapOpenGoogleMaps": "Open in Google Maps",
+  "mapLoadingPlace": "Loading place…",
+  "mapChallengeComingSoon": "Challenge coming soon.",
+  "mapStartChallenge": "Start Challenge",
+  "mapLandmarkDescriptionPlaceholder": "Add a description for this landmark in Firestore (field: description).",
+  "mapImageFailedToLoad": "Image failed to load",
+  "mapRegionNotReached": "You haven't reached this stage yet",
+  "mapStageDone": "This stage is done",
+  "mapJourneyCompleted": "Journey completed!",
+  "regionNumber": "Region {region}",
+  "@regionNumber": {
+    "placeholders": {
+      "region": {"type": "int"}
+    }
+  },
+  "recommendationListTitle": "Recommended places",
+  "recommendationListEmptyTitle": "No recommendations yet",
+  "recommendationListEmptySubtitle": "Explore more landmarks to unlock nearby places.",
+  "recommendationNoDescription": "No description yet.",
+  "recommendationChipAveragePrice": "Average price",
+  "recommendationChipWalkTime": "Walk time",
+  "recommendationChipDistanceFromLast": "Distance from last stop",
+  "recommendationChipRating": "Rating",
+  "recommendationPriceRanges": "Price ranges",
+  "recommendationOpenInGoogleMaps": "Open in Google Maps",
+  "recommendationQuickDistanceLine": "Distance · {detail}",
+  "@recommendationQuickDistanceLine": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "recommendationQuickWalkLine": "Walk · {detail}",
+  "@recommendationQuickWalkLine": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "recommendationQuickRatingGoogleSuffix": " Google",
+  "recommendationQuickView": "View",
+  "recommendationUrlNoLink": "No location link is available for this place.",
+  "recommendationUrlInvalidLink": "The location link is not valid.",
+  "recommendationUrlCouldNotOpen": "Could not open maps / browser.",
+  "challengeFeedbackCorrect": "Correct!",
+  "challengeFeedbackTryAgain": "Not quite — try again.",
+  "challengeFeedbackAutoSolved": "Auto-solved.",
+  "challengeResultPuzzleSolvedTitle": "Puzzle solved for you",
+  "challengeResultCorrectTitle": "Correct answer!",
+  "challengeResultCorrectAnswerHeading": "Correct answer",
+  "challengeResultJourneyCompletedHeading": "Your journey is completed",
+  "challengeResultNextDestinationHeading": "Next destination",
+  "challengeResultJourneyCompletedBody": "You have completed every landmark on this journey.",
+  "challengeResultNotAvailable": "Not available",
+  "challengeResultDistanceNextTitle": "Distance for next landmark:",
+  "challengeResultWalkTimeTitle": "Average walking time",
+  "challengeButtonFinish": "Finish",
+  "challengeButtonNext": "Next",
+  "challengeButtonNextStage": "Next Stage",
+  "challengeStageProgress": "Stage {current} of {total}",
+  "@challengeStageProgress": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "challengeShowHint": "Show Hint",
+  "challengeCheckYourAnswer": "Check Your Answer",
+  "challengeHintsHeading": "Hints",
+  "challengeUnknownTitle": "Challenge",
+  "challengeUnknownBody": "This challenge type could not be resolved ({type}). Check Firestore `quiz` / `type` fields.",
+  "@challengeUnknownBody": {
+    "placeholders": {
+      "type": {"type": "String"}
+    }
+  },
+  "challengeTypeMultipleChoiceTitle": "Multiple choice",
+  "challengeTypeChooseCorrect": "Choose the correct answer",
+  "challengeTypeFillBlankTitle": "Fill in the blank",
+  "challengeTypeFillBlankPrompt": "Fill the blank:",
+  "challengeFillBlankNoOptions": "No options in this challenge.",
+  "challengeFillBlankNoChoices": "No choices in this challenge.",
+  "challengeCheckAnswer": "Check answer",
+  "challengeHintNumber": "Hint {n}",
+  "@challengeHintNumber": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+  "challengeTypeMatchingTitle": "Matching",
+  "challengeMatchHint": "Match",
+  "challengeCheckMatches": "Check matches",
+  "challengeMatchingDataMissing": "Matching data missing in this challenge.",
+  "challengeMatchThePairs": "Match the pairs",
+  "challengeGroupA": "Group A",
+  "challengeGroupB": "Group B",
+  "challengeSelectedLabel": "Selected:",
+  "challengeTypeReorderTitle": "Reorder",
+  "challengeCheckOrder": "Check order",
+  "challengeTypeEliminationTitle": "Elimination",
+  "challengeCheck": "Check",
+  "challengeReset": "Reset",
+  "challengeTypeAssembleTitle": "Assemble",
+  "challengeCheckAssembly": "Check assembly",
+  "challengeYourAnswer": "Your answer",
+  "challengeWordBank": "Word bank",
+  "challengeOrderTheEvents": "Order the events",
+  "challengeMatchingNoPairsInData": "No matching pairs in data.",
+  "challengeEliminationTapHint": "Tap an item to remove it from the list.",
+  "journeyPurchasePayWithMoyasar": "Pay with Moyasar"
+}

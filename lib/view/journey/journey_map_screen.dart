@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../core/app_colors.dart';
 import '../../core/map_button_styles.dart';
 import '../../core/map_design_tokens.dart';
@@ -767,11 +768,12 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   String _placeTitle(int region) {
     final lm = _landmarkForRegion(region);
     if (lm != null) return lm.name;
-    return _knownRegionTitles[region] ?? 'Region $region';
+    final l10n = AppLocalizations.of(context)!;
+    return _knownRegionTitles[region] ?? l10n.regionNumber(region);
   }
 
   String _footerPlaceName() {
-    if (_landmarksLoading) return 'Loading place…';
+    if (_landmarksLoading) return AppLocalizations.of(context)!.mapLoadingPlace;
     return _placeTitle(currentRegion);
   }
 
@@ -791,7 +793,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open Google Maps.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.mapCouldNotOpenGoogleMaps)),
       );
     }
   }
@@ -818,7 +820,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     if (journeyId == null || journeyId.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not determine this journey. Try again from the journey list.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.mapCouldNotDetermineJourney)),
       );
       return;
     }
@@ -983,7 +985,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                                 color: Colors.white,
                               ),
                               label: Text(
-                                'Finish Journey & Leave Feedback',
+                                AppLocalizations.of(context)!.mapFinishJourneyFeedback,
                                 style: MapTextStyles.buttonLabel,
                                 maxLines: 2,
                                 textAlign: TextAlign.center,
@@ -1001,7 +1003,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                                 size: MapDesignTokens.iconStandard,
                                 color: Colors.white,
                               ),
-                              label: const Text('Open in Google Maps'),
+                              label: Text(AppLocalizations.of(context)!.mapOpenGoogleMaps),
                             ),
                         ],
                       ),
@@ -1124,6 +1126,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                             challenge: challenge,
                             currentRegionOrder: currentRegion,
                             resolveNextDestination: () async {
+                              final l10n = AppLocalizations.of(context)!;
                               // Next stop = document in `nextLandmarkId` on the **current** landmark when set;
                               // otherwise infer by region order. Route fields live on the **next** landmark doc.
                               final nextDocId = lm?.nextLandmarkId?.trim();
@@ -1144,14 +1147,14 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                               final nextRegion = (nextLm?.order ?? (currentRegion + 1));
                               if (nextRegion > _mapRegionCount) {
                                 return ChallengeNextDestination(
-                                  name: 'Journey completed!',
+                                  name: l10n.mapJourneyCompleted,
                                   isLastRegion: true,
                                 );
                               }
                               final byOrder = _landmarkForRegion(nextRegion);
                               final nextResolved = nextLm ?? byOrder;
                               final name =
-                                  nextResolved?.name ?? byOrder?.name ?? 'Region $nextRegion';
+                                  nextResolved?.name ?? byOrder?.name ?? l10n.regionNumber(nextRegion);
                               final dist = nextResolved?.distanceFromPreviousMeters ??
                                   byOrder?.distanceFromPreviousMeters;
                               var walk = nextResolved?.walkingTimeFromPreviousMinutes ??
@@ -1210,7 +1213,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                           )
                         : Center(
                             child: Text(
-                              'Challenge coming soon.',
+                              AppLocalizations.of(context)!.mapChallengeComingSoon,
                               style: MapTextStyles.body.copyWith(
                                 color: AppColors.brown.withValues(alpha: 0.75),
                               ),
@@ -1234,7 +1237,8 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
 
   Widget _buildRegionSheet(BuildContext context) {
     final region = _regionSheetRegion!;
-    final title = _landmarksLoading ? 'Region $region' : _placeTitle(region);
+    final l10n = AppLocalizations.of(context)!;
+    final title = _landmarksLoading ? l10n.regionNumber(region) : _placeTitle(region);
     final lm = _landmarkForRegion(region);
     final description = lm?.description?.trim();
     final size = MediaQuery.sizeOf(context);
@@ -1274,11 +1278,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     if (_emptyChallengeOverlay || _regionSheetRegion != null) return;
 
     if (region > currentRegion) {
-      _showCenterMessage("You haven't reached this stage yet");
+      _showCenterMessage(AppLocalizations.of(context)!.mapRegionNotReached);
       return;
     }
     if (region < currentRegion) {
-      _showCenterMessage('This stage is done');
+      _showCenterMessage(AppLocalizations.of(context)!.mapStageDone);
       return;
     }
     setState(() => _regionSheetRegion = region);
@@ -1366,11 +1370,12 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
 
   Widget _descriptionBody() {
     final desc = widget.description;
+    final l10n = AppLocalizations.of(context)!;
     if (desc == null || desc.trim().isEmpty) {
       return RichText(
         textAlign: TextAlign.center,
         text: TextSpan(
-          text: 'Add a description for this landmark in Firestore (field: description).',
+          text: l10n.mapLandmarkDescriptionPlaceholder,
           style: MapTextStyles.body.copyWith(
             height: 1.58,
             color: MapDesignTokens.bodyColor.withValues(alpha: 0.52),
@@ -1457,7 +1462,7 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
                                       color: AppColors.brown.withValues(alpha: 0.06),
                                       alignment: Alignment.center,
                                       child: Text(
-                                        'Image failed to load',
+                                        AppLocalizations.of(context)!.mapImageFailedToLoad,
                                         style: MapTextStyles.caption.copyWith(
                                           color: AppColors.brown.withValues(alpha: 0.7),
                                           fontWeight: FontWeight.w600,
@@ -1491,7 +1496,7 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+              padding: const EdgeInsetsDirectional.fromSTEB(22, 20, 22, 22),
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -1508,7 +1513,7 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
                     color: Colors.white.withValues(alpha: challengeReady ? 1 : 0.88),
                   ),
                   label: Text(
-                    'Start Challenge',
+                    AppLocalizations.of(context)!.mapStartChallenge,
                     style: MapTextStyles.buttonLabelDense.copyWith(
                       letterSpacing: 0.2,
                       color: Colors.white.withValues(alpha: challengeReady ? 1 : 0.9),

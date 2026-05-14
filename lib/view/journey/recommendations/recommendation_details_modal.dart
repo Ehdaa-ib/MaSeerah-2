@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/map_button_styles.dart';
 import '../../../core/map_design_tokens.dart';
@@ -39,6 +40,7 @@ class RecommendationDetailsModal extends StatelessWidget {
     final body = MapPopupSurface(
       child: LayoutBuilder(
         builder: (context, _) {
+            final l10n = AppLocalizations.of(context)!;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -58,7 +60,7 @@ class RecommendationDetailsModal extends StatelessWidget {
                             onClose: () => Navigator.of(context).pop(),
                           ),
                                 Padding(
-                                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+                                  padding: const EdgeInsetsDirectional.fromSTEB(18, 16, 18, 10),
                                   child: Text(
                                     place.name,
                                     style: MapTextStyles.popupTitle,
@@ -68,7 +70,7 @@ class RecommendationDetailsModal extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(horizontal: 18),
                                   child: place.description.trim().isEmpty
                                       ? Text(
-                                          'No description yet.',
+                                          l10n.recommendationNoDescription,
                                           style: MapTextStyles.body.copyWith(
                                             color: AppColors.brown.withValues(alpha: 0.55),
                                           ),
@@ -100,21 +102,21 @@ class RecommendationDetailsModal extends StatelessWidget {
                                           slot(
                                             MapInfoChip(
                                               icon: Icons.payments_outlined,
-                                              label: 'Average price',
+                                              label: l10n.recommendationChipAveragePrice,
                                               value: place.averagePrice,
                                             ),
                                           ),
                                           slot(
                                             MapInfoChip(
                                               icon: Icons.directions_walk_outlined,
-                                              label: 'Walk time',
+                                              label: l10n.recommendationChipWalkTime,
                                               value: place.walkingLabel,
                                             ),
                                           ),
                                           slot(
                                             MapInfoChip(
                                               icon: Icons.straighten_outlined,
-                                              label: 'Distance from last stop',
+                                              label: l10n.recommendationChipDistanceFromLast,
                                               value: place.distanceLabel,
                                             ),
                                           ),
@@ -122,7 +124,7 @@ class RecommendationDetailsModal extends StatelessWidget {
                                             slot(
                                               MapInfoChip(
                                                 icon: Icons.star_rounded,
-                                                label: 'Rating',
+                                                label: l10n.recommendationChipRating,
                                                 value: place.rating!.toStringAsFixed(1),
                                                 iconColor:
                                                     AppColors.orange.withValues(alpha: 0.88),
@@ -138,7 +140,7 @@ class RecommendationDetailsModal extends StatelessWidget {
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 18),
                                     child: Text(
-                                      'Price ranges',
+                                      l10n.recommendationPriceRanges,
                                       style: MapTextStyles.sectionHeading,
                                     ),
                                   ),
@@ -438,7 +440,7 @@ class _StickyMapsCta extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: onOpenMaps,
                 icon: Icon(Icons.map_outlined, size: MapDesignTokens.iconStandard),
-                label: const Text('Open in Google Maps'),
+                label: Text(AppLocalizations.of(context)!.recommendationOpenInGoogleMaps),
                 style: MapButtonStyles.primaryFilled(),
               ),
             ),

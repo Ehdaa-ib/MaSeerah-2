@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+
 import '../../core/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 
 class GoogleMapPage extends StatelessWidget {
   const GoogleMapPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Google Map', style: TextStyle(color: AppColors.brown)),
+        title: Text(l10n.googleMapPageTitle, style: const TextStyle(color: AppColors.brown)),
         backgroundColor: AppColors.green,
         centerTitle: true,
         leading: IconButton(
@@ -16,10 +19,10 @@ class GoogleMapPage extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: const Center(
+      body: Center(
         child: Text(
-          'Google Map will be here',
-          style: TextStyle(fontSize: 20, color: AppColors.brown),
+          l10n.googleMapPagePlaceholder,
+          style: const TextStyle(fontSize: 20, color: AppColors.brown),
         ),
       ),
     );

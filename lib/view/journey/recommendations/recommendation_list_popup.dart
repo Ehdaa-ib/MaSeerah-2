@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/map_design_tokens.dart';
 import '../../../core/map_text_styles.dart';
@@ -24,13 +25,14 @@ class RecommendationListPopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sorted = [...places]..sort((a, b) => a.order.compareTo(b.order));
+    final l10n = AppLocalizations.of(context)!;
 
     return MapPopupSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           MapPopupHeader(
-            title: 'Recommended places',
+            title: l10n.recommendationListTitle,
             onClose: () => Navigator.of(context).pop(),
           ),
           Divider(height: 1, thickness: 1, color: MapDesignTokens.borderSubtle(0.1)),
@@ -49,7 +51,7 @@ class RecommendationListPopup extends StatelessWidget {
                           ),
                           const SizedBox(height: MapDesignTokens.spaceLg),
                           Text(
-                            'No recommendations yet',
+                            l10n.recommendationListEmptyTitle,
                             textAlign: TextAlign.center,
                             style: MapTextStyles.popupTitle.copyWith(
                               color: AppColors.brown.withValues(alpha: 0.88),
@@ -57,7 +59,7 @@ class RecommendationListPopup extends StatelessWidget {
                           ),
                           const SizedBox(height: MapDesignTokens.spaceMd),
                           Text(
-                            'Explore more landmarks to unlock nearby places.',
+                            l10n.recommendationListEmptySubtitle,
                             textAlign: TextAlign.center,
                             style: MapTextStyles.bodySmall.copyWith(
                               color: MapDesignTokens.iconMuted(0.65),

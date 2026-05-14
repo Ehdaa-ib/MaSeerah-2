@@ -19,6 +19,7 @@ import '../../service/access_service.dart';
 import '../../service/order_service.dart';
 import '../../service/payment_service.dart';
 import '../../core/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 import '../../data/firebase/journey_completion_data_source.dart';
 import '../../data/firebase/journey_progress_data_source.dart';
 import '../../data/firebase/journey_repurchase_gate_data_source.dart';
@@ -464,9 +465,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
             extendBodyBehindAppBar: true,
             extendBody: true,
             appBar: AppBar(
-              title: const Text(
-                'Pay with Moyasar',
-                style: TextStyle(color: AppColors.brown),
+              title: Text(
+                AppLocalizations.of(context)!.journeyPurchasePayWithMoyasar,
+                style: const TextStyle(color: AppColors.brown),
               ),
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -483,11 +484,11 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                     ),
                   ),
                 SingleChildScrollView(
-                  padding: EdgeInsets.only(
-                    left: 24,
-                    right: 24,
-                    bottom: 24,
-                    top: MediaQuery.of(context).padding.top + kToolbarHeight + 24,
+                  padding: EdgeInsetsDirectional.fromSTEB(
+                    24,
+                    MediaQuery.of(context).padding.top + kToolbarHeight + 24,
+                    24,
+                    24,
                   ),
                   child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -503,7 +504,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _journey?.name ?? 'Journey',
+                      _journey?.name ?? AppLocalizations.of(context)!.journeyPurchaseTitle,
                       style: const TextStyle(
                         color: AppColors.brown,
                         fontSize: 16,
@@ -616,7 +617,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
         appBar: AppBar(
           backgroundColor: AppColors.brown,
           foregroundColor: Colors.white,
-          title: const Text('Journey'),
+          title: Text(AppLocalizations.of(context)!.journeyPurchaseTitle),
         ),
         body: const Center(child: CircularProgressIndicator(color: AppColors.brown)),
       );
@@ -627,13 +628,13 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
         appBar: AppBar(
           backgroundColor: AppColors.brown,
           foregroundColor: Colors.white,
-          title: const Text('Journey'),
+          title: Text(AppLocalizations.of(context)!.journeyPurchaseTitle),
         ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              _error ?? 'Journey not found.',
+              _error ?? AppLocalizations.of(context)!.journeyPurchaseNotFound,
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.brown),
             ),
@@ -741,9 +742,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'About',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context)!.journeyPurchaseAbout,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: AppColors.orange,
@@ -765,9 +766,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                       if (description.length > previewLength && !_descriptionExpanded)
                         GestureDetector(
                           onTap: () => setState(() => _descriptionExpanded = true),
-                          child: const Text(
-                            'read more',
-                            style: TextStyle(
+                          child: Text(
+                            AppLocalizations.of(context)!.journeyPurchaseReadMore,
+                            style: const TextStyle(
                               fontSize: 14,
                               color: AppColors.brown,
                               fontWeight: FontWeight.bold,
@@ -778,9 +779,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                       else if (description.length > previewLength && _descriptionExpanded)
                         GestureDetector(
                           onTap: () => setState(() => _descriptionExpanded = false),
-                          child: const Text(
-                            'read less',
-                            style: TextStyle(
+                          child: Text(
+                            AppLocalizations.of(context)!.journeyPurchaseReadLess,
+                            style: const TextStyle(
                               fontSize: 14,
                               color: AppColors.brown,
                               fontWeight: FontWeight.bold,
@@ -789,11 +790,11 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                           ),
                         ),
                       const SizedBox(height: 24),
-                      _buildJourneyDetailCards(journey),
+                      _buildJourneyDetailCards(context, journey),
                       const SizedBox(height: 20),
-                      _buildInfoCard(journey),
+                      _buildInfoCard(context, journey),
                       const SizedBox(height: 24),
-                      _buildGoodToKnow(journey),
+                      _buildGoodToKnow(context, journey),
                     ],
                   ),
                 ),
@@ -808,6 +809,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
               child: SafeArea(
                 top: false,
                 child: _buildBottomButton(
+                  context: context,
                   journey: journey,
                   needsLogin: needsLogin,
                   canStartJourney: canStartJourney,
@@ -816,7 +818,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                   shouldGiveFeedback: shouldGiveFeedback,
                   isStatusLoading: isStatusLoading,
                   startJourneyLabel:
-                      (_savedProgress != null) ? 'Continue your journey' : 'Start your journey',
+                      (_savedProgress != null)
+                          ? AppLocalizations.of(context)!.journeyPurchaseContinueYourJourney
+                          : AppLocalizations.of(context)!.journeyPurchaseStartYourJourney,
                 ),
               ),
             ),
@@ -825,13 +829,14 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     );
   }
 
-  Widget _buildJourneyDetailCards(Journey j) {
+  Widget _buildJourneyDetailCards(BuildContext context, Journey j) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _DetailCard(
           icon: Icons.navigation,
-          label: 'Start point',
+          label: l10n.journeyPurchaseStartPoint,
           value: j.startPoint ?? '—',
           valueColorOrange: true,
         ),
@@ -844,7 +849,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
         ),
         _DetailCard(
           icon: null,
-          label: 'Stops along the way',
+          label: l10n.journeyPurchaseStopsAlongWay,
           value: null,
           isStops: true,
           valueColorOrange: false,
@@ -858,7 +863,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
         ),
         _DetailCard(
           icon: Icons.flag,
-          label: 'End point',
+          label: l10n.journeyPurchaseEndPoint,
           value: j.endPoint ?? '—',
           valueColorOrange: true,
         ),
@@ -866,7 +871,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     );
   }
 
-  Widget _buildInfoCard(Journey j) {
+  Widget _buildInfoCard(BuildContext context, Journey j) {
     return Container(
       height: 80,
       padding: const EdgeInsets.all(16),
@@ -885,19 +890,20 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     );
   }
 
-  Widget _buildGoodToKnow(Journey j) {
-    const items = [
-      'Best time to explore is after Fajr or after Asr',
-      'Avoid exploring during midday due to the heat',
-      'You can enjoy the journey by walking, cycling, or using a golf cart',
+  Widget _buildGoodToKnow(BuildContext context, Journey j) {
+    final l10n = AppLocalizations.of(context)!;
+    final items = [
+      l10n.journeyPurchaseGoodToKnow1,
+      l10n.journeyPurchaseGoodToKnow2,
+      l10n.journeyPurchaseGoodToKnow3,
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Good to know',
-          style: TextStyle(
+        Text(
+          l10n.journeyPurchaseGoodToKnow,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: AppColors.orange,
@@ -932,6 +938,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   }
 
   Widget _buildBottomButton({
+    required BuildContext context,
     required Journey journey,
     required bool needsLogin,
     required bool canStartJourney,
@@ -941,17 +948,18 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     required bool isStatusLoading,
     required String startJourneyLabel,
   }) {
+    final l10n = AppLocalizations.of(context)!;
     if (needsLogin) {
       return _PaymentButton(
         price: journey.price,
-        label: 'Sign in to purchase',
+        label: l10n.journeyPurchaseSignInToPurchase,
         onTap: _openSignIn,
       );
     }
     if (isStatusLoading) {
       return _PaymentButton(
         price: 0,
-        label: 'Loading…',
+        label: l10n.journeyPurchaseLoading,
         onTap: null,
         isGreen: false,
         centered: true,
@@ -960,7 +968,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     if (shouldGiveFeedback) {
       return _PaymentButton(
         price: 0,
-        label: 'Give feedback',
+        label: l10n.journeyPurchaseGiveFeedback,
         onTap: () {
           Navigator.of(context).push<void>(
             MaterialPageRoute<void>(
@@ -975,7 +983,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     if (canPay) {
       return _PaymentButton(
         price: journey.price,
-        label: 'Unlock Journey',
+        label: l10n.journeyPurchaseUnlockJourney,
         onTap: _purchaseAndPay,
         isGreen: false,
         centered: false,
@@ -992,7 +1000,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     }
     return _PaymentButton(
       price: journey.price,
-      label: 'Unlock Journey',
+      label: l10n.journeyPurchaseUnlockJourney,
       onTap: _purchaseAndPay,
       isGreen: false,
       centered: false,
