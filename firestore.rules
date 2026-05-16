@@ -1,6 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -9,7 +14,8 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Admin list must stay aligned with lib/core/validators.dart (any casing in token is OK).
+    // Keep in sync with lib/core/validators.dart (_adminEmails).
+    // Case-insensitive: Auth token email casing may differ from the allowlist.
     function isAdminEmail() {
       return isSignedIn()
         && request.auth.token.email != null
@@ -18,27 +24,95 @@ service cloud.firestore {
         );
     }
 
-    // Firestore `users/{uid}.role == 'admin'` (set in admin Users tab or at signup).
+    // Reads users/{uid}.role once. Does NOT recurse: rule-engine get() bypasses
+    // security rules on the fetched document (no re-entry into match /users/...).
     function hasAdminRole() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Prefer email check first (no extra read). malak@admin.com OR users.role == admin.
     function isAdmin() {
       return isAdminEmail() || hasAdminRole();
     }
 
-    // Own profile document: read anytime; create only for signup shape; update only safe fields.
+  function challengeRatingValue(data) {
+      return data.get('challengeRating', data.get('challengerRating', 0));
+    }
+
+    function isValidFeedbackPayload(data) {
+      return data.userId is string
+        && data.journeyId is string
+        && data.overallRating is number
+        && data.overallRating >= 1
+        && data.overallRating <= 5
+        && data.get('contentRating', 0) is number
+        && data.get('contentRating', 0) >= 0
+        && data.get('contentRating', 0) <= 5
+        && data.get('recommendationRating', 0) is number
+        && data.get('recommendationRating', 0) >= 0
+        && data.get('recommendationRating', 0) <= 5
+        && challengeRatingValue(data) is number
+        && challengeRatingValue(data) >= 0
+        && challengeRatingValue(data) <= 5
+        && (!('overallComment' in data) || data.overallComment is string)
+        && (!('photos' in data)
+          || (data.photos is list && data.photos.size() <= 20));
+    }
+
+    function feedbackUserContentUnchanged() {
+      return request.resource.data.userId == resource.data.userId
+        && request.resource.data.journeyId == resource.data.journeyId
+        && request.resource.data.overallRating == resource.data.overallRating
+        && request.resource.data.get('contentRating', 0) == resource.data.get('contentRating', 0)
+        && request.resource.data.get('recommendationRating', 0)
+            == resource.data.get('recommendationRating', 0)
+        && challengeRatingValue(request.resource.data) == challengeRatingValue(resource.data)
+        && request.resource.data.get('overallComment', '')
+            == resource.data.get('overallComment', '')
+        && request.resource.data.get('photos', []) == resource.data.get('photos', [])
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function isValidAdminFeedbackUpdate() {
+      return isAdmin()
+        && feedbackUserContentUnchanged()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['adminResponses', 'adminResponse', 'respondedAt'])
+        && (!('adminResponse' in request.resource.data)
+          || request.resource.data.adminResponse is string)
+        && (!('respondedAt' in request.resource.data)
+          || request.resource.data.respondedAt is timestamp)
+        && (!('adminResponses' in request.resource.data)
+          || request.resource.data.adminResponses is list);
+    }
+
+    function ownsOrder(orderId) {
+      return isSignedIn()
+        && orderId is string
+        && exists(/databases/$(database)/documents/orders/$(orderId))
+        && get(/databases/$(database)/documents/orders/$(orderId)).data.userId
+            == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------------
+    // users — profile + admin user audit (dashboard Users tab)
+    // -------------------------------------------------------------------------
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
 
+      // Signup: only user role unless email is on the admin allowlist.
       allow create: if isOwner(userId)
         && request.resource.data.keys().hasOnly(['email', 'name', 'role', 'createdAt'])
         && request.resource.data.email is string
         && request.resource.data.name is string
         && request.resource.data.role is string
-        && request.resource.data.createdAt is timestamp;
+        && request.resource.data.createdAt is timestamp
+        && (
+          request.resource.data.role == 'user'
+          || (isAdminEmail() && request.resource.data.role == 'admin')
+        );
 
       allow update: if isOwner(userId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -53,9 +127,12 @@ service cloud.firestore {
           'name',
         ])
         && (!('role' in resource.data) || request.resource.data.role == resource.data.role)
-        && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
-        && (!('isAdmin' in resource.data) || request.resource.data.isAdmin == resource.data.isAdmin);
+        && (!('createdAt' in resource.data)
+          || request.resource.data.createdAt == resource.data.createdAt)
+        && (!('isAdmin' in resource.data)
+          || request.resource.data.isAdmin == resource.data.isAdmin);
 
+      // Admin audit: change name/role; email and createdAt are immutable.
       allow update: if isAdmin()
         && request.resource.data.email == resource.data.email
         && request.resource.data.createdAt == resource.data.createdAt
@@ -64,7 +141,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Append-only: each time a journey is finished, a row is added (never deleted by replay).
     match /users/{userId}/journeyCompletionHistory/{historyId} {
       allow create: if isOwner(userId)
         && request.resource.data.userId == userId
@@ -73,7 +149,6 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // In-progress journey (map region + challenge flags). Deleted when the journey is completed.
     match /users/{userId}/activeJourneys/{journeyId} {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId)
@@ -92,7 +167,6 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
-    // After feedback: user must pay again before starting. Cleared on successful payment.
     match /users/{userId}/journeyPurchaseGate/{journeyId} {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId)
@@ -100,39 +174,23 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
-    // Mirror of top-level `feedback` for profile (same fields + same doc id as `feedback/{id}`).
     match /users/{userId}/journeyFeedback/{feedbackId} {
       allow create: if isOwner(userId)
         && request.resource.data.userId == userId
-        && request.resource.data.journeyId is string
-        && request.resource.data.overallRating is number
-        && request.resource.data.overallRating >= 1
-        && request.resource.data.overallRating <= 5
-        && request.resource.data.get('contentRating', 0) is number
-        && request.resource.data.get('contentRating', 0) >= 0
-        && request.resource.data.get('contentRating', 0) <= 5
-        && request.resource.data.get('recommendationRating', 0) is number
-        && request.resource.data.get('recommendationRating', 0) >= 0
-        && request.resource.data.get('recommendationRating', 0) <= 5
-        && request.resource.data.get('challengeRating', 0) is number
-        && request.resource.data.get('challengeRating', 0) >= 0
-        && request.resource.data.get('challengeRating', 0) <= 5
-        && (!('overallComment' in request.resource.data)
-          || request.resource.data.overallComment is string)
-        && (!('photos' in request.resource.data)
-          || (request.resource.data.photos is list
-            && request.resource.data.photos.size() <= 20));
+        && isValidFeedbackPayload(request.resource.data);
       allow read: if isOwner(userId);
       allow update, delete: if false;
     }
 
-    // Journey completion (1 doc id per user+journey: `{uid}_{journeyId}`).
-    // Updates: [markCompleted] uses merge (treated as update). Deletes: replay after a new payment.
+    // -------------------------------------------------------------------------
+    // journeyCompletions — user progress; admins read for dashboard analytics
+    // -------------------------------------------------------------------------
     match /journeyCompletions/{completionId} {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.journeyId is string;
-      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid)
+        || isAdmin();
       allow update: if isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
@@ -140,45 +198,22 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
-    // Feedback (multiple docs per user+journey allowed).
-    // Optional detail ratings may be omitted by the client; treat missing as 0.
+    // -------------------------------------------------------------------------
+    // feedback — users create; admins reply (adminResponse / respondedAt / history)
+    // -------------------------------------------------------------------------
     match /feedback/{feedbackId} {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.journeyId is string
-        && request.resource.data.overallRating is number
-        && request.resource.data.overallRating >= 1
-        && request.resource.data.overallRating <= 5
-        && request.resource.data.get('contentRating', 0) is number
-        && request.resource.data.get('contentRating', 0) >= 0
-        && request.resource.data.get('contentRating', 0) <= 5
-        && request.resource.data.get('recommendationRating', 0) is number
-        && request.resource.data.get('recommendationRating', 0) >= 0
-        && request.resource.data.get('recommendationRating', 0) <= 5
-        && request.resource.data.get('challengeRating', 0) is number
-        && request.resource.data.get('challengeRating', 0) >= 0
-        && request.resource.data.get('challengeRating', 0) <= 5
-        && (!('overallComment' in request.resource.data)
-          || request.resource.data.overallComment is string)
-        && (!('photos' in request.resource.data)
-          || (request.resource.data.photos is list
-            && request.resource.data.photos.size() <= 20));
-      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
-      allow update: if isAdmin()
-        && request.resource.data.userId == resource.data.userId
-        && request.resource.data.journeyId == resource.data.journeyId
-        && request.resource.data.overallRating == resource.data.overallRating
-        && request.resource.data.get('contentRating', 0) == resource.data.get('contentRating', 0)
-        && request.resource.data.get('recommendationRating', 0) == resource.data.get('recommendationRating', 0)
-        && request.resource.data.get('challengeRating', 0) == resource.data.get('challengeRating', 0)
-        && request.resource.data.get('overallComment', '') == resource.data.get('overallComment', '')
-        && request.resource.data.get('photos', []) == resource.data.get('photos', [])
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['adminResponses', 'adminResponse', 'respondedAt']);
+        && isValidFeedbackPayload(request.resource.data);
+
+      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid)
+        || isAdmin();
+
+      allow update: if isValidAdminFeedbackUpdate();
+
       allow delete: if false;
     }
-    // Optional user-uploaded gallery (profile "Your photos"). Not used by core journey flow.
+
     match /photos/{photoId} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create, update: if isSignedIn()
@@ -186,67 +221,86 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
-    // Legacy journey list for profile (if present in project data).
     match /user_journeys/{docId} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow write: if false;
     }
 
-    // Curated recommendation places (FR-21/FR-22). Same visibility model as [journeys]:
-    // public read so the map can load POIs even when Auth is not ready yet (e.g. post-payment flow).
-    match /recommendation_places/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    // Optional alternate collection ids used by the client when migrating data.
+    // -------------------------------------------------------------------------
+    // Places / recommendations — public read; admin CRUD (dashboard Places tab)
+    // -------------------------------------------------------------------------
     match /recommendations/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
+
+    match /recommendation_places/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     match /recommended_places/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Journeys: public read; catalog writes admin-only (admin dashboard CRUD).
+    // -------------------------------------------------------------------------
+    // Journey catalog — public browse; admin-only writes (dashboard Journeys tab)
+    // -------------------------------------------------------------------------
     match /journeys/{journeyId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Journey landmarks: editorial/map content. Public read (like [journeys]); writes admin-only.
     match /journey_landmarks/{landmarkId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // FAQs: anyone can read, no client writes.
     match /faqs/{faqId} {
       allow read: if true;
       allow write: if false;
     }
-    // Orders: authenticated users can read/write
+
+    // -------------------------------------------------------------------------
+    // Commerce — scoped to order owner (+ admin read). Tightened from any signed-in user.
+    // -------------------------------------------------------------------------
     match /orders/{orderId} {
-      allow read, write: if isSignedIn();
-    }
-    // Payments: authenticated users can read/write
-    match /payments/{paymentId} {
-      allow read, write: if isSignedIn();
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin()
+        || (isSignedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid);
+      allow delete: if false;
     }
 
-    // Password reset codes — legacy; Admin SDK only
+    match /payments/{paymentId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && ownsOrder(resource.data.orderId));
+      allow create: if isSignedIn()
+        && request.resource.data.orderId is string
+        && ownsOrder(request.resource.data.orderId);
+      allow update: if isAdmin()
+        || (isSignedIn()
+          && ownsOrder(resource.data.orderId)
+          && request.resource.data.orderId == resource.data.orderId);
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Server-only / public index
+    // -------------------------------------------------------------------------
     match /password_reset_codes/{docId} {
       allow read, write: if false;
     }
 
-    // Password reset OTP sessions — Admin SDK only (hashed OTP, never plain code)
     match /password_reset_otps/{docId} {
       allow read, write: if false;
     }
 
-    // Public email index for password reset "exists" checks.
-    // Stores only a hash of the normalized email to avoid exposing raw addresses.
-    // Read is public so the reset flow can run while signed out.
     match /email_index/{emailHash} {
       allow read: if true;
       allow create: if isSignedIn()
