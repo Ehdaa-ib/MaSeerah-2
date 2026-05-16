@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
@@ -6,7 +7,7 @@ import '../../../core/error_messages.dart';
 import '../../../data/firebase/recommendation_places_admin_data_source.dart';
 import '../../../model/recommendation_place.dart';
 
-/// Curates `recommendation_places` without altering how [RecommendationPlace] reads `images`.
+/// Curates the Firestore `recommendations` collection (places / POIs).
 class AdminRecommendationsPage extends StatefulWidget {
   const AdminRecommendationsPage({super.key});
 
@@ -379,16 +380,22 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
       'order': order,
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
-      'location': loc,
-      'locationUrl': loc,
       'averagePrice': _averagePriceController.text.trim().isEmpty
           ? '—'
           : _averagePriceController.text.trim(),
       'images': images,
     };
 
+    final geo = _parseGeoPoint(loc);
+    if (geo != null) {
+      data['location'] = geo;
+    } else if (loc.isNotEmpty) {
+      data['location'] = loc;
+      data['locationUrl'] = loc;
+    }
+
     if (distanceRaw.isNotEmpty) {
-      data['distanceFromPreviousLandmark'] = distanceRaw;
+      data['distnaceFromPreviosLandmark'] = distanceRaw;
     }
     if (walkRaw.isNotEmpty) {
       data['avgWalkingTime'] = walkRaw;
@@ -405,6 +412,25 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
     }
 
     Navigator.of(context).pop(_RecFormResult(documentId: docId, data: data));
+  }
+
+  GeoPoint? _parseGeoPoint(String input) {
+    final trimmed = input.trim();
+    final direct = RegExp(r'^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$');
+    final directMatch = direct.firstMatch(trimmed);
+    if (directMatch != null) {
+      final lat = double.tryParse(directMatch.group(1)!);
+      final lng = double.tryParse(directMatch.group(2)!);
+      if (lat != null && lng != null) return GeoPoint(lat, lng);
+    }
+    final query = RegExp(r'query=(-?\d+\.?\d*),(-?\d+\.?\d*)');
+    final queryMatch = query.firstMatch(trimmed);
+    if (queryMatch != null) {
+      final lat = double.tryParse(queryMatch.group(1)!);
+      final lng = double.tryParse(queryMatch.group(2)!);
+      if (lat != null && lng != null) return GeoPoint(lat, lng);
+    }
+    return null;
   }
 
   @override
@@ -489,7 +515,8 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
                     controller: _locationUrlController,
                     style: const TextStyle(color: AppColors.brown),
                     decoration: _dec(
-                      hintText: 'Firestore field `location` — https://maps.google.com/…',
+                      hintText:
+                          'Maps URL, or lat,lng (saved as GeoPoint in `location`)',
                     ),
                   ),
                 ),
@@ -508,7 +535,7 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
                   TextFormField(
                     controller: _distanceController,
                     style: const TextStyle(color: AppColors.brown),
-                    decoration: _dec(hintText: 'Stored as distanceFromPreviousLandmark'),
+                    decoration: _dec(hintText: 'Firestore: distnaceFromPreviosLandmark'),
                   ),
                 ),
                 const SizedBox(height: 12),

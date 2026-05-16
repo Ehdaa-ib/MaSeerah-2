@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../model/feedback.dart';
 
-/// Admin-only access to `feedback` (requires matching Firestore rules + admin email).
+/// Admin-only access to `feedback` (requires admin email or `users.role == admin`).
 class FeedbackAdminDataSource {
   FeedbackAdminDataSource({FirebaseFirestore? firestore})
       : _db = firestore ?? FirebaseFirestore.instance;
@@ -13,11 +13,23 @@ class FeedbackAdminDataSource {
 
   Future<List<FeedbackAdminRow>> fetchAll() async {
     final snap = await _db.collection(_collection).get();
+    final userNames = await _loadUserNames(
+      snap.docs
+          .map((d) => (d.data()['userId'] as String?) ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet(),
+    );
+
     final rows = snap.docs.map((d) {
       final data = Map<String, dynamic>.from(d.data());
       final entry = FeedbackEntry.fromMap(data);
-      return FeedbackAdminRow(documentId: d.id, entry: entry);
+      return FeedbackAdminRow(
+        documentId: d.id,
+        entry: entry,
+        userDisplayName: userNames[entry.userId],
+      );
     }).toList();
+
     rows.sort((a, b) {
       final da = a.entry.createdAt;
       final db = b.entry.createdAt;
@@ -27,6 +39,24 @@ class FeedbackAdminDataSource {
       return db.compareTo(da);
     });
     return rows;
+  }
+
+  Future<Map<String, String>> _loadUserNames(Set<String> userIds) async {
+    if (userIds.isEmpty) return {};
+    final out = <String, String>{};
+    final ids = userIds.toList();
+    for (var i = 0; i < ids.length; i += 10) {
+      final chunk = ids.sublist(i, i + 10 > ids.length ? ids.length : i + 10);
+      final snap = await _db
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final doc in snap.docs) {
+        final name = (doc.data()['name'] as String?)?.trim();
+        out[doc.id] = (name != null && name.isNotEmpty) ? name : doc.id;
+      }
+    }
+    return out;
   }
 
   Future<void> appendAdminResponse({
@@ -52,7 +82,11 @@ class FeedbackAdminDataSource {
           'respondedAt': FieldValue.serverTimestamp(),
         },
       ];
-      txn.update(ref, {'adminResponses': next});
+      txn.update(ref, {
+        'adminResponses': next,
+        'adminResponse': trimmed,
+        'respondedAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 }
@@ -60,9 +94,11 @@ class FeedbackAdminDataSource {
 class FeedbackAdminRow {
   final String documentId;
   final FeedbackEntry entry;
+  final String? userDisplayName;
 
   FeedbackAdminRow({
     required this.documentId,
     required this.entry,
+    this.userDisplayName,
   });
 }

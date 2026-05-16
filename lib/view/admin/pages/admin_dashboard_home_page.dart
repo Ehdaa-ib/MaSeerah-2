@@ -25,6 +25,7 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
   int _completionsLast7Days = 0;
   List<_TopJourneyRow> _topJourneys = const [];
   List<_RecentUser> _recentUsers = const [];
+  List<int> _ratingDistribution = const [0, 0, 0, 0, 0];
 
   @override
   void initState() {
@@ -62,10 +63,16 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
         }).toList();
       }).catchError((_) => <_RecentUser>[]);
 
-      final feedbackCountFuture =
-          _safeCount(FirebaseFirestore.instance.collection('feedback'));
-      final completionsCountFuture =
-          _safeCount(FirebaseFirestore.instance.collection('journeyCompletions'));
+      final feedbackCountFuture = FirebaseFirestore.instance
+          .collection('feedback')
+          .count()
+          .get()
+          .then((a) => a.count ?? 0);
+      final completionsCountFuture = FirebaseFirestore.instance
+          .collection('journeyCompletions')
+          .count()
+          .get()
+          .then((a) => a.count ?? 0);
       final analyticsFuture = _loadEngagementAnalytics();
 
       final results = await Future.wait([
@@ -95,6 +102,7 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
         _ratingSamples = analytics.ratingSamples;
         _completionsLast7Days = analytics.completionsLast7Days;
         _topJourneys = analytics.topJourneys;
+        _ratingDistribution = analytics.ratingDistribution;
         _loading = false;
       });
     } catch (e) {
@@ -106,28 +114,20 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
     }
   }
 
-  Future<int> _safeCount(
-    CollectionReference<Map<String, dynamic>> collection,
-  ) async {
-    try {
-      final a = await collection.count().get();
-      return a.count ?? 0;
-    } catch (_) {
-      return 0;
-    }
-  }
-
   Future<_EngagementAnalytics> _loadEngagementAnalytics() async {
     var avgOverall = 0.0;
     var ratingN = 0;
+    final distribution = List<int>.filled(5, 0);
     try {
       final fb =
-          await FirebaseFirestore.instance.collection('feedback').limit(400).get();
+          await FirebaseFirestore.instance.collection('feedback').get();
       for (final d in fb.docs) {
         final r = d.data()['overallRating'];
         if (r is num) {
+          final stars = r.round().clamp(1, 5);
           avgOverall += r.toDouble();
           ratingN++;
+          distribution[stars - 1]++;
         }
       }
     } catch (_) {}
@@ -202,6 +202,7 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
       ratingSamples: ratingN,
       completionsLast7Days: completed7d,
       topJourneys: rows,
+      ratingDistribution: distribution,
     );
   }
 
@@ -283,7 +284,20 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
             ),
             const SizedBox(height: 16),
             _SectionCard(
-              title: 'Most completed journeys (sample)',
+              title: 'Overall rating distribution',
+              child: _ratingSamples == 0
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'No feedback ratings yet.',
+                        style: TextStyle(color: AppColors.brown),
+                      ),
+                    )
+                  : _RatingDistributionChart(buckets: _ratingDistribution),
+            ),
+            const SizedBox(height: 16),
+            _SectionCard(
+              title: 'Most completed journeys',
               child: _topJourneys.isEmpty
                   ? const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
@@ -528,12 +542,70 @@ class _EngagementAnalytics {
   final int ratingSamples;
   final int completionsLast7Days;
   final List<_TopJourneyRow> topJourneys;
+  final List<int> ratingDistribution;
 
   const _EngagementAnalytics({
     required this.avgOverallRating,
     required this.ratingSamples,
     required this.completionsLast7Days,
     required this.topJourneys,
+    required this.ratingDistribution,
   });
+}
+
+/// Simple bar chart for 1–5 star counts (no external chart dependency).
+class _RatingDistributionChart extends StatelessWidget {
+  final List<int> buckets;
+
+  const _RatingDistributionChart({required this.buckets});
+
+  @override
+  Widget build(BuildContext context) {
+    final maxCount = buckets.isEmpty ? 0 : buckets.reduce((a, b) => a > b ? a : b);
+    return Column(
+      children: List.generate(5, (i) {
+        final stars = i + 1;
+        final count = i < buckets.length ? buckets[i] : 0;
+        final fraction = maxCount == 0 ? 0.0 : count / maxCount;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 56,
+                child: Text(
+                  '$stars ★',
+                  style: const TextStyle(
+                    color: AppColors.brown,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: fraction,
+                    minHeight: 14,
+                    backgroundColor: AppColors.green.withOpacity(0.2),
+                    color: AppColors.orange,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 32,
+                child: Text(
+                  '$count',
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(color: AppColors.brown),
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
 }
 

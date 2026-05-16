@@ -78,7 +78,12 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _kv('User ID', row.entry.userId),
+                  _kv(
+                    'User',
+                    row.userDisplayName != null
+                        ? '${row.userDisplayName} (${row.entry.userId})'
+                        : row.entry.userId,
+                  ),
                   _kv('Submitted',
                       row.entry.createdAt?.toLocal().toString() ?? '—'),
                   _kv('Overall', '${row.entry.overallRating}/5'),
@@ -125,9 +130,28 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
                       ),
                     ),
                   ],
+                  if (row.entry.adminResponse != null &&
+                      row.entry.adminResponse!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Latest admin response',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.brown,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _responseTile(
+                      AdminFeedbackReply(
+                        message: row.entry.adminResponse!,
+                        adminEmail: FirebaseAuth.instance.currentUser?.email,
+                        respondedAt: row.entry.respondedAt,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   const Text(
-                    'Admin responses',
+                    'Response history',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: AppColors.brown,
@@ -350,7 +374,7 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
                     ),
                   ),
                   subtitle: Text(
-                    '${r.entry.userId}\n'
+                    '${r.userDisplayName ?? r.entry.userId}\n'
                     '${r.entry.createdAt?.toLocal().toString() ?? '—'}',
                     style: const TextStyle(color: AppColors.brown),
                   ),

@@ -1,17 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'recommendation_places_data_source.dart';
 import '../../model/recommendation_place.dart';
 
-/// Writes to `recommendation_places` only (same collection the app reads first).
-/// Preserves Firestore field shape expected by [RecommendationPlace], including `images`.
+/// Admin CRUD for curated places in the primary `recommendations` collection.
 class RecommendationPlacesAdminDataSource {
   RecommendationPlacesAdminDataSource({FirebaseFirestore? firestore})
       : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
-  static String get collectionId => RecommendationPlacesDataSource.collectionName;
+  /// Matches production Firestore (`recommendations` collection).
+  static const String collectionId = 'recommendations';
 
   Future<List<RecommendationPlace>> fetchAll() async {
     final snap = await _db.collection(collectionId).get();

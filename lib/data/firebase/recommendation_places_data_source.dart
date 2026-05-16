@@ -15,8 +15,8 @@ class RecommendationPlacesDataSource {
   static const String collectionName = 'recommendation_places';
 
   static const List<String> _collectionCandidates = [
-    collectionName,
     'recommendations',
+    collectionName,
     'recommended_places',
   ];
 

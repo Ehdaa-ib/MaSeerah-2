@@ -36,6 +36,10 @@ class FeedbackEntry {
   final List<String> photos;
   final List<AdminFeedbackReply> adminResponses;
 
+  /// Latest admin reply on the document (`adminResponse` + `respondedAt`).
+  final String? adminResponse;
+  final DateTime? respondedAt;
+
   FeedbackEntry({
     required this.userId,
     required this.journeyId,
@@ -47,6 +51,8 @@ class FeedbackEntry {
     required this.overallComment,
     required this.photos,
     this.adminResponses = const [],
+    this.adminResponse,
+    this.respondedAt,
   });
 
   Map<String, dynamic> toMap() {
@@ -79,6 +85,8 @@ class FeedbackEntry {
 
   factory FeedbackEntry.fromMap(Map<String, dynamic> map) {
     final ts = map['createdAt'];
+    final respondedTs = map['respondedAt'];
+    final challenge = map['challengeRating'] ?? map['challengerRating'];
     return FeedbackEntry(
       userId: (map['userId'] as String?) ?? '',
       journeyId: (map['journeyId'] as String?) ?? '',
@@ -86,10 +94,14 @@ class FeedbackEntry {
       overallRating: (map['overallRating'] as num?)?.toInt() ?? 0,
       contentRating: (map['contentRating'] as num?)?.toInt() ?? 0,
       recommendationRating: (map['recommendationRating'] as num?)?.toInt() ?? 0,
-      challengeRating: (map['challengeRating'] as num?)?.toInt() ?? 0,
+      challengeRating: (challenge as num?)?.toInt() ?? 0,
       overallComment: (map['overallComment'] as String?) ?? '',
       photos: (map['photos'] as List?)?.whereType<String>().toList() ?? const [],
       adminResponses: _adminResponsesFromMap(map),
+      adminResponse: (map['adminResponse'] as String?)?.trim().isNotEmpty == true
+          ? (map['adminResponse'] as String).trim()
+          : null,
+      respondedAt: respondedTs is Timestamp ? respondedTs.toDate() : null,
     );
   }
 }

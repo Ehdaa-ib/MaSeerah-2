@@ -12,6 +12,7 @@ class Validators {
     'q.test@admin.com',
     'm.test@admin.com',
     'r.test@admin.com',
+    'malak@admin.com',
   };
 
   /// Whether [email] matches the admin list used by Firestore security rules.

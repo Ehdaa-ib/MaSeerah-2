@@ -10,13 +10,23 @@ service cloud.firestore {
     }
 
     // Admin list must stay aligned with lib/core/validators.dart (any casing in token is OK).
-    // Case-insensitive match: Auth token email casing can differ from the allowlist.
-    function isAdmin() {
+    function isAdminEmail() {
       return isSignedIn()
         && request.auth.token.email != null
         && request.auth.token.email.matches(
-          '(?i)^(ehdaa\\.test|q\\.test|m\\.test|r\\.test)@admin\\.com$'
+          '(?i)^(ehdaa\\.test|q\\.test|m\\.test|r\\.test|malak)@admin\\.com$'
         );
+    }
+
+    // Firestore `users/{uid}.role == 'admin'` (set in admin Users tab or at signup).
+    function hasAdminRole() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isAdmin() {
+      return isAdminEmail() || hasAdminRole();
     }
 
     // Own profile document: read anytime; create only for signup shape; update only safe fields.
@@ -164,7 +174,8 @@ service cloud.firestore {
         && request.resource.data.get('overallComment', '') == resource.data.get('overallComment', '')
         && request.resource.data.get('photos', []) == resource.data.get('photos', [])
         && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adminResponses']);
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['adminResponses', 'adminResponse', 'respondedAt']);
       allow delete: if false;
     }
     // Optional user-uploaded gallery (profile "Your photos"). Not used by core journey flow.
@@ -197,10 +208,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Journeys: anyone can read (browse), authenticated users can write
+    // Journeys: public read; catalog writes admin-only (admin dashboard CRUD).
     match /journeys/{journeyId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // Journey landmarks: editorial/map content. Public read (like [journeys]); writes admin-only.

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
 import '../../data/firebase/auth_data_source.dart';
 import '../../data/repoImp/auth_repository_firebase.dart';
+import '../../util/admin_access.dart';
+import '../auth/login_screen.dart';
 import '../home/landing_page.dart';
 import 'pages/admin_dashboard_home_page.dart';
 import 'pages/admin_feedback_page.dart';
@@ -20,6 +22,8 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   int _index = 0;
+  bool _checkingAccess = true;
+  bool _accessDenied = false;
 
   static const _destinations = <_AdminDestination>[
     _AdminDestination(label: 'Dashboard', icon: Icons.dashboard_rounded),
@@ -28,6 +32,38 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _AdminDestination(label: 'Feedback', icon: Icons.feedback_outlined),
     _AdminDestination(label: 'Places', icon: Icons.storefront_outlined),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _verifyAccess();
+  }
+
+  Future<void> _verifyAccess() async {
+    try {
+      final allowed = await AdminAccess.isAdminUser();
+      if (!mounted) return;
+      setState(() {
+        _checkingAccess = false;
+        _accessDenied = !allowed;
+      });
+      if (!allowed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+            (_) => false,
+          );
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _checkingAccess = false;
+        _accessDenied = true;
+      });
+    }
+  }
 
   Future<void> _logout() async {
     await AuthRepositoryFirebase(AuthDataSource()).logout();
@@ -40,6 +76,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingAccess) {
+      return const Scaffold(
+        backgroundColor: AppColors.green,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.brown),
+        ),
+      );
+    }
+
+    if (_accessDenied) {
+      return const Scaffold(
+        backgroundColor: AppColors.green,
+        body: Center(
+          child: Text(
+            'Admin access required.',
+            style: TextStyle(color: AppColors.brown, fontWeight: FontWeight.w600),
+          ),
+        ),
+      );
+    }
+
     final isWide = MediaQuery.of(context).size.width >= 980;
     final title = _destinations[_index].label;
 
@@ -233,4 +290,3 @@ class _AdminDrawerHeader extends StatelessWidget {
     );
   }
 }
-
