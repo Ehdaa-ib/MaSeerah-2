@@ -10,6 +10,7 @@ class PaymentDataSource {
   Future<app.Payment> create(app.Payment payment) async {
     final ref = _firestore.collection(_collection).doc();
     final data = payment.toMap();
+    data.removeWhere((key, value) => value == null);
     data['createdAt'] = payment.createdAt != null
         ? Timestamp.fromDate(payment.createdAt!)
         : FieldValue.serverTimestamp();

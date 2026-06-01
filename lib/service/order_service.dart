@@ -26,6 +26,7 @@ class OrderService {
   Future<Order> createOrder({
     required String userId,
     required String journeyId,
+    double? knownPrice,
   }) async {
     // 1) Basic validation: non-empty ids
     if (userId.trim().isEmpty) {
@@ -35,19 +36,22 @@ class OrderService {
       throw Exception('Journey ID is required.');
     }
 
-    // 2) Validate that the journey exists
-    final journey = await _journeyRepo.getById(journeyId.trim());
-    if (journey == null) {
-      throw Exception('Journey not found.');
+    // 2) Price from caller when already on journey details (skips an extra read).
+    late final double price;
+    if (knownPrice != null && knownPrice > 0) {
+      price = knownPrice;
+    } else {
+      final journey = await _journeyRepo.getById(journeyId.trim());
+      if (journey == null) {
+        throw Exception('Journey not found.');
+      }
+      price = journey.price;
+      if (price <= 0) {
+        throw Exception('Cannot create an order for a free journey.');
+      }
     }
 
-    // 3) Retrieve journey price and ensure it is not free
-    final price = journey.price;
-    if (price <= 0) {
-      throw Exception('Cannot create an order for a free journey.');
-    }
-
-    // 4) Calculate total amount (for now equal to journey price)
+    // 3) Calculate total amount (for now equal to journey price)
     final totalAmount = price;
 
     // 5) Build order: status PENDING_PAYMENT, currency SAR, createdAt
@@ -89,6 +93,35 @@ class OrderService {
   }) async {
     if (userId.trim().isEmpty || journeyId.trim().isEmpty) return null;
     return _orderRepo.getUserOrderForJourney(userId.trim(), journeyId.trim());
+  }
+
+  Future<Order?> getPendingOrderForJourney({
+    required String userId,
+    required String journeyId,
+  }) async {
+    if (userId.trim().isEmpty || journeyId.trim().isEmpty) return null;
+    return _orderRepo.getPendingOrderForJourney(userId.trim(), journeyId.trim());
+  }
+
+  /// Pending order for checkout, or a new one when the latest order is already paid/cancelled.
+  Future<Order> getOrCreateCheckoutOrder({
+    required String userId,
+    required String journeyId,
+    double? knownPrice,
+    bool forceNew = false,
+  }) async {
+    if (!forceNew) {
+      final pending = await getPendingOrderForJourney(
+        userId: userId,
+        journeyId: journeyId,
+      );
+      if (pending != null) return pending;
+    }
+    return createOrder(
+      userId: userId,
+      journeyId: journeyId,
+      knownPrice: knownPrice,
+    );
   }
 
   /// True if the user has ever completed payment for this journey (any paid order).

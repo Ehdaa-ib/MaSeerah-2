@@ -25,6 +25,20 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    function isVideoUpload() {
+      return request.resource != null
+        && request.resource.contentType.matches('video/.*');
+    }
+
+    function isLandmarkMemoryUpload() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size < 50 * 1024 * 1024
+        && (request.resource.contentType == null
+          || request.resource.contentType.matches('image/.*')
+          || request.resource.contentType.matches('video/.*'));
+    }
+
     match /feedbackPhotos/{userId}/{journeyId}/{fileName} {
       // Owner can list/read their own feedback images only.
       allow read: if isSignedIn()
@@ -39,6 +53,17 @@ service firebase.storage {
         && request.resource != null
         && isImageUpload()
         && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    match /landmarkMemories/{userId}/{journeyId}/{fileName} {
+      allow read: if isSignedIn()
+        && request.auth.uid == userId
+        && isReasonablePath(journeyId, fileName);
+
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && isReasonablePath(journeyId, fileName)
+        && isLandmarkMemoryUpload();
     }
 
     match /profilePhotos/{userId}/{fileName} {

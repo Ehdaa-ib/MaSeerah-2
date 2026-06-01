@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 import '../../data/firebase/feedback_data_source.dart';
 import '../../data/firebase/journey_completion_data_source.dart';
 import '../../data/firebase/journey_repurchase_gate_data_source.dart';
@@ -13,12 +14,14 @@ import '../home/landing_page.dart';
 
 class FeedbackScreen extends StatefulWidget {
   final String journeyId;
+  final String? userJourneyId;
   /// Optional override for tests so they don't need Firebase Auth.
   final String? Function()? currentUserId;
 
   const FeedbackScreen({
     super.key,
     required this.journeyId,
+    this.userJourneyId,
     this.currentUserId,
   });
 
@@ -47,10 +50,62 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
   bool get _overallRatingValid => _overallRating >= 1;
 
-  Future<void> _pickPhotos() async {
-    final images = await _picker.pickMultiImage(imageQuality: 85);
+  Future<void> _pickPhotosFromGallery() async {
+    final images = await _picker.pickMultiImage(
+      imageQuality: 72,
+      maxWidth: 1440,
+    );
     if (images.isEmpty) return;
     setState(() => _photos.addAll(images));
+  }
+
+  Future<void> _takePhoto() async {
+    final photo = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 72,
+      maxWidth: 1440,
+    );
+    if (photo == null) return;
+    setState(() => _photos.add(photo));
+  }
+
+  void _showPhotoSourceSheet() {
+    if (_isLoading) return;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.beige,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined, color: AppColors.brown),
+              title: Text(AppLocalizations.of(context)!.feedbackTakePhoto, style: const TextStyle(color: AppColors.brown)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _takePhoto();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: AppColors.brown),
+              title: Text(AppLocalizations.of(context)!.feedbackChooseGallery, style: const TextStyle(color: AppColors.brown)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickPhotosFromGallery();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.close, color: AppColors.brown.withOpacity(0.7)),
+              title: Text(AppLocalizations.of(context)!.feedbackCancel, style: const TextStyle(color: AppColors.brown)),
+              onTap: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _submitFeedback() async {
@@ -85,9 +140,18 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         files: _photos,
       );
 
+      var userJourneyId = widget.userJourneyId?.trim();
+      if (userJourneyId == null || userJourneyId.isEmpty) {
+        userJourneyId = await JourneyCompletionDataSource().latestUserJourneyId(
+          userId: uid,
+          journeyId: widget.journeyId,
+        );
+      }
+
       final entry = FeedbackEntry(
         userId: uid,
         journeyId: widget.journeyId,
+        userJourneyId: userJourneyId,
         overallRating: _overallRating.round().clamp(1, 5),
         contentRating: _contentRating.clamp(0, 5),
         recommendationRating: _nearbyRating.clamp(0, 5),
@@ -113,7 +177,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thank you for your feedback!')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.feedbackThankYou)),
       );
       Navigator.of(context).pushAndRemoveUntil<void>(
         MaterialPageRoute<void>(builder: (_) => const LandingPage()),
@@ -339,7 +403,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
-                            onPressed: _isLoading ? null : _pickPhotos,
+                            onPressed: _isLoading ? null : _showPhotoSourceSheet,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.brown.withOpacity(0.2),
                               foregroundColor: AppColors.brown,
@@ -354,8 +418,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                             ),
                             child: Text(
                               _photos.isEmpty
-                                  ? 'UPLOAD'
-                                  : 'UPLOAD (${_photos.length})',
+                                  ? 'ADD PHOTO'
+                                  : 'ADD PHOTO (${_photos.length})',
                               style:
                                   const TextStyle(fontWeight: FontWeight.w600),
                             ),

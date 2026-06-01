@@ -7,6 +7,7 @@ import '../../../core/map_button_styles.dart';
 import '../../../core/map_design_tokens.dart';
 import '../../../core/map_text_styles.dart';
 import '../../../model/recommendation_place.dart';
+import '../../../widgets/app_network_image.dart';
 import '../widgets/map_popup_close_button.dart';
 
 /// FR-21: compact floating card (auto-dismiss 10s; close X).
@@ -203,27 +204,19 @@ class _ThumbPagerState extends State<_ThumbPager> {
           controller: _controller,
           itemCount: widget.urls.length,
           onPageChanged: (i) => setState(() => _index = i),
-          itemBuilder: (_, i) => Image.network(
-            widget.urls[i],
+          itemBuilder: (_, i) => AppNetworkImage(
+            url: widget.urls[i],
             fit: BoxFit.cover,
             width: widget.size,
             height: widget.size,
-            errorBuilder: (context, error, stackTrace) {
-              if (kDebugMode) {
-                final u = widget.urls[i];
-                debugPrint(
-                  '[RecommendationImage.network] LOAD FAILED context=quick_pager i=$i '
-                  'url=${u.length > 120 ? "${u.substring(0, 120)}…" : u} error=$error',
-                );
-              }
-              return ColoredBox(
-                color: AppColors.green.withValues(alpha: 0.55),
-                child: Icon(
-                  Icons.broken_image_outlined,
-                  color: MapDesignTokens.iconMuted(0.45),
-                ),
-              );
-            },
+            memCacheWidth: (widget.size * 2).round(),
+            error: ColoredBox(
+              color: AppColors.green.withValues(alpha: 0.55),
+              child: Icon(
+                Icons.broken_image_outlined,
+                color: MapDesignTokens.iconMuted(0.45),
+              ),
+            ),
           ),
         ),
         if (widget.urls.length > 1)
@@ -263,24 +256,14 @@ class _Thumb extends StatelessWidget {
   Widget build(BuildContext context) {
     const size = _ThumbStrip._size;
     if (url != null && url!.trim().startsWith('http')) {
-      return ClipRRect(
+      return AppNetworkImage(
+        url: url!,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        memCacheWidth: (size * 2).round(),
         borderRadius: BorderRadius.circular(MapDesignTokens.radiusThumb),
-        child: Image.network(
-          url!,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            if (kDebugMode) {
-              final u = url!;
-              debugPrint(
-                '[RecommendationImage.network] LOAD FAILED context=quick_thumb '
-                'url=${u.length > 120 ? "${u.substring(0, 120)}…" : u} error=$error',
-              );
-            }
-            return _placeholder(size);
-          },
-        ),
+        error: _placeholder(size),
       );
     }
     return _placeholder(size);

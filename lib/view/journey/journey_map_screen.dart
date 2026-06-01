@@ -12,12 +12,14 @@ import '../../core/map_design_tokens.dart';
 import '../../core/map_text_styles.dart';
 import '../../core/error_messages.dart';
 import '../../data/firebase/journey_completion_data_source.dart';
+import '../../data/firebase/journey_instance_data_source.dart';
 import '../../data/firebase/journey_data_source.dart';
 import '../../data/firebase/journey_landmark_data_source.dart';
 import '../../data/firebase/journey_progress_data_source.dart';
 import '../../challenge/challenge_renderer.dart';
 import '../../model/journey.dart';
 import '../../model/journey_landmark.dart';
+import '../../service/journey_inactivity_service.dart';
 import '../../service/landmark_maps_launch_service.dart';
 import '../../service/recommendation_appearance_store.dart';
 import '../../util/place_image_asset.dart';
@@ -31,6 +33,8 @@ import 'recommendations/recommendation_icon_button.dart';
 import 'recommendations/recommendation_quick_popup.dart';
 import 'recommendations/recommendation_url.dart';
 import 'widgets/journey_svg_map.dart';
+import '../../data/firebase/landmark_memory_data_source.dart';
+import 'widgets/landmark_memory_upload_sheet.dart';
 import 'widgets/map_overlay_sheet_size.dart';
 import 'widgets/map_popup_header.dart';
 import '../../data/firebase/recommendation_places_data_source.dart';
@@ -112,6 +116,8 @@ class JourneyMapScreen extends StatefulWidget {
     this.initialLastRegionChallengeCompleted = false,
     /// When true (new journey / paid restart), clears local recommendation "seen" tracking before loading prefs.
     this.clearRecommendationTracking = false,
+    /// Unique playthrough id (`users/{uid}/journeyHistory/{userJourneyId}`).
+    this.initialUserJourneyId,
   });
 
   final String journeyTitle;
@@ -123,6 +129,7 @@ class JourneyMapScreen extends StatefulWidget {
   final bool initialQubaChallengeCompleted;
   final bool initialLastRegionChallengeCompleted;
   final bool clearRecommendationTracking;
+  final String? initialUserJourneyId;
 
   @override
   State<JourneyMapScreen> createState() => _JourneyMapScreenState();
@@ -191,6 +198,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
 
   /// Empty "challenge" step after "Go to the challenge" (footer hidden until dismissed).
   bool _emptyChallengeOverlay = false;
+
+  /// Memory upload step after landmark content, before challenge.
+  bool _memoryUploadOverlay = false;
   bool _noChallengeAutoAdvanceScheduled = false;
 
   /// Brief centered hint (wrong region / done region).
@@ -202,6 +212,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
 
   /// While recommendation details dialog is open, hide the map footer (single Maps CTA in modal).
   bool _recommendationDetailsOpen = false;
+
+  String? _activeUserJourneyId;
+
+  /// Perf: one progress read per map open (shared by inactivity + instance setup).
+  ActiveJourneyProgress? _cachedMapProgress;
 
   @override
   void initState() {
@@ -219,10 +234,100 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     Future<void>(() async {
       await waitForAuth();
       if (!mounted) return;
+      await _loadMapProgressOnce();
+      if (!mounted) return;
+      await _enforceInactivityOrExit();
+      if (!mounted) return;
+      await _ensureUserJourneyInstance();
+      if (!mounted) return;
       _loadLandmarks();
       _loadJourneyNameFromFirestore();
       _bootstrapRecommendations();
     });
+  }
+
+  Future<void> _loadMapProgressOnce() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid.trim();
+    final catalogId = _effectiveCatalogJourneyId();
+    if (uid == null || uid.isEmpty || catalogId == null || catalogId.isEmpty) return;
+    _cachedMapProgress = await _progressDs.getUserJourneyProgress(
+      userId: uid,
+      journeyId: catalogId,
+    );
+  }
+
+  Future<void> _enforceInactivityOrExit() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final catalogId = _effectiveCatalogJourneyId();
+    if (uid == null || uid.trim().isEmpty || catalogId == null || catalogId.isEmpty) return;
+
+    final inactivity = JourneyInactivityService(progressDs: _progressDs);
+    final progress = _cachedMapProgress ??
+        await _progressDs.getUserJourneyProgress(
+          userId: uid,
+          journeyId: catalogId,
+        );
+    _cachedMapProgress = progress;
+    if (progress == null || !inactivity.isInactive(progress)) return;
+
+    await inactivity.terminateIfInactive(userId: uid, progress: progress);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context)!.journeyTerminatedInactivity)),
+    );
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _ensureUserJourneyInstance() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final catalogId = _effectiveCatalogJourneyId();
+    if (uid == null || uid.trim().isEmpty || catalogId == null || catalogId.isEmpty) return;
+
+    final fromWidget = widget.initialUserJourneyId?.trim();
+    if (fromWidget != null && fromWidget.isNotEmpty) {
+      _activeUserJourneyId = fromWidget;
+      return;
+    }
+
+    final trimmedUid = uid.trim();
+    final progress = _cachedMapProgress ??
+        await _progressDs.getUserJourneyProgress(
+          userId: trimmedUid,
+          journeyId: catalogId,
+        );
+    _cachedMapProgress = progress;
+    final fromProgress = progress?.userJourneyId?.trim();
+    if (fromProgress != null && fromProgress.isNotEmpty) {
+      _activeUserJourneyId = fromProgress;
+      return;
+    }
+
+    final instanceId = await JourneyInstanceDataSource().createInstance(
+      userId: trimmedUid,
+      catalogJourneyId: catalogId,
+      journeyTitle: _appBarTitle(),
+    );
+    _activeUserJourneyId = instanceId;
+    await _progressDs.upsert(
+      userId: trimmedUid,
+      journeyId: catalogId,
+      journeyTitle: _appBarTitle(),
+      landmarksJourneyId: widget.landmarksJourneyId.trim(),
+      catalogJourneyId: catalogId,
+      currentRegion: currentRegion.clamp(1, _mapRegionCount),
+      qubaChallengeCompleted: _qubaChallengeCompleted,
+      lastRegionChallengeCompleted: _lastRegionChallengeCompleted,
+      userJourneyId: instanceId,
+    );
+    if (kDebugMode) {
+      debugPrint('[JourneyMap] created userJourneyId=$instanceId catalog=$catalogId');
+    }
+  }
+
+  String? _requireUserJourneyId() {
+    final id = _activeUserJourneyId?.trim();
+    if (id != null && id.isNotEmpty) return id;
+    return null;
   }
 
   Future<void> _bootstrapRecommendations() async {
@@ -254,6 +359,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     _centerMessageTimer?.cancel();
     _recQuickTimer?.cancel();
     _recQuickGen++;
+    unawaited(_flushPersistProgressNow());
     super.dispose();
   }
 
@@ -328,7 +434,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
         if (p.order == 4) out.add(p.order);
       }
     }
-    if (region > 9) {
+    if (region >= 9) {
       for (final p in places) {
         if (p.order == 5) out.add(p.order);
       }
@@ -357,7 +463,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     });
   }
 
-  /// Unlock Firestore recommendation `order` values 1–3 from region 4, 4 from region 6, 5 from region 8.
+  /// Unlock Firestore recommendation `order` values 1–3 from region 4, 4 from region 6, 5 from region 9+.
   Set<int> _eligibleAutoShowOrdersNow() =>
       _eligibleAutoShowOrdersNowForPlaces(_recommendations);
 
@@ -572,6 +678,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
         currentRegion: currentRegion.clamp(1, _mapRegionCount),
         qubaChallengeCompleted: _qubaChallengeCompleted,
         lastRegionChallengeCompleted: _lastRegionChallengeCompleted,
+        userJourneyId: _activeUserJourneyId,
       );
     } catch (_) {}
   }
@@ -596,6 +703,8 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
         qubaChallengeCompleted: _qubaChallengeCompleted,
         lastRegionChallengeCompleted: _lastRegionChallengeCompleted,
         updatedAtMillis: DateTime.now().millisecondsSinceEpoch,
+        hasSeenHowToPlay: true,
+        firestoreDocId: catalogId,
       );
       await Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(
@@ -621,7 +730,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   }
 
   bool get _footerVisible =>
-      _regionSheetRegion == null && !_emptyChallengeOverlay;
+      _regionSheetRegion == null && !_emptyChallengeOverlay && !_memoryUploadOverlay;
 
   /// Map page footer bar (not shown during region sheet / challenge / recommendation details).
   bool get _mapFooterChromeVisible =>
@@ -825,17 +934,29 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       return;
     }
     try {
+      final instanceId = _requireUserJourneyId();
       await JourneyCompletionDataSource().markCompleted(
         userId: uid,
         journeyId: journeyId,
+        userJourneyId: instanceId,
       );
+      if (instanceId != null) {
+        await JourneyInstanceDataSource().markInstanceCompleted(
+          userId: uid,
+          userJourneyId: instanceId,
+          catalogJourneyId: journeyId,
+        );
+      }
       try {
         await _progressDs.delete(userId: uid, journeyId: journeyId);
       } catch (_) {}
       if (!mounted) return;
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (_) => FeedbackScreen(journeyId: journeyId),
+          builder: (_) => FeedbackScreen(
+            journeyId: journeyId,
+            userJourneyId: instanceId,
+          ),
         ),
       );
     } catch (e) {
@@ -911,7 +1032,8 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                       inactiveMapAssetPath: 'images/map_inactive.png',
                       regionCount: _mapRegionCount,
                       currentRegion: currentRegion,
-                      allowTapInactive: true,
+                      allowTapInactive: false,
+                      allowTapCompleted: true,
                       onRegionTap: _onRegionTap,
                     ),
                   );
@@ -1012,17 +1134,19 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                 ),
               ),
             ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: SafeArea(
-              child: RecommendationIconButton(
-                count: _appearedRecommendationPlaces().length,
-                onPressed: _openRecommendationList,
+          if (!_recommendationDetailsOpen)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: SafeArea(
+                child: RecommendationIconButton(
+                  count: _appearedRecommendationPlaces().length,
+                  onPressed: _openRecommendationList,
+                ),
               ),
             ),
-          ),
           if (_regionSheetRegion != null) _buildRegionSheet(context),
+          if (_memoryUploadOverlay) _buildMemoryUploadOverlay(context),
           if (_emptyChallengeOverlay) _buildEmptyChallengeOverlay(context),
           if (_centerMessage != null) _buildCenterMessageOverlay(),
           if (_recQuickPlace != null)
@@ -1051,6 +1175,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                         ),
                         onView: () async {
                           final p = _recQuickPlace!;
+                          if (mounted) {
+                            setState(() => _recommendationDetailsOpen = true);
+                          }
                           await _closeQuickRecommendationPopupSequence(advance: false);
                           if (!mounted) return;
                           await _openRecommendationDetails(p);
@@ -1258,11 +1385,22 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                 title: title,
                 description: description,
                 onClose: _dismissRegionSheetOnly,
-                onGoChallenge: () {
+                onContentNext: () async {
+                  await _ensureUserJourneyInstance();
+                  if (!mounted) return;
+                  if (_requireUserJourneyId() == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          AppLocalizations.of(context)!.mapCouldNotDetermineJourney,
+                        ),
+                      ),
+                    );
+                    return;
+                  }
                   setState(() {
                     _regionSheetRegion = null;
-                    _emptyChallengeOverlay = true;
-                    _noChallengeAutoAdvanceScheduled = false;
+                    _memoryUploadOverlay = true;
                   });
                   _scheduleRecommendationTrigger();
                 },
@@ -1274,8 +1412,69 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     );
   }
 
+  Widget _buildMemoryUploadOverlay(BuildContext context) {
+    final instanceId = _requireUserJourneyId();
+    if (instanceId == null) {
+      return Positioned.fill(
+        child: Material(
+          color: MapDesignTokens.scrimOverMap(),
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    final size = MediaQuery.sizeOf(context);
+    final region = currentRegion;
+    final lm = _landmarkForRegion(region);
+    final landmarkId = lm?.documentId ?? 'region_$region';
+    final landmarkTitle = lm?.name ?? _placeTitle(region);
+    final journeyTitleEn = _catalogJourney?.name ?? _appBarTitle();
+    final catalogId = LandmarkMemoryDataSource.normalizeCatalogJourneyId(
+      catalogJourneyId: _effectiveCatalogJourneyId() ?? widget.catalogJourneyId,
+      landmarksJourneyId: widget.landmarksJourneyId,
+    );
+
+    void dismissMemoryOverlayToLandmark() {
+      setState(() {
+        _memoryUploadOverlay = false;
+        _regionSheetRegion = region;
+      });
+      _scheduleRecommendationTrigger();
+    }
+
+    return Positioned.fill(
+      child: Material(
+        color: MapDesignTokens.scrimOverMap(),
+        child: Center(
+          child: GestureDetector(
+            onTap: () {},
+            child: LandmarkMemoryUploadSheet(
+              width: size.width * MapOverlaySheetSize.widthFraction,
+              height: size.height * MapOverlaySheetSize.heightFraction,
+              landmarkId: landmarkId,
+              landmarkTitle: landmarkTitle,
+              landmarkOrder: region,
+              catalogJourneyId: catalogId,
+              userJourneyId: instanceId,
+              journeyTitle: journeyTitleEn,
+              onClose: dismissMemoryOverlayToLandmark,
+              onContinueToChallenge: () {
+                setState(() {
+                  _memoryUploadOverlay = false;
+                  _emptyChallengeOverlay = true;
+                  _noChallengeAutoAdvanceScheduled = false;
+                });
+                _scheduleRecommendationTrigger();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _onRegionTap(int region) {
-    if (_emptyChallengeOverlay || _regionSheetRegion != null) return;
+    if (_emptyChallengeOverlay || _memoryUploadOverlay || _regionSheetRegion != null) return;
 
     if (region > currentRegion) {
       _showCenterMessage(AppLocalizations.of(context)!.mapRegionNotReached);
@@ -1297,7 +1496,7 @@ class _RegionLandmarkChallengeSheet extends StatefulWidget {
     required this.title,
     required this.description,
     required this.onClose,
-    required this.onGoChallenge,
+    required this.onContentNext,
   });
 
   final double width;
@@ -1305,7 +1504,7 @@ class _RegionLandmarkChallengeSheet extends StatefulWidget {
   final String title;
   final String? description;
   final VoidCallback onClose;
-  final VoidCallback onGoChallenge;
+  final VoidCallback onContentNext;
 
   @override
   State<_RegionLandmarkChallengeSheet> createState() => _RegionLandmarkChallengeSheetState();
@@ -1499,21 +1698,16 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
               padding: const EdgeInsetsDirectional.fromSTEB(22, 20, 22, 22),
               child: SizedBox(
                 width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: challengeReady ? widget.onGoChallenge : null,
+                child: FilledButton(
+                  onPressed: challengeReady ? widget.onContentNext : null,
                   style: MapButtonStyles.primaryFilled(
                     enabled: challengeReady,
                     verticalPadding: 16,
                   ).copyWith(
                     elevation: MaterialStateProperty.all(challengeReady ? 3.0 : 1.0),
                   ),
-                  icon: Icon(
-                    Icons.flag_rounded,
-                    size: MapDesignTokens.iconStandard,
-                    color: Colors.white.withValues(alpha: challengeReady ? 1 : 0.88),
-                  ),
-                  label: Text(
-                    AppLocalizations.of(context)!.mapStartChallenge,
+                  child: Text(
+                    AppLocalizations.of(context)!.memoryUploadNext,
                     style: MapTextStyles.buttonLabelDense.copyWith(
                       letterSpacing: 0.2,
                       color: Colors.white.withValues(alpha: challengeReady ? 1 : 0.9),

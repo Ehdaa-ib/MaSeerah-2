@@ -28,6 +28,11 @@ class OrderRepositoryFirebase implements OrderRepository {
   }
 
   @override
+  Future<Order?> getPendingOrderForJourney(String userId, String journeyId) async {
+    return _dataSource.getPendingOrderForJourney(userId, journeyId);
+  }
+
+  @override
   Future<bool> hasPaidOrderForJourney(String userId, String journeyId) async {
     return _dataSource.hasPaidOrderForJourney(userId, journeyId);
   }

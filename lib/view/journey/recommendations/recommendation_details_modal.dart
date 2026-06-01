@@ -7,6 +7,7 @@ import '../../../core/map_button_styles.dart';
 import '../../../core/map_design_tokens.dart';
 import '../../../core/map_text_styles.dart';
 import '../../../model/recommendation_place.dart';
+import '../../../widgets/app_network_image.dart';
 import '../widgets/map_info_chip.dart';
 import '../widgets/map_overlay_sheet_size.dart';
 import '../widgets/map_popup_surface.dart';
@@ -312,21 +313,13 @@ class _HeroGalleryState extends State<_HeroGallery> {
   }
 
   Widget _networkImage(String url) {
-    return Image.network(
-      url,
+    return AppNetworkImage(
+      url: url,
       fit: BoxFit.cover,
       width: double.infinity,
       height: _height,
-      errorBuilder: (context, error, stackTrace) {
-        if (kDebugMode) {
-          debugPrint(
-            '[RecommendationImage.network] LOAD FAILED doc=hero '
-            'url=${url.length > 160 ? "${url.substring(0, 160)}…" : url} '
-            'error=$error',
-          );
-        }
-        return _placeholder();
-      },
+      memCacheWidth: 960,
+      error: _placeholder(),
     );
   }
 

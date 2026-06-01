@@ -14,6 +14,9 @@ abstract class OrderRepository {
   /// Fetches the user's order for a journey (if any). Returns null if none.
   Future<Order?> getUserOrderForJourney(String userId, String journeyId);
 
+  /// Most recent order still in [OrderStatus.pendingPayment] for this journey.
+  Future<Order?> getPendingOrderForJourney(String userId, String journeyId);
+
   /// Whether the user has any **paid** order for this journey (not only the latest row).
   Future<bool> hasPaidOrderForJourney(String userId, String journeyId);
 }

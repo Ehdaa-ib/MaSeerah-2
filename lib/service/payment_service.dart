@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../core/moyasar_config.dart';
 import '../model/order.dart';
 import '../model/payment.dart';
@@ -38,7 +40,16 @@ class PaymentService {
       throw Exception('Order is not pending payment.');
     }
 
+    final payerId = FirebaseAuth.instance.currentUser!.uid.trim();
+    if (payerId == null || payerId.isEmpty) {
+      throw Exception('Sign in to pay.');
+    }
+    if (order.userId.trim().isNotEmpty && order.userId.trim() != payerId) {
+      throw Exception('Order does not belong to the signed-in user.');
+    }
+
     final payment = Payment(
+      userId: payerId,
       orderId: order.orderId!,
       amount: order.totalAmount,
       currency: order.currency,

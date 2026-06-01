@@ -4,7 +4,6 @@ import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
 import 'core/app_scroll_behavior.dart';
-import 'core/app_locale_controller.dart';
 import 'firebase_options.dart';
 import 'l10n/app_localizations.dart';
 import 'view/auth/create_account_screen.dart';
@@ -23,8 +22,6 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  await AppLocaleController.initialize();
-
   runApp(const MyApp());
 }
 
@@ -33,30 +30,25 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: AppLocaleController.instance,
-      builder: (context, _) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          locale: AppLocaleController.instance.locale,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          scrollBehavior: const AppScrollBehavior(),
-          theme: ThemeData(
-            scrollbarTheme: ScrollbarThemeData(
-              thumbVisibility: WidgetStateProperty.all(true),
-              thickness: WidgetStateProperty.all(5),
-              radius: const Radius.circular(3),
-              thumbColor: WidgetStateProperty.all(const Color(0xFFB8B8B8).withValues(alpha: 0.9)),
-            ),
-          ),
-          home: const LandingPage(),
-          routes: {
-            '/login': (_) => const LoginScreen(),
-            '/create': (_) => const CreateAccountScreen(),
-            '/admin': (_) => const AdminDashboard(),
-          },
-        );
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      scrollBehavior: const AppScrollBehavior(),
+      theme: ThemeData(
+        scrollbarTheme: ScrollbarThemeData(
+          thumbVisibility: WidgetStateProperty.all(true),
+          thickness: WidgetStateProperty.all(5),
+          radius: const Radius.circular(3),
+          thumbColor: WidgetStateProperty.all(const Color(0xFFB8B8B8).withValues(alpha: 0.9)),
+        ),
+      ),
+      home: const LandingPage(),
+      routes: {
+        '/login': (_) => const LoginScreen(),
+        '/create': (_) => const CreateAccountScreen(),
+        '/admin': (_) => const AdminDashboard(),
       },
     );
   }

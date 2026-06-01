@@ -94,20 +94,68 @@ class Journey {
     return null;
   }
 
+  static double _priceFromMap(Map<String, dynamic> map) {
+    final v = map['price'] ?? map['amount'] ?? map['cost'];
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v.trim()) ?? 0;
+    return 0;
+  }
+
+  static String? _stopsFromMap(Map<String, dynamic> map) {
+    final s = _optionalString(map, const [
+      'stops',
+      'stopCount',
+      'numberOfStops',
+      'stops_count',
+    ]);
+    if (s != null) return s;
+    final v = map['stops'];
+    if (v is num) return v.toString();
+    return null;
+  }
+
   factory Journey.fromMap(Map<String, dynamic> map, {String? id}) {
     return Journey(
       journeyId: id ?? map['journeyId'] as String? ?? '',
       name: _nameFromFirestore(map),
-      price: (map['price'] as num?)?.toDouble() ?? 0,
-      description: map['description'] as String?,
-      startPoint: map['startPoint'] as String?,
-      endPoint: map['endPoint'] as String?,
-      stops: map['stops'] as String?,
-      estimatedDuration: map['estimatedDuration'] as String?,
-      distance: map['distance'] as String?,
-      goodToKnow: map['goodToKnow'] as String?,
-      languages: map['languages'] as String?,
-      city: map['city'] as String?,
+      price: _priceFromMap(map),
+      description: _optionalString(map, const [
+        'description',
+        'about',
+        'overview',
+        'summary',
+        'journeyDescription',
+      ]),
+      startPoint: _optionalString(map, const [
+        'startPoint',
+        'start_point',
+        'startingPoint',
+      ]),
+      endPoint: _optionalString(map, const [
+        'endPoint',
+        'end_point',
+        'endingPoint',
+      ]),
+      stops: _stopsFromMap(map),
+      estimatedDuration: _optionalString(map, const [
+        'estimatedDuration',
+        'duration',
+        'estimated_duration',
+        'tripDuration',
+      ]),
+      distance: _optionalString(map, const [
+        'distance',
+        'totalDistance',
+        'distance_km',
+      ]),
+      goodToKnow: _optionalString(map, const [
+        'goodToKnow',
+        'good_to_know',
+        'tips',
+        'knowBeforeYouGo',
+      ]),
+      languages: _optionalString(map, const ['languages', 'language']),
+      city: _optionalString(map, const ['city', 'location', 'region']),
       landmarksJourneyId: _optionalString(map, const [
         'landmarksJourneyId',
         'landmarks_journey_id',

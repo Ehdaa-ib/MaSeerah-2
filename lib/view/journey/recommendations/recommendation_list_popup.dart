@@ -6,6 +6,7 @@ import '../../../core/app_colors.dart';
 import '../../../core/map_design_tokens.dart';
 import '../../../core/map_text_styles.dart';
 import '../../../model/recommendation_place.dart';
+import '../../../widgets/app_network_image.dart';
 import '../widgets/map_popup_header.dart';
 import '../widgets/map_popup_surface.dart';
 
@@ -172,29 +173,21 @@ class _RecommendationListPhotoStrip extends StatelessWidget {
                 ),
               )
             : valid.length == 1
-                ? Image.network(
-                    valid.first,
+                ? AppNetworkImage(
+                    url: valid.first,
                     fit: BoxFit.cover,
                     width: _stripW,
                     height: _h,
-                    errorBuilder: (context, error, stackTrace) {
-                      if (kDebugMode) {
-                        final u = valid.first;
-                        debugPrint(
-                          '[RecommendationImage.network] LOAD FAILED context=list_single '
-                          'url=${u.length > 120 ? "${u.substring(0, 120)}…" : u} error=$error',
-                        );
-                      }
-                      return ColoredBox(
-                        color: AppColors.green.withValues(alpha: 0.4),
-                        child: Center(
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            color: MapDesignTokens.iconMuted(0.5),
-                          ),
+                    memCacheWidth: (_stripW * 2).round(),
+                    error: ColoredBox(
+                      color: AppColors.green.withValues(alpha: 0.4),
+                      child: Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: MapDesignTokens.iconMuted(0.5),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   )
                 : ListView.separated(
                     primary: false,
@@ -206,26 +199,20 @@ class _RecommendationListPhotoStrip extends StatelessWidget {
                     itemBuilder: (_, i) => SizedBox(
                       width: _slideW,
                       height: _h,
-                      child: Image.network(
-                        valid[i],
+                      child: AppNetworkImage(
+                        url: valid[i],
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          if (kDebugMode) {
-                            final u = valid[i];
-                            debugPrint(
-                              '[RecommendationImage.network] LOAD FAILED context=list_scroll i=$i '
-                              'url=${u.length > 120 ? "${u.substring(0, 120)}…" : u} error=$error',
-                            );
-                          }
-                          return ColoredBox(
-                            color: AppColors.green.withValues(alpha: 0.35),
-                            child: Icon(
-                              Icons.broken_image_outlined,
-                              size: 22,
-                              color: MapDesignTokens.iconMuted(0.45),
-                            ),
-                          );
-                        },
+                        width: _slideW,
+                        height: _h,
+                        memCacheWidth: (_slideW * 2).round(),
+                        error: ColoredBox(
+                          color: AppColors.green.withValues(alpha: 0.35),
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            size: 22,
+                            color: MapDesignTokens.iconMuted(0.45),
+                          ),
+                        ),
                       ),
                     ),
                   ),

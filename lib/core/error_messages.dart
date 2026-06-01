@@ -12,6 +12,9 @@ String toUserFriendlyMessage(dynamic e) {
   }
 
   final str = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
+  if (_isFirestorePermissionDenied(str)) {
+    return 'Payment could not be saved. Ask your admin to deploy the latest Firestore rules, then try again.';
+  }
   if (_isNetworkError(str)) {
     return 'No internet connection. Please check your network and try again.';
   }
@@ -78,6 +81,13 @@ String _firebaseAuthMessageForCode(String code) {
     default:
       return 'Something went wrong. Please try again.';
   }
+}
+
+bool _isFirestorePermissionDenied(String str) {
+  final lower = str.toLowerCase();
+  return lower.contains('permission_denied') ||
+      lower.contains('permission-denied') ||
+      lower.contains('missing or insufficient permissions');
 }
 
 /// Whether the exception looks like a network/connectivity error.

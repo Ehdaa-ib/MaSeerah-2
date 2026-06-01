@@ -27,6 +27,7 @@ class AdminFeedbackReply {
 class FeedbackEntry {
   final String userId;
   final String journeyId;
+  final String? userJourneyId;
   final DateTime? createdAt;
   final int overallRating;
   final int contentRating;
@@ -43,6 +44,7 @@ class FeedbackEntry {
   FeedbackEntry({
     required this.userId,
     required this.journeyId,
+    this.userJourneyId,
     this.createdAt,
     required this.overallRating,
     required this.contentRating,
@@ -59,6 +61,8 @@ class FeedbackEntry {
     return {
       'userId': userId,
       'journeyId': journeyId,
+      if (userJourneyId != null && userJourneyId!.trim().isNotEmpty)
+        'userJourneyId': userJourneyId!.trim(),
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
       'overallRating': overallRating,
       'contentRating': contentRating,
@@ -90,12 +94,17 @@ class FeedbackEntry {
     return FeedbackEntry(
       userId: (map['userId'] as String?) ?? '',
       journeyId: (map['journeyId'] as String?) ?? '',
+      userJourneyId: (map['userJourneyId'] as String?)?.trim(),
       createdAt: ts is Timestamp ? ts.toDate() : null,
       overallRating: (map['overallRating'] as num?)?.toInt() ?? 0,
       contentRating: (map['contentRating'] as num?)?.toInt() ?? 0,
       recommendationRating: (map['recommendationRating'] as num?)?.toInt() ?? 0,
       challengeRating: (challenge as num?)?.toInt() ?? 0,
-      overallComment: (map['overallComment'] as String?) ?? '',
+      overallComment: () {
+        final primary = (map['overallComment'] as String?)?.trim() ?? '';
+        if (primary.isNotEmpty) return primary;
+        return (map['comment'] as String?)?.trim() ?? '';
+      }(),
       photos: (map['photos'] as List?)?.whereType<String>().toList() ?? const [],
       adminResponses: _adminResponsesFromMap(map),
       adminResponse: (map['adminResponse'] as String?)?.trim().isNotEmpty == true

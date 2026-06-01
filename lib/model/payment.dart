@@ -72,6 +72,7 @@ extension PaymentMethodExtension on PaymentMethod {
 /// Payment record linked to an order and Moyasar gateway.
 class Payment {
   final String? paymentId;
+  final String userId;
   final String orderId;
   final double amount;
   final String currency;
@@ -82,6 +83,7 @@ class Payment {
 
   Payment({
     this.paymentId,
+    required this.userId,
     required this.orderId,
     required this.amount,
     required this.currency,
@@ -93,6 +95,7 @@ class Payment {
 
   Map<String, dynamic> toMap() {
     return {
+      'userId': userId,
       'orderId': orderId,
       'amount': amount,
       'currency': currency,
@@ -106,6 +109,7 @@ class Payment {
   factory Payment.fromMap(Map<String, dynamic> map, {String? id}) {
     return Payment(
       paymentId: id,
+      userId: map['userId'] as String? ?? '',
       orderId: map['orderId'] as String? ?? '',
       amount: (map['amount'] as num?)?.toDouble() ?? 0,
       currency: map['currency'] as String? ?? 'SAR',
@@ -120,6 +124,7 @@ class Payment {
 
   Payment copyWith({
     String? paymentId,
+    String? userId,
     String? orderId,
     double? amount,
     String? currency,
@@ -130,6 +135,7 @@ class Payment {
   }) {
     return Payment(
       paymentId: paymentId ?? this.paymentId,
+      userId: userId ?? this.userId,
       orderId: orderId ?? this.orderId,
       amount: amount ?? this.amount,
       currency: currency ?? this.currency,

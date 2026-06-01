@@ -1,9 +1,11 @@
-import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_drawing/path_drawing.dart';
 
+import '../../../core/app_colors.dart';
+import '../../../core/map_design_tokens.dart';
 /// Journey map: **PNGs** for artwork, **`map.svg`** only for region paths (taps + clip holes).
 ///
 /// [activeMapAssetPath] is the full-color raster underneath. [inactiveMapAssetPath] is drawn
@@ -26,8 +28,11 @@ class JourneySvgMap extends StatefulWidget {
   /// If [allowTapInactive] is false, taps only fire for the active region.
   final ValueChanged<int>? onRegionTap;
 
-  /// If true, all regions are tappable (active/inactive).
+  /// If true, all regions are tappable (legacy — prefer [allowTapCompleted]).
   final bool allowTapInactive;
+
+  /// When [allowTapInactive] is false, completed regions still invoke [onRegionTap].
+  final bool allowTapCompleted;
 
   const JourneySvgMap({
     super.key,
@@ -38,19 +43,31 @@ class JourneySvgMap extends StatefulWidget {
     required this.currentRegion,
     this.onRegionTap,
     this.allowTapInactive = false,
+    this.allowTapCompleted = true,
   });
 
   @override
   State<JourneySvgMap> createState() => _JourneySvgMapState();
 }
 
-class _JourneySvgMapState extends State<JourneySvgMap> {
+class _JourneySvgMapState extends State<JourneySvgMap> with SingleTickerProviderStateMixin {
   late Future<_SvgSplitResult> _future;
+  late AnimationController _floatController;
 
   @override
   void initState() {
     super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..repeat(reverse: true);
     _future = _loadAndSplit();
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
   }
 
   @override
@@ -62,6 +79,12 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
     }
   }
 
+  bool _isRegionTappable(int region) {
+    if (widget.allowTapInactive) return true;
+    if (region == widget.currentRegion) return true;
+    if (widget.allowTapCompleted && region < widget.currentRegion) return true;
+    return false;
+  }
   Future<_SvgSplitResult> _loadAndSplit() async {
     final raw = await rootBundle.loadString(widget.assetPath);
     return _SvgSplitter.splitIntoRegions(raw, widget.regionCount);
@@ -129,8 +152,8 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
                       gaplessPlayback: true,
                     ),
                   ),
-                  _regionTapOverlay(context, hit),
-                ],
+                  _buildActiveRegionBorderOverlay(res),
+                  _regionTapOverlay(context, hit),                ],
               );
             },
           );
@@ -167,10 +190,30 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
               cacheHeight: ch,
               gaplessPlayback: true,
             ),
-            _regionTapOverlay(context, hit),
-          ],
+            _buildActiveRegionBorderOverlay(res),
+            _regionTapOverlay(context, hit),          ],
         );
       },
+    );
+  }
+
+  Widget _buildActiveRegionBorderOverlay(_SvgSplitResult res) {
+    return Positioned.fill(
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _floatController,
+          builder: (context, _) {
+            return CustomPaint(
+              painter: _ActiveRegionBorderPainter(
+                viewBox: res.viewBox,
+                regionPaths: res.regionHitPaths,
+                currentRegion: widget.currentRegion,
+                floatProgress: _floatController.value,
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -184,16 +227,13 @@ class _JourneySvgMapState extends State<JourneySvgMap> {
           final local = ro.globalToLocal(details.globalPosition);
           final region = hit.hitTest(local, ro.size);
           if (region == null) return;
-          if (!widget.allowTapInactive && region != widget.currentRegion) {
-            return;
-          }
+          if (!_isRegionTappable(region)) return;
           widget.onRegionTap?.call(region);
         },
       ),
     );
   }
 }
-
 class _SvgSplitResult {
   final bool hasAllRegions;
   final _ViewBox viewBox;
@@ -672,3 +712,69 @@ class _SvgHitTester {
   }
 }
 
+/// Soft floating border + shadow on the current region only.
+class _ActiveRegionBorderPainter extends CustomPainter {
+  _ActiveRegionBorderPainter({
+    required this.viewBox,
+    required this.regionPaths,
+    required this.currentRegion,
+    required this.floatProgress,
+  });
+
+  final _ViewBox viewBox;
+  final Map<int, Path> regionPaths;
+  final int currentRegion;
+  final double floatProgress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final raw = regionPaths[currentRegion];
+    if (raw == null) return;
+
+    final path = _transformSvgPathToLayout(raw, size, viewBox);
+    final wave = math.sin(floatProgress * math.pi * 2);
+    final floatY = wave * 2.5;
+    final shadowLift = 2 + wave * 1.5;
+
+    canvas.save();
+    canvas.translate(0, floatY);
+
+    final shadowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeJoin = StrokeJoin.round
+      ..color = AppColors.brown.withValues(alpha: 0.2)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+
+    canvas.save();
+    canvas.translate(0, shadowLift);
+    canvas.drawPath(path, shadowPaint);
+    canvas.restore();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.8
+        ..strokeJoin = StrokeJoin.round
+        ..color = MapDesignTokens.primaryAccent.withValues(alpha: 0.88),
+    );
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..strokeJoin = StrokeJoin.round
+        ..color = Colors.white.withValues(alpha: 0.42),
+    );
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _ActiveRegionBorderPainter old) {
+    return old.currentRegion != currentRegion ||
+        old.floatProgress != floatProgress;
+  }
+}

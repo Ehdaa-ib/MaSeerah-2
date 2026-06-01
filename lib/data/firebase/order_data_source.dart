@@ -65,12 +65,35 @@ class OrderDataSource {
     return app.Order.fromMap(saved, id: doc.id);
   }
 
+  /// Most recent order still awaiting payment (repurchase / retry checkout).
+  Future<app.Order?> getPendingOrderForJourney(String userId, String journeyId) async {
+    final q = await _firestore
+        .collection(_collection)
+        .where('userId', isEqualTo: userId)
+        .where('journeyId', isEqualTo: journeyId)
+        .orderBy('createdAt', descending: true)
+        .limit(10)
+        .get();
+    for (final doc in q.docs) {
+      final status = app.OrderStatusExtension.fromString(doc.data()['status'] as String?);
+      if (status != app.OrderStatus.pendingPayment) continue;
+      final saved = Map<String, dynamic>.from(doc.data());
+      if (saved['createdAt'] != null && saved['createdAt'] is Timestamp) {
+        saved['createdAt'] = (saved['createdAt'] as Timestamp).toDate();
+      }
+      return app.Order.fromMap(saved, id: doc.id);
+    }
+    return null;
+  }
+
   /// True if this user has at least one **paid** order for the journey (supports replay after a new pending order).
   Future<bool> hasPaidOrderForJourney(String userId, String journeyId) async {
     final q = await _firestore
         .collection(_collection)
         .where('userId', isEqualTo: userId)
         .where('journeyId', isEqualTo: journeyId)
+        .orderBy('createdAt', descending: true)
+        .limit(12)
         .get();
     for (final doc in q.docs) {
       final status = doc.data()['status'] as String?;

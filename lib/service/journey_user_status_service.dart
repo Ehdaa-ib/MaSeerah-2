@@ -1,6 +1,7 @@
 import '../data/firebase/journey_completion_data_source.dart';
 import '../data/firebase/journey_progress_data_source.dart';
 import '../data/firebase/journey_repurchase_gate_data_source.dart';
+import 'journey_inactivity_service.dart';
 
 enum JourneyUserStatus {
   loading,
@@ -32,11 +33,14 @@ class JourneyUserStatusService {
     JourneyProgressDataSource? progressDs,
     JourneyCompletionDataSource? completionDs,
     JourneyRepurchaseGateDataSource? repurchaseGateDs,
+    JourneyInactivityService? inactivityService,
   })  : _progressDs = progressDs ?? JourneyProgressDataSource(),
         _completionDs = completionDs ?? JourneyCompletionDataSource(),
-        _repurchaseGateDs = repurchaseGateDs ?? JourneyRepurchaseGateDataSource();
+        _repurchaseGateDs = repurchaseGateDs ?? JourneyRepurchaseGateDataSource(),
+        _inactivity = inactivityService ?? JourneyInactivityService();
 
   final JourneyProgressDataSource _progressDs;
+  final JourneyInactivityService _inactivity;
   final JourneyCompletionDataSource _completionDs;
   final JourneyRepurchaseGateDataSource _repurchaseGateDs;
 
@@ -56,7 +60,7 @@ class JourneyUserStatusService {
     }
 
     // IMPORTANT: progress is the primary "continue" signal and should not depend on orders.
-    final progress = await _progressDs.getUserJourneyProgress(userId: uid, journeyId: jid);
+    final progress = await _inactivity.resolveActiveProgress(userId: uid, journeyId: jid);
     if (progress != null) {
       return JourneyUserStatusResult(
         status: JourneyUserStatus.active,

@@ -47,5 +47,7 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>MaSeerah needs access to your photo library so you can attach images to journey feedback.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>MaSeerah saves your journey photos to your gallery when you choose Save to device.</string>
 </dict>
 </plist>

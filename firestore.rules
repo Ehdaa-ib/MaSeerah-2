@@ -37,7 +37,7 @@ service cloud.firestore {
       return isAdminEmail() || hasAdminRole();
     }
 
-  function challengeRatingValue(data) {
+    function challengeRatingValue(data) {
       return data.get('challengeRating', data.get('challengerRating', 0));
     }
 
@@ -97,7 +97,7 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // users — profile + admin user audit (dashboard Users tab)
+    // users — profile + nested journey data (instance-scoped history/memories)
     // -------------------------------------------------------------------------
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
@@ -139,47 +139,83 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'role']);
 
       allow delete: if false;
-    }
 
-    match /users/{userId}/journeyCompletionHistory/{historyId} {
-      allow create: if isOwner(userId)
-        && request.resource.data.userId == userId
-        && request.resource.data.journeyId is string;
-      allow read: if isOwner(userId) || isAdmin();
-      allow update, delete: if false;
-    }
+      match /journeyCompletionHistory/{historyId} {
+        allow create: if isOwner(userId)
+          && request.resource.data.userId == userId
+          && request.resource.data.journeyId is string;
+        allow read: if isOwner(userId) || isAdmin();
+        allow update, delete: if false;
+      }
 
-    match /users/{userId}/activeJourneys/{journeyId} {
-      allow read: if isOwner(userId);
-      allow create, update: if isOwner(userId)
-        && request.resource.data.userId == userId
-        && request.resource.data.journeyId == journeyId
-        && request.resource.data.journeyTitle is string
-        && request.resource.data.landmarksJourneyId is string
-        && request.resource.data.currentRegion is int
-        && request.resource.data.currentRegion >= 1
-        && request.resource.data.currentRegion <= 50
-        && request.resource.data.qubaChallengeCompleted is bool
-        && request.resource.data.lastRegionChallengeCompleted is bool
-        && (!('catalogJourneyId' in request.resource.data)
-          || request.resource.data.catalogJourneyId == null
-          || request.resource.data.catalogJourneyId is string);
-      allow delete: if isOwner(userId);
-    }
+      match /activeJourneys/{journeyId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.userId == userId
+          && request.resource.data.journeyId is string
+          && request.resource.data.journeyTitle is string
+          && request.resource.data.landmarksJourneyId is string
+          && request.resource.data.currentRegion is int
+          && request.resource.data.currentRegion >= 1
+          && request.resource.data.currentRegion <= 50
+          && request.resource.data.qubaChallengeCompleted is bool
+          && request.resource.data.lastRegionChallengeCompleted is bool
+          && (!('catalogJourneyId' in request.resource.data)
+            || request.resource.data.catalogJourneyId == null
+            || request.resource.data.catalogJourneyId is string);
+        allow delete: if isOwner(userId);
+      }
 
-    match /users/{userId}/journeyPurchaseGate/{journeyId} {
-      allow read: if isOwner(userId);
-      allow create, update: if isOwner(userId)
-        && request.resource.data.requiresNewPurchase == true;
-      allow delete: if isOwner(userId);
-    }
+      // [historyDocId] is catalog id (legacy) or playthrough instance id (userJourneyId).
+      match /journeyHistory/{historyDocId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.userId == userId
+          && request.resource.data.journeyId is string
+          && (
+            request.resource.data.journeyId == historyDocId
+            || (request.resource.data.userJourneyId is string
+              && request.resource.data.userJourneyId == historyDocId)
+          );
+        allow update: if isOwner(userId);
+        allow delete: if false;
 
-    match /users/{userId}/journeyFeedback/{feedbackId} {
-      allow create: if isOwner(userId)
-        && request.resource.data.userId == userId
-        && isValidFeedbackPayload(request.resource.data);
-      allow read: if isOwner(userId);
-      allow update, delete: if false;
+        match /landmarkMemories/{memoryId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId)
+            && request.resource.data.userId == userId
+            && request.resource.data.landmarkId is string
+            && (request.resource.data.landmarkTitle is string
+              || request.resource.data.landmarkName is string)
+            && (request.resource.data.landmarkOrder is int
+              || request.resource.data.landmarkOrder is float)
+            && request.resource.data.mediaUrl is string
+            && request.resource.data.mediaType is string
+            && request.resource.data.storagePath is string
+            && request.resource.data.createdAt is timestamp
+            && (
+              request.resource.data.journeyId == historyDocId
+              || (request.resource.data.userJourneyId is string
+                && request.resource.data.userJourneyId == historyDocId)
+            );
+          allow update, delete: if false;
+        }
+      }
+
+      match /journeyPurchaseGate/{journeyId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.requiresNewPurchase == true;
+        allow delete: if isOwner(userId);
+      }
+
+      match /journeyFeedback/{feedbackId} {
+        allow create: if isOwner(userId)
+          && request.resource.data.userId == userId
+          && isValidFeedbackPayload(request.resource.data);
+        allow read: if isOwner(userId);
+        allow update, delete: if false;
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -189,8 +225,9 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.journeyId is string;
-      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid)
-        || isAdmin();
+      allow read: if isAdmin()
+        || (isSignedIn()
+          && (resource == null || resource.data.userId == request.auth.uid));
       allow update: if isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
@@ -263,7 +300,7 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // Commerce — scoped to order owner (+ admin read). Tightened from any signed-in user.
+    // Commerce — scoped to order owner (+ admin read).
     // -------------------------------------------------------------------------
     match /orders/{orderId} {
       allow read: if isAdmin()
@@ -299,6 +336,13 @@ service cloud.firestore {
 
     match /password_reset_otps/{docId} {
       allow read, write: if false;
+    }
+
+    // Collection-group reads for profile landmark photos (indexed userId + userJourneyId).
+    match /{path=**}/landmarkMemories/{memoryId} {
+      allow read: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
 
     match /email_index/{emailHash} {

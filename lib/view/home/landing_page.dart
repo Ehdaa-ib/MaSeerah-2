@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -7,6 +10,7 @@ import '../../data/repoImp/journey_repository_firebase.dart';
 import '../../model/journey.dart';
 import '../auth/login_screen.dart';
 import '../journey/journey_list_screen.dart';
+import '../../l10n/app_localizations.dart';
 import '../../widgets/app_bottom_nav.dart';
 import 'profile_screen.dart';
 import '../journey/journey_purchase_screen.dart';
@@ -25,35 +29,39 @@ class _LandingPageState extends State<LandingPage> {
   final _searchFocusNode = FocusNode();
 
   List<Journey> _journeys = [];
-  bool _loading = true;
   int _selectedNavIndex = 0;
+  Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
     _load();
-    _searchController.addListener(() => setState(() {}));
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 200), () {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
     try {
       final journeys = await _journeyRepo.getAll();
       if (mounted) {
-        setState(() {
-          _journeys = journeys;
-          _loading = false;
-        });
+        setState(() => _journeys = journeys);
       }
     } catch (e) {
-      if (mounted) setState(() => _loading = false);
+      if (kDebugMode) debugPrint('[LandingPage] journey catalog load failed: $e');
     }
   }
 
@@ -90,11 +98,68 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  void _openJourney(Journey? journey) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => JourneyPurchaseScreen(
-          journeyId: journey?.journeyId ?? 'journey_1',
+  /// Home marketing cards → Firestore `journeys/{id}` (index 0 = Darb Al-Sunnah → `journey_1`).
+  static const List<String> _homeCardJourneyIds = [
+    'journey_1',
+    'journey_2',
+    'journey_3',
+  ];
+
+  static String _journeyIdForIndex(int index) {
+    if (index >= 0 && index < _homeCardJourneyIds.length) {
+      return _homeCardJourneyIds[index];
+    }
+    return 'journey_1';
+  }
+
+  Journey? _catalogJourneyForCard(int index) {
+    final target = _journeyIdForIndex(index);
+    final cached = JourneyDataSource.findInCatalogCache(target);
+    if (cached != null) return cached;
+
+    final targetVariants = JourneyDataSource.docIdVariants(target).toSet();
+    for (final j in _journeys) {
+      for (final variant in JourneyDataSource.docIdVariants(j.journeyId)) {
+        if (targetVariants.contains(variant)) return j;
+      }
+    }
+    return null;
+  }
+
+  Journey _stubJourneyForCard(int index) {
+    final info = _journeyCardInfoForIndex(context, index);
+    return Journey(
+      journeyId: _journeyIdForIndex(index),
+      name: info.title,
+      price: 0,
+      estimatedDuration: info.duration,
+      stops: info.stops,
+    );
+  }
+
+  Future<void> _openJourneyForCard(int index) async {
+    final journeyId = _journeyIdForIndex(index);
+    var journey = _catalogJourneyForCard(index) ?? _stubJourneyForCard(index);
+
+    try {
+      final fresh = await _journeyRepo.getById(journeyId);
+      if (fresh != null) {
+        journey = fresh;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[LandingPage] getById($journeyId) failed: $e');
+      }
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).push<void>(
+      PageRouteBuilder<void>(
+        opaque: true,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: const Duration(milliseconds: 200),
+        pageBuilder: (_, __, ___) => JourneyPurchaseScreen(
+          journeyId: journeyId,
           initialJourney: journey,
         ),
       ),
@@ -131,11 +196,7 @@ class _LandingPageState extends State<LandingPage> {
               child: Column(
                 children: [
                   _buildHeader(),
-                  Expanded(
-                    child: _loading
-                        ? const Center(child: CircularProgressIndicator(color: AppColors.brown))
-                        : _buildJourneyCards(),
-                  ),
+                  Expanded(child: _buildJourneyCards()),
                 ],
               ),
             ),
@@ -203,7 +264,7 @@ class _LandingPageState extends State<LandingPage> {
                   focusNode: _searchFocusNode,
                   autofocus: false,
                   decoration: InputDecoration(
-                    hintText: 'Explore your next journey',
+                    hintText: AppLocalizations.of(context)!.landingSearchExplore,
                     hintStyle: TextStyle(
                       color: AppColors.brown,
                       fontSize: 14,
@@ -232,9 +293,6 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   Widget _buildJourneyCards() {
-    // Card 0: Darb Al-Sunnah (linked to journey_1), 1: Battle of Uhud, 2: Valley Adventure
-    final journey1 = _journeys.where((j) => j.journeyId == 'journey_1');
-    final darbJourney = journey1.isNotEmpty ? journey1.first : (_journeys.isNotEmpty ? _journeys.first : null);
     final q = _searchController.text.trim().toLowerCase();
     final visibleIndices = _getVisibleCardIndices(q);
     return ListView.builder(
@@ -242,14 +300,14 @@ class _LandingPageState extends State<LandingPage> {
       itemCount: visibleIndices.length,
       itemBuilder: (context, i) {
         final index = visibleIndices[i];
-        final info = _journeyCardInfoForIndex(index);
+        final info = _journeyCardInfoForIndex(context, index);
         return _JourneyCard(
           imagePath: _imagePathForIndex(index),
           title: info.title,
           rating: info.rating,
           duration: info.duration,
           stopsLabel: info.stops,
-          onTap: index == 0 ? () => _openJourney(darbJourney ?? (_journeys.isNotEmpty ? _journeys.first : null)) : null,
+          onTap: () => unawaited(_openJourneyForCard(index)),
         );
       },
     );
@@ -280,28 +338,29 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   /// Display order: Darb, Uhud, Valley — matches [_imagePathForIndex].
-  static _JourneyCardInfo _journeyCardInfoForIndex(int index) {
+  _JourneyCardInfo _journeyCardInfoForIndex(BuildContext context, int index) {
+    final l10n = AppLocalizations.of(context)!;
     switch (index) {
       case 0:
-        return const _JourneyCardInfo(
-          title: 'Darb Al-Sunnah',
+        return _JourneyCardInfo(
+          title: l10n.landingCardDarbTitle,
           rating: 4.9,
-          duration: '3 Hours',
-          stops: '8 Stops',
+          duration: l10n.landingCardDuration3h,
+          stops: l10n.landingCardStops8,
         );
       case 1:
-        return const _JourneyCardInfo(
-          title: 'Uhud Battle',
+        return _JourneyCardInfo(
+          title: l10n.landingCardUhudTitle,
           rating: 4.5,
-          duration: '2 Hours',
-          stops: '5 Stops',
+          duration: l10n.landingCardDuration2h,
+          stops: l10n.landingCardStops5,
         );
       case 2:
-        return const _JourneyCardInfo(
-          title: 'The Vally Advanture',
+        return _JourneyCardInfo(
+          title: l10n.landingCardValleyTitle,
           rating: 4.3,
-          duration: '1.5 Hours',
-          stops: '3 Stops',
+          duration: l10n.landingCardDuration1_5h,
+          stops: l10n.landingCardStops3,
         );
       default:
         return const _JourneyCardInfo(
