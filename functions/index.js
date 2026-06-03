@@ -20,6 +20,12 @@ const admin = require('firebase-admin');
 const crypto = require('crypto');
 const { sendPasswordResetOtpEmail } = require('./services/email_service');
 const { handleSendFeedbackReply } = require('./handlers/feedback_reply_handler');
+const { wrapCallable } = require('./util/callable_errors');
+
+const handleSendFeedbackReplySafe = wrapCallable(
+  'sendFeedbackReply',
+  handleSendFeedbackReply,
+);
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -98,7 +104,7 @@ exports.sendPasswordResetOtp = onCall(
   async (request) => {
   // Feedback replies use the same Cloud Run service as OTP (already has SMTP configured).
   if (request.data && request.data.mode === 'feedbackReply') {
-    return handleSendFeedbackReply(request);
+    return handleSendFeedbackReplySafe(request);
   }
 
   const emailRaw =
@@ -365,5 +371,5 @@ exports.resetPasswordWithOtp = onCall(
 /** Dedicated callable (requires deploy). Uses same handler + SMTP secrets as OTP service. */
 exports.sendFeedbackReply = onCall(
   { region: callableRegion },
-  handleSendFeedbackReply,
+  handleSendFeedbackReplySafe,
 );
