@@ -74,13 +74,23 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
   }
 
   Future<String?> _resolveCustomerEmail(FeedbackAdminRow row) async {
+    final userId = row.entry.userId.trim();
+    if (userId.isEmpty || userId.contains('@')) {
+      return null;
+    }
     final cached = row.userEmail?.trim();
     if (cached != null &&
         cached.isNotEmpty &&
-        Validators.validateEmail(cached)) {
+        Validators.validateEmail(cached) &&
+        cached.toLowerCase() != userId.toLowerCase()) {
       return cached;
     }
-    return _ds.fetchUserEmail(row.entry.userId);
+    final fromProfile = await _ds.fetchUserEmail(userId);
+    if (fromProfile != null &&
+        fromProfile.toLowerCase() != userId.toLowerCase()) {
+      return fromProfile;
+    }
+    return null;
   }
 
   Future<void> _openDetail(FeedbackAdminRow row) async {
