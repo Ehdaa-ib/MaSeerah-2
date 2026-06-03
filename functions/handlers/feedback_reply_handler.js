@@ -1,10 +1,12 @@
 /**
- * Admin feedback reply — shared by sendFeedbackReply and sendPasswordResetOtp (mode=feedbackReply).
+ * Admin feedback reply — sendFeedbackReply + sendPasswordResetOtp (mode=feedbackReply).
  */
 const { HttpsError } = require('firebase-functions/v2/https');
-const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const { sendFeedbackReplyEmail } = require('../services/email_service');
+const { logStep, logError } = require('../util/log_step');
+const { throwCallableError } = require('../util/callable_errors');
+const { logSmtpEnvPresence } = require('../config/smtp_params');
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -20,40 +22,41 @@ function isAdminEmailAddress(email) {
   return /^(ehdaa\.test|q\.test|m\.test|r\.test|malak)@admin\.com$/.test(e);
 }
 
-async function resolveAdminEmail(request) {
-  const tokenEmail = request.auth.token.email
+function tokenEmail(request) {
+  return request.auth && request.auth.token && request.auth.token.email
     ? normalizeEmail(request.auth.token.email)
     : '';
-  if (tokenEmail && isValidEmailFormat(tokenEmail)) {
-    return tokenEmail;
+}
+
+async function resolveAdminEmail(request) {
+  const fromToken = tokenEmail(request);
+  if (isValidEmailFormat(fromToken)) {
+    return fromToken;
   }
-  const uid = request.auth.uid;
-  if (uid) {
-    const userDoc = await admin.firestore().collection('users').doc(uid).get();
-    if (userDoc.exists) {
-      const profileEmail = normalizeEmail(userDoc.data().email || '');
-      if (isValidEmailFormat(profileEmail)) return profileEmail;
-    }
+  const uid = request.auth && request.auth.uid;
+  if (!uid) return '';
+  const userDoc = await admin.firestore().collection('users').doc(uid).get();
+  if (userDoc.exists) {
+    const profileEmail = normalizeEmail(userDoc.data().email || '');
+    if (isValidEmailFormat(profileEmail)) return profileEmail;
   }
-  return tokenEmail;
+  return fromToken;
 }
 
 async function assertCallerIsAdmin(request) {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'You must be signed in to send replies.');
   }
-  const tokenEmail = request.auth.token.email
-    ? normalizeEmail(request.auth.token.email)
-    : '';
-  if (tokenEmail && isAdminEmailAddress(tokenEmail)) {
-    return tokenEmail;
+  const email = tokenEmail(request);
+  if (email && isAdminEmailAddress(email)) {
+    return email;
   }
   const uid = request.auth.uid;
   if (uid) {
     const userDoc = await admin.firestore().collection('users').doc(uid).get();
     if (userDoc.exists && userDoc.data().role === 'admin') {
       const profileEmail = normalizeEmail(userDoc.data().email || '');
-      return isValidEmailFormat(profileEmail) ? profileEmail : tokenEmail;
+      return isValidEmailFormat(profileEmail) ? profileEmail : email;
     }
   }
   throw new HttpsError('permission-denied', 'Only admins can send feedback replies.');
@@ -85,7 +88,7 @@ async function resolveCustomerEmailForUserId(userId) {
   } catch (e) {
     const ac = authErrorCode(e);
     if (ac !== 'auth/user-not-found') {
-      logger.error('getUser failed while resolving feedback recipient', { uid, err: e });
+      logError('resolveCustomerEmail getUser failed', e);
     }
   }
   return null;
@@ -96,6 +99,8 @@ async function appendFeedbackAdminResponse(feedbackId, message, adminEmail) {
   if (!trimmed) {
     throw new HttpsError('invalid-argument', 'Message body is required.');
   }
+
+  logStep('Saving reply to Firestore', { feedbackId });
 
   const ref = admin.firestore().collection('feedback').doc(feedbackId);
   await admin.firestore().runTransaction(async (txn) => {
@@ -121,13 +126,18 @@ async function appendFeedbackAdminResponse(feedbackId, message, adminEmail) {
       respondedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   });
+  logStep('Firestore reply saved');
 }
 
 /**
  * @param {import('firebase-functions/v2/https').CallableRequest} request
  */
 async function handleSendFeedbackReply(request) {
-  const adminEmail = await assertCallerIsAdmin(request);
+  console.log('Function started');
+  logSmtpEnvPresence();
+
+  const adminEmailAuth = await assertCallerIsAdmin(request);
+  logStep('Admin email (auth)', { adminEmail: adminEmailAuth || '(from profile next)' });
 
   const feedbackId =
     request.data && request.data.feedbackId
@@ -142,22 +152,17 @@ async function handleSendFeedbackReply(request) {
       ? String(request.data.messageBody).trim()
       : '';
 
-  logger.info('sendFeedbackReply invoked', {
-    feedbackId,
-    adminUid: request.auth && request.auth.uid,
-    adminEmail: request.auth && request.auth.token.email,
-    subjectLength: subjectRaw.length,
-    bodyLength: messageBody.length,
-  });
-
   if (!feedbackId) {
-    throw new HttpsError('invalid-argument', 'Feedback id is required.');
+    throwCallableError('invalid-argument', 'Feedback id is required.');
+  }
+  if (!subjectRaw) {
+    throwCallableError('invalid-argument', 'Subject is required.');
   }
   if (!messageBody) {
-    throw new HttpsError('invalid-argument', 'Message body is required.');
+    throwCallableError('invalid-argument', 'Message body is required.');
   }
   if (messageBody.length > 12000) {
-    throw new HttpsError('invalid-argument', 'Message is too long.');
+    throwCallableError('invalid-argument', 'Message is too long.');
   }
 
   const subject =
@@ -169,80 +174,63 @@ async function handleSendFeedbackReply(request) {
     .doc(feedbackId)
     .get();
   if (!feedbackSnap.exists) {
-    throw new HttpsError('not-found', 'Feedback not found.');
+    throwCallableError('not-found', 'Feedback not found.');
   }
 
   const feedback = feedbackSnap.data();
   const userId = feedback.userId ? String(feedback.userId) : '';
-  const customerEmail = await resolveCustomerEmailForUserId(userId);
-  if (!customerEmail) {
-    throw new HttpsError(
+  const recipientEmail = await resolveCustomerEmailForUserId(userId);
+
+  console.log('Recipient email:', recipientEmail || '(missing)');
+
+  if (!recipientEmail) {
+    throwCallableError(
       'failed-precondition',
       'No email address found for this customer. They may need to sign in again or update their profile.',
     );
   }
 
-  const senderEmail = await resolveAdminEmail(request);
-  if (!isValidEmailFormat(senderEmail)) {
-    logger.error('sendFeedbackReply: admin has no valid email', {
-      tokenEmail: request.auth.token && request.auth.token.email,
-      adminEmail,
-      uid: request.auth.uid,
-    });
-    throw new HttpsError(
+  const adminEmail = await resolveAdminEmail(request);
+  console.log('Admin email:', adminEmail || '(missing)');
+
+  if (!adminEmail || !isValidEmailFormat(adminEmail)) {
+    throwCallableError(
       'failed-precondition',
-      'Your admin account does not have a valid email for replies. Sign in with an admin email or update your profile.',
+      'Your admin account does not have a valid email for replies.',
     );
   }
 
-  logger.info('sendFeedbackReply sending email', {
-    feedbackId,
-    customerEmail,
-    senderEmail,
-    subject,
-  });
+  console.log('SMTP host:', process.env.SMTP_HOST || '(missing)');
 
   try {
     await sendFeedbackReplyEmail({
-      to: customerEmail,
+      to: recipientEmail,
       subject,
       text: messageBody,
-      adminEmail: senderEmail,
+      adminEmail,
     });
   } catch (e) {
-    logger.error('sendFeedbackReplyEmail failed', {
-      feedbackId,
-      err: e,
-      message: e && e.message,
-      stack: e && e.stack,
-    });
+    logError('sendFeedbackReplyEmail failed', e);
     if (e instanceof HttpsError) throw e;
-    throw new HttpsError(
-      'failed-precondition',
-      e && e.message
-        ? String(e.message)
-        : 'Could not send email. Check SMTP configuration in Cloud Functions.',
+    throwCallableError(
+      'internal',
+      (e && e.message) || 'Could not send email. Check SMTP configuration.',
     );
   }
 
   try {
-    await appendFeedbackAdminResponse(feedbackId, messageBody, senderEmail);
+    await appendFeedbackAdminResponse(feedbackId, messageBody, adminEmail);
   } catch (e) {
-    logger.error('appendFeedbackAdminResponse after email failed', {
-      feedbackId,
-      err: e,
-      message: e && e.message,
-      stack: e && e.stack,
-    });
+    logError('appendFeedbackAdminResponse failed', e);
     if (e instanceof HttpsError) throw e;
-    throw new HttpsError(
-      'failed-precondition',
-      'Email was sent but saving the reply in Firestore failed. Check Cloud Function logs.',
+    throwCallableError(
+      'internal',
+      (e && e.message) || 'Email was sent but saving the reply failed.',
     );
   }
 
-  logger.info('sendFeedbackReply success', { feedbackId, to: customerEmail });
-  return { ok: true, to: customerEmail };
+  logStep('sendFeedbackReply complete', { feedbackId, to: recipientEmail });
+  return { ok: true, to: recipientEmail };
 }
 
 module.exports = { handleSendFeedbackReply };

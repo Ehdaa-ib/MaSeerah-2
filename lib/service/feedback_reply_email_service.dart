@@ -7,8 +7,7 @@ import '../util/callable_error_message.dart';
 
 /// Sends admin feedback replies by email via Cloud Functions (Nodemailer SMTP).
 ///
-/// Prefers [sendPasswordResetOtp] with `mode: feedbackReply` — that Cloud Run service
-/// usually already has SMTP env vars. Falls back to [sendFeedbackReply].
+/// Calls [sendFeedbackReply] first; falls back to [sendPasswordResetOtp] with `mode: feedbackReply`.
 class FeedbackReplyEmailService {
   FeedbackReplyEmailService({FirebaseFunctions? functions})
       : _functions =
@@ -60,26 +59,26 @@ class FeedbackReplyEmailService {
 
     Object? primaryError;
     try {
-      await _invoke(
-        'sendPasswordResetOtp',
-        {'mode': 'feedbackReply', ...payload},
-      );
-      _log('success via sendPasswordResetOtp (feedbackReply mode)', null);
+      await _invoke('sendFeedbackReply', payload);
+      _log('success via sendFeedbackReply', null);
       return;
     } catch (e, st) {
       primaryError = e;
-      _log('sendPasswordResetOtp feedbackReply failed', e);
+      _log('sendFeedbackReply failed', e);
       if (kDebugMode) debugPrint('[FeedbackReply] stack: $st');
-      if (!_shouldTryDedicatedCallable(e)) {
+      if (!_shouldTryOtpFallback(e)) {
         rethrow;
       }
     }
 
     try {
-      await _invoke('sendFeedbackReply', payload);
-      _log('success via sendFeedbackReply', null);
+      await _invoke(
+        'sendPasswordResetOtp',
+        {'mode': 'feedbackReply', ...payload},
+      );
+      _log('success via sendPasswordResetOtp (feedbackReply mode)', null);
     } catch (e, st) {
-      _log('sendFeedbackReply failed', e);
+      _log('sendPasswordResetOtp feedbackReply failed', e);
       if (kDebugMode) {
         debugPrint('[FeedbackReply] primary error: $primaryError');
         debugPrint('[FeedbackReply] stack: $st');
@@ -98,8 +97,8 @@ class FeedbackReplyEmailService {
     _log('callable response', {'name': name, 'data': result.data});
   }
 
-  /// When to try [sendFeedbackReply] after [sendPasswordResetOtp] failed.
-  static bool _shouldTryDedicatedCallable(Object e) {
+  /// When to try [sendPasswordResetOtp] after [sendFeedbackReply] failed.
+  static bool _shouldTryOtpFallback(Object e) {
     if (e is! FirebaseFunctionsException) return true;
     final code = _normalizeCode(e.code);
     final msg = messageFromCallableException(e).toLowerCase();
@@ -107,16 +106,10 @@ class FeedbackReplyEmailService {
     if (code == 'permission-denied' || code == 'unauthenticated') {
       return false;
     }
-    // Legacy OTP handler without feedbackReply mode.
-    if (code == 'invalid-argument' && msg.contains('valid email')) {
-      return true;
-    }
     if (code == 'not-found' || code == 'unavailable') return true;
-    // Same SMTP missing on both services — retry won't help.
-    if (msg.contains('not configured') || msg.contains('smtp')) {
-      return false;
-    }
-    return true;
+    if (msg.contains('not deployed') || msg.contains('not found')) return true;
+    if (msg.contains('not configured') || msg.contains('smtp')) return true;
+    return false;
   }
 
   static String mapFunctionsError(Object e, {bool includeDebugDetail = true}) {

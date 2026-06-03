@@ -1,13 +1,21 @@
 /**
  * SMTP configuration from Cloud Run / Functions environment variables.
- * Set via functions/.env on deploy or Cloud Run → Variables for each email service.
- *
- *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
  */
-const { logger } = require('firebase-functions');
+const { logStep, logError } = require('../util/log_step');
 
 /**
- * @returns {{ host: string, port: number, user: string, pass: string, from: string, configured: boolean }}
+ * @returns {string[]}
+ */
+function missingSmtpEnvKeys() {
+  const missing = [];
+  if (!String(process.env.SMTP_HOST || '').trim()) missing.push('SMTP_HOST');
+  if (!String(process.env.SMTP_USER || '').trim()) missing.push('SMTP_USER');
+  if (!String(process.env.SMTP_PASS || '').trim()) missing.push('SMTP_PASS');
+  return missing;
+}
+
+/**
+ * @returns {{ host: string, port: number, user: string, pass: string, from: string, configured: boolean, missing: string[] }}
  */
 function readSmtpConfig() {
   const host = String(process.env.SMTP_HOST || '').trim();
@@ -18,19 +26,33 @@ function readSmtpConfig() {
     process.env.SMTP_PASS != null ? String(process.env.SMTP_PASS).trim() : '';
   const fromRaw = String(process.env.SMTP_FROM || '').trim();
   const from = fromRaw || user;
-  const configured = Boolean(host && user && pass);
+  const missing = missingSmtpEnvKeys();
+  const configured = missing.length === 0;
 
-  if (!configured) {
-    logger.warn('readSmtpConfig: SMTP not fully configured', {
-      hasHost: Boolean(host),
-      hasUser: Boolean(user),
-      hasPass: Boolean(pass),
-      hasFrom: Boolean(from),
-      port,
-    });
-  }
+  logStep('readSmtpConfig', {
+    smtpHost: host || '(missing)',
+    smtpPort: port,
+    smtpUser: user ? `${user.slice(0, 3)}***` : '(missing)',
+    smtpFrom: from ? `${from.slice(0, 3)}***` : '(missing)',
+    hasPass: Boolean(pass),
+    configured,
+    missing,
+  });
 
-  return { host, port, user, pass, from, configured };
+  return { host, port, user, pass, from, configured, missing };
 }
 
-module.exports = { readSmtpConfig };
+/**
+ * Logs env presence (never logs password value).
+ */
+function logSmtpEnvPresence() {
+  logStep('SMTP env check', {
+    SMTP_HOST: process.env.SMTP_HOST ? 'set' : 'MISSING',
+    SMTP_PORT: process.env.SMTP_PORT || '587 (default)',
+    SMTP_USER: process.env.SMTP_USER ? 'set' : 'MISSING',
+    SMTP_PASS: process.env.SMTP_PASS ? 'set' : 'MISSING',
+    SMTP_FROM: process.env.SMTP_FROM ? 'set' : '(optional, defaults to SMTP_USER)',
+  });
+}
+
+module.exports = { readSmtpConfig, missingSmtpEnvKeys, logSmtpEnvPresence };

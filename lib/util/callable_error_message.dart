@@ -27,6 +27,10 @@ String messageFromCallableException(FirebaseFunctionsException e) {
     return msg;
   }
 
+  if (fromDetails.isNotEmpty && !_isGenericCallableText(fromDetails)) {
+    return fromDetails;
+  }
+
   return _defaultForCode(code);
 }
 

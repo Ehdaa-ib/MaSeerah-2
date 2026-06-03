@@ -13,6 +13,8 @@
  * Deploy: firebase deploy --only functions
  */
 
+require('./load_env').loadEnvFile();
+
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { logger } = require('firebase-functions');
