@@ -5,6 +5,9 @@
     "node": "20"
   },
   "main": "index.js",
+  "scripts": {
+    "test:smtp": "node scripts/test-smtp.js"
+  },
   "dependencies": {
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^5.1.1",

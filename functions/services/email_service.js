@@ -1,42 +1,15 @@
 /**
- * Transactional email (Nodemailer SMTP). Swap implementation here for SendGrid/Resend/etc.
- *
- * Environment (Cloud Run / `functions/.env` in emulator):
- *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
- *
- * Emulator: if SMTP is missing, logs the message only. Production: throws so the app does not
- * claim the email was sent when nothing was delivered.
+ * Transactional email via Nodemailer SMTP (Gmail, Outlook, or any SMTP provider).
+ * Configuration: functions/config/smtp_params.js + Secret Manager SMTP_PASS.
  */
 
 const nodemailer = require('nodemailer');
 const { HttpsError } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
+const { readSmtpConfig } = require('../config/smtp_params');
 
 function isFunctionsEmulator() {
   return process.env.FUNCTIONS_EMULATOR === 'true';
-}
-
-function getSmtpConfig() {
-  const host = (process.env.SMTP_HOST || '').trim();
-  const port = process.env.SMTP_PORT
-    ? parseInt(String(process.env.SMTP_PORT).trim(), 10)
-    : 587;
-  const user = (process.env.SMTP_USER || '').trim();
-  const pass = process.env.SMTP_PASS != null ? String(process.env.SMTP_PASS) : '';
-  const fromRaw = (process.env.SMTP_FROM || '').trim();
-  const from = fromRaw || user;
-  return { host, port, user, pass, from };
-}
-
-function assertSmtpConfigured(contextLabel) {
-  const { host, user, pass } = getSmtpConfig();
-  if (host && user && pass) return getSmtpConfig();
-  if (isFunctionsEmulator()) return null;
-  throw new HttpsError(
-    'failed-precondition',
-    'Email delivery is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM ' +
-      `on Cloud Functions (see functions/README.md), then redeploy. Context: ${contextLabel}.`,
-  );
 }
 
 function createTransporter(config) {
@@ -51,20 +24,67 @@ function createTransporter(config) {
 }
 
 /**
+ * Verifies SMTP credentials before send (surfaces auth errors early).
+ * @param {import('nodemailer').Transporter} transporter
+ */
+async function verifySmtpConnection(transporter, contextLabel) {
+  try {
+    await transporter.verify();
+    logger.info(`[${contextLabel}] SMTP connection verified`, {
+      host: transporter.options.host,
+      port: transporter.options.port,
+    });
+  } catch (err) {
+    logger.error(`[${contextLabel}] SMTP verify failed`, {
+      err,
+      message: err && err.message,
+      code: err && err.code,
+    });
+    const reason = err && err.message ? String(err.message) : 'SMTP authentication failed';
+    throw new HttpsError(
+      'failed-precondition',
+      `SMTP connection failed: ${reason}. Check SMTP_HOST, SMTP_USER, SMTP_PASS (App Password for Gmail), and SMTP_FROM.`,
+    );
+  }
+}
+
+/**
  * @param {{ from: string, to: string, subject: string, text: string, replyTo?: string }} mail
  */
 async function deliverMail(mail, contextLabel) {
-  const config = assertSmtpConfigured(contextLabel);
-  if (!config) {
-    logger.warn(`[${contextLabel}] SMTP not configured. Would send to ${mail.to}:`, {
-      subject: mail.subject,
-      preview: mail.text.slice(0, 200),
-      replyTo: mail.replyTo,
-    });
-    return { messageId: 'emulator-log-only' };
+  const config = readSmtpConfig();
+
+  logger.info(`[${contextLabel}] deliverMail start`, {
+    to: mail.to,
+    subject: mail.subject,
+    replyTo: mail.replyTo || null,
+    smtpHost: config.host || '(missing)',
+    smtpPort: config.port,
+    smtpUser: config.user ? `${config.user.slice(0, 3)}***` : '(missing)',
+    smtpConfigured: config.configured,
+    emulator: isFunctionsEmulator(),
+  });
+
+  if (!config.configured) {
+    if (isFunctionsEmulator()) {
+      logger.warn(`[${contextLabel}] SMTP not configured (emulator). Would send:`, {
+        to: mail.to,
+        subject: mail.subject,
+        preview: mail.text.slice(0, 200),
+        replyTo: mail.replyTo,
+      });
+      return { messageId: 'emulator-log-only' };
+    }
+    throw new HttpsError(
+      'failed-precondition',
+      'Email delivery is not configured. Set SMTP_HOST, SMTP_USER, SMTP_FROM in functions/.env and ' +
+        'SMTP_PASS via: firebase functions:secrets:set SMTP_PASS — then redeploy all functions.',
+    );
   }
 
   const transporter = createTransporter(config);
+  await verifySmtpConnection(transporter, contextLabel);
+
   try {
     const info = await transporter.sendMail({
       from: mail.from,
@@ -73,35 +93,37 @@ async function deliverMail(mail, contextLabel) {
       subject: mail.subject,
       text: mail.text,
     });
-    logger.info(`${contextLabel} email accepted by SMTP`, {
+    logger.info(`[${contextLabel}] email accepted by SMTP`, {
       to: mail.to,
       messageId: info.messageId,
+      response: info.response,
       replyTo: mail.replyTo,
     });
     return info;
   } catch (err) {
-    logger.error('sendMail failed', {
+    logger.error(`[${contextLabel}] sendMail failed`, {
       err,
+      message: err && err.message,
+      code: err && err.code,
+      command: err && err.command,
       to: mail.to,
       host: config.host,
       port: config.port,
-      contextLabel,
     });
     const reason = err && err.message ? String(err.message) : 'unknown error';
     throw new HttpsError(
       'internal',
-      `Could not send email (${reason}). Check SMTP_PASS (e.g. Gmail App Password), ` +
-        'SMTP_FROM matches your account, and Cloud Function logs.',
+      `Could not send email (${reason}). Check SMTP_PASS (Gmail App Password), SMTP_FROM, and Cloud Function logs.`,
     );
   }
 }
 
 /**
  * @param {string} to
- * @param {string} plainCode - 6-digit OTP (only in memory; never stored in Firestore)
+ * @param {string} plainCode
  */
 async function sendPasswordResetOtpEmail(to, plainCode) {
-  const config = getSmtpConfig();
+  const config = readSmtpConfig();
   const from = config.from || config.user;
   await deliverMail(
     {
@@ -118,12 +140,10 @@ async function sendPasswordResetOtpEmail(to, plainCode) {
 }
 
 /**
- * Admin feedback reply to a customer.
- *
  * @param {{ to: string, subject: string, text: string, adminEmail: string }} params
  */
 async function sendFeedbackReplyEmail({ to, subject, text, adminEmail }) {
-  const config = getSmtpConfig();
+  const config = readSmtpConfig();
   const smtpFrom = config.from || config.user;
   const admin = String(adminEmail || '').trim();
   const from =
@@ -143,4 +163,4 @@ async function sendFeedbackReplyEmail({ to, subject, text, adminEmail }) {
   );
 }
 
-module.exports = { sendPasswordResetOtpEmail, sendFeedbackReplyEmail };
+module.exports = { sendPasswordResetOtpEmail, sendFeedbackReplyEmail, deliverMail };

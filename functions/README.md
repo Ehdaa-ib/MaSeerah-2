@@ -51,25 +51,40 @@ In the **local emulator**, if unset, a dev-only default is used (see `index.js`)
 
 Implemented in `services/email_service.js` so you can swap providers later.
 
-**Why the app said “sent” but you got no mail:** older behavior only **logged** the OTP in Cloud Logging when SMTP was missing. In production, missing SMTP now returns an error instead. You must set the variables below on the **`sendPasswordResetOtp`** runtime (2nd gen = a Cloud Run service).
+**Provider:** Nodemailer over **SMTP** (Gmail, Outlook, or any SMTP host). There is no SendGrid in this project unless you point SMTP at SendGrid’s relay.
 
-**Set environment variables (Google Cloud Console)**
+**Why feedback reply failed with a generic error:** Gen 2 creates **one Cloud Run service per function**. If `sendFeedbackReply` was never deployed, or was deployed **without** SMTP env vars, email fails while password reset may still work. The app now **falls back** to `sendPasswordResetOtp` with `mode: feedbackReply` (same service that already has SMTP).
 
-1. Open [Cloud Run](https://console.cloud.google.com/run) for the same project as Firebase.
-2. Find the service whose name includes **`sendpasswordresetotp`** (Firebase lowercases names).
-3. **Edit & deploy new revision** → **Variables & Secrets** → **Add variable** for each:
+### Configure SMTP (recommended)
+
+1. Copy `functions/.env.example` → `functions/.env` and fill in Gmail (or your provider).
+2. Deploy **all** functions (applies `.env` to every Gen 2 service):
+
+```bash
+cd functions && npm install && cd ..
+firebase deploy --only functions
+```
+
+3. Test SMTP locally:
+
+```bash
+cd functions
+npm run test:smtp -- your-test-inbox@gmail.com
+```
+
+### Manual Cloud Run variables (alternative)
+
+Set on **every** email-related service (`sendpasswordresetotp`, `sendfeedbackreply`, …):
 
 | Variable | Example (Gmail) |
 |----------|-----------------|
 | `SMTP_HOST` | `smtp.gmail.com` |
 | `SMTP_PORT` | `587` |
 | `SMTP_USER` | Your full Gmail address |
-| `SMTP_PASS` | [App Password](https://myaccount.google.com/apppasswords) (16 characters, not your normal password) |
-| `SMTP_FROM` | Same as `SMTP_USER` or an alias Google allows |
+| `SMTP_PASS` | [App Password](https://myaccount.google.com/apppasswords) — or bind secret `SMTP_PASS` |
+| `SMTP_FROM` | Same as `SMTP_USER` |
 
-4. Deploy the revision. No need to change OTP / Firestore logic.
-
-**Or use `functions/.env` on deploy:** copy `.env.example` to `.env`, fill in real values, run `firebase deploy --only functions` from your machine. Firebase CLI loads `.env` for 2nd gen functions; `.env` is gitignored so secrets are not committed.
+**Or use `functions/.env` on deploy:** Firebase CLI loads `.env` for all Gen 2 functions in this codebase.
 
 **Gmail checklist:** 2-Step Verification must be on to create App Passwords. Use port **587** (TLS). Check **Spam** for `MaSeerah`. If send still fails, open **Cloud Run → service → Logs** and look for `sendMail failed`.
 
