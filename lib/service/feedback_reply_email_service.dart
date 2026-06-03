@@ -3,11 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/error_messages.dart';
+import '../util/callable_error_message.dart';
 
 /// Sends admin feedback replies by email via Cloud Functions (Nodemailer SMTP).
 ///
-/// Tries [sendFeedbackReply] first; if that callable is not deployed yet, falls back to
-/// [sendPasswordResetOtp] with `mode: feedbackReply` (same Cloud Run service as password reset).
+/// Prefers [sendPasswordResetOtp] with `mode: feedbackReply` — that Cloud Run service
+/// usually already has SMTP env vars. Falls back to [sendFeedbackReply].
 class FeedbackReplyEmailService {
   FeedbackReplyEmailService({FirebaseFunctions? functions})
       : _functions =
@@ -31,39 +32,60 @@ class FeedbackReplyEmailService {
         'Your admin account has no email on file. Sign out and sign in again.',
       );
     }
+    if (!_looksLikeEmail(adminEmail)) {
+      throw StateError('Your admin account email is not valid: $adminEmail');
+    }
+
+    final fid = feedbackId.trim();
+    final subj = subject.trim();
+    final body = messageBody.trim();
+    if (fid.isEmpty) throw StateError('Feedback id is missing.');
+    if (subj.isEmpty) throw StateError('Subject is required.');
+    if (body.isEmpty) throw StateError('Message body is required.');
 
     await user.getIdToken(true);
 
     final payload = <String, dynamic>{
-      'feedbackId': feedbackId.trim(),
-      'subject': subject.trim(),
-      'messageBody': messageBody.trim(),
+      'feedbackId': fid,
+      'subject': subj,
+      'messageBody': body,
     };
 
     _log('sendFeedbackReply start', {
-      'feedbackId': payload['feedbackId'],
-      'subject': payload['subject'],
-      'bodyLength': (payload['messageBody'] as String).length,
+      'feedbackId': fid,
+      'subject': subj,
+      'bodyLength': body.length,
       'adminEmail': adminEmail,
     });
 
+    Object? primaryError;
     try {
-      await _invoke('sendFeedbackReply', payload);
-      _log('sendFeedbackReply success via sendFeedbackReply', null);
+      await _invoke(
+        'sendPasswordResetOtp',
+        {'mode': 'feedbackReply', ...payload},
+      );
+      _log('success via sendPasswordResetOtp (feedbackReply mode)', null);
       return;
-    } catch (e) {
-      if (!_shouldFallbackToOtpService(e)) {
-        _log('sendFeedbackReply failed (no fallback)', e);
+    } catch (e, st) {
+      primaryError = e;
+      _log('sendPasswordResetOtp feedbackReply failed', e);
+      if (kDebugMode) debugPrint('[FeedbackReply] stack: $st');
+      if (!_shouldTryDedicatedCallable(e)) {
         rethrow;
       }
-      _log('sendFeedbackReply not available, trying sendPasswordResetOtp fallback', e);
     }
 
-    await _invoke('sendPasswordResetOtp', {
-      'mode': 'feedbackReply',
-      ...payload,
-    });
-    _log('sendFeedbackReply success via sendPasswordResetOtp fallback', null);
+    try {
+      await _invoke('sendFeedbackReply', payload);
+      _log('success via sendFeedbackReply', null);
+    } catch (e, st) {
+      _log('sendFeedbackReply failed', e);
+      if (kDebugMode) {
+        debugPrint('[FeedbackReply] primary error: $primaryError');
+        debugPrint('[FeedbackReply] stack: $st');
+      }
+      rethrow;
+    }
   }
 
   Future<void> _invoke(String name, Map<String, dynamic> data) async {
@@ -73,66 +95,39 @@ class FeedbackReplyEmailService {
       options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
     );
     final result = await callable.call(data);
-    _log('callable response', {
-      'name': name,
-      'data': result.data,
-    });
+    _log('callable response', {'name': name, 'data': result.data});
   }
 
-  /// True when [sendFeedbackReply] is missing or unreachable (deploy / CORS / region).
-  static bool _shouldFallbackToOtpService(Object e) {
-    if (e is FirebaseFunctionsException) {
-      final code = _normalizeCallableCode(e.code);
-      final msg = (e.message ?? '').toLowerCase();
-      if (code == 'not-found' || code == 'unavailable') return true;
-      if (msg.contains('not found') && msg.contains('function')) return true;
-      if (msg.contains('not_found')) return true;
+  /// When to try [sendFeedbackReply] after [sendPasswordResetOtp] failed.
+  static bool _shouldTryDedicatedCallable(Object e) {
+    if (e is! FirebaseFunctionsException) return true;
+    final code = _normalizeCode(e.code);
+    final msg = messageFromCallableException(e).toLowerCase();
+
+    if (code == 'permission-denied' || code == 'unauthenticated') {
+      return false;
     }
-    final s = e.toString().toLowerCase();
-    return s.contains('not_found') ||
-        s.contains('not-found') ||
-        s.contains('unavailable') ||
-        (s.contains('function') && s.contains('not found'));
+    // Legacy OTP handler without feedbackReply mode.
+    if (code == 'invalid-argument' && msg.contains('valid email')) {
+      return true;
+    }
+    if (code == 'not-found' || code == 'unavailable') return true;
+    // Same SMTP missing on both services — retry won't help.
+    if (msg.contains('not configured') || msg.contains('smtp')) {
+      return false;
+    }
+    return true;
   }
 
-  static String mapFunctionsError(Object e) {
+  static String mapFunctionsError(Object e, {bool includeDebugDetail = true}) {
     _log('mapFunctionsError', e);
 
     if (e is FirebaseFunctionsException) {
-      final code = _normalizeCallableCode(e.code);
-      final msg = e.message?.trim() ?? '';
-      final details = e.details;
-
-      if (kDebugMode && details != null) {
-        debugPrint('[FeedbackReply] details: $details');
+      final resolved = messageFromCallableException(e);
+      if (kDebugMode && includeDebugDetail) {
+        return '$resolved\n(code: ${_normalizeCode(e.code)})';
       }
-
-      if (msg.isNotEmpty) {
-        return _messageForCode(code, msg);
-      }
-
-      switch (code) {
-        case 'unauthenticated':
-          return 'You must be signed in as an admin to send replies.';
-        case 'permission-denied':
-          return 'Only admins can send feedback replies.';
-        case 'not-found':
-          return 'Feedback not found, or Cloud Function sendFeedbackReply is not deployed. '
-              'Run: firebase deploy --only functions';
-        case 'failed-precondition':
-          return 'Email is not configured or the customer has no valid email. '
-              'Set SMTP_* and deploy functions (see functions/README.md).';
-        case 'invalid-argument':
-          return 'Please check the reply form (subject and message are required).';
-        case 'unavailable':
-          return 'Email service is unavailable. Deploy Cloud Functions to us-central1 '
-              'and check your network connection.';
-        case 'internal':
-          return 'The server could not send the email. Check SMTP settings in Cloud Functions '
-              'logs (functions/README.md).';
-        default:
-          return 'Email error ($code). Deploy functions and configure SMTP.';
-      }
+      return resolved;
     }
 
     if (e is StateError) {
@@ -142,17 +137,10 @@ class FeedbackReplyEmailService {
     return toUserFriendlyMessage(e);
   }
 
-  static String _messageForCode(String code, String msg) {
-    final lower = msg.toLowerCase();
-    if (code == 'not-found' &&
-        (lower.contains('function') || lower.contains('not_found'))) {
-      return 'Cloud Function sendFeedbackReply is not deployed. '
-          'From the project root run: firebase deploy --only functions';
-    }
-    return msg;
-  }
+  static bool _looksLikeEmail(String s) =>
+      s.contains('@') && s.contains('.') && s.length > 5;
 
-  static String _normalizeCallableCode(String code) {
+  static String _normalizeCode(String code) {
     final lower = code.toLowerCase();
     final i = lower.lastIndexOf('/');
     if (i != -1 && i < lower.length - 1) {

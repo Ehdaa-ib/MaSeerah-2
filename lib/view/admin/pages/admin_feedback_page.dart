@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
@@ -457,15 +458,20 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
                               ),
                             );
                             await _load();
-                          } catch (e) {
+                          } catch (e, st) {
                             if (!context.mounted) return;
                             setDialogState(() => sending = false);
+                            if (kDebugMode) {
+                              debugPrint('[AdminFeedback] send reply error: $e');
+                              debugPrint('[AdminFeedback] $st');
+                            }
+                            final userMessage =
+                                FeedbackReplyEmailService.mapFunctionsError(e);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(
-                                  FeedbackReplyEmailService.mapFunctionsError(e),
-                                ),
+                                content: Text(userMessage),
                                 backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 8),
                               ),
                             );
                           }

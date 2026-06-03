@@ -20,6 +20,24 @@ function isAdminEmailAddress(email) {
   return /^(ehdaa\.test|q\.test|m\.test|r\.test|malak)@admin\.com$/.test(e);
 }
 
+async function resolveAdminEmail(request) {
+  const tokenEmail = request.auth.token.email
+    ? normalizeEmail(request.auth.token.email)
+    : '';
+  if (tokenEmail && isValidEmailFormat(tokenEmail)) {
+    return tokenEmail;
+  }
+  const uid = request.auth.uid;
+  if (uid) {
+    const userDoc = await admin.firestore().collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      const profileEmail = normalizeEmail(userDoc.data().email || '');
+      if (isValidEmailFormat(profileEmail)) return profileEmail;
+    }
+  }
+  return tokenEmail;
+}
+
 async function assertCallerIsAdmin(request) {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'You must be signed in to send replies.');
@@ -34,7 +52,8 @@ async function assertCallerIsAdmin(request) {
   if (uid) {
     const userDoc = await admin.firestore().collection('users').doc(uid).get();
     if (userDoc.exists && userDoc.data().role === 'admin') {
-      return tokenEmail || uid;
+      const profileEmail = normalizeEmail(userDoc.data().email || '');
+      return isValidEmailFormat(profileEmail) ? profileEmail : tokenEmail;
     }
   }
   throw new HttpsError('permission-denied', 'Only admins can send feedback replies.');
@@ -163,13 +182,16 @@ async function handleSendFeedbackReply(request) {
     );
   }
 
-  const senderEmail = normalizeEmail(
-    (request.auth.token && request.auth.token.email) || adminEmail,
-  );
+  const senderEmail = await resolveAdminEmail(request);
   if (!isValidEmailFormat(senderEmail)) {
+    logger.error('sendFeedbackReply: admin has no valid email', {
+      tokenEmail: request.auth.token && request.auth.token.email,
+      adminEmail,
+      uid: request.auth.uid,
+    });
     throw new HttpsError(
       'failed-precondition',
-      'Your admin account does not have a valid email for replies.',
+      'Your admin account does not have a valid email for replies. Sign in with an admin email or update your profile.',
     );
   }
 
@@ -188,13 +210,18 @@ async function handleSendFeedbackReply(request) {
       adminEmail: senderEmail,
     });
   } catch (e) {
-    logger.error('sendFeedbackReplyEmail failed', { feedbackId, err: e });
+    logger.error('sendFeedbackReplyEmail failed', {
+      feedbackId,
+      err: e,
+      message: e && e.message,
+      stack: e && e.stack,
+    });
     if (e instanceof HttpsError) throw e;
     throw new HttpsError(
-      'internal',
+      'failed-precondition',
       e && e.message
         ? String(e.message)
-        : 'Could not send email. Check SMTP configuration.',
+        : 'Could not send email. Check SMTP configuration in Cloud Functions.',
     );
   }
 
@@ -204,11 +231,13 @@ async function handleSendFeedbackReply(request) {
     logger.error('appendFeedbackAdminResponse after email failed', {
       feedbackId,
       err: e,
+      message: e && e.message,
+      stack: e && e.stack,
     });
     if (e instanceof HttpsError) throw e;
     throw new HttpsError(
-      'internal',
-      'Email was sent but saving the reply failed. Check logs.',
+      'failed-precondition',
+      'Email was sent but saving the reply in Firestore failed. Check Cloud Function logs.',
     );
   }
 

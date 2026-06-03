@@ -77,8 +77,9 @@ async function deliverMail(mail, contextLabel) {
     }
     throw new HttpsError(
       'failed-precondition',
-      'Email delivery is not configured. Set SMTP_HOST, SMTP_USER, SMTP_FROM in functions/.env and ' +
-        'SMTP_PASS via: firebase functions:secrets:set SMTP_PASS — then redeploy all functions.',
+      'Email delivery is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM in ' +
+        'functions/.env (or Cloud Run env vars on sendpasswordresetotp and sendfeedbackreply), then run: ' +
+        'firebase deploy --only functions',
     );
   }
 
@@ -112,7 +113,7 @@ async function deliverMail(mail, contextLabel) {
     });
     const reason = err && err.message ? String(err.message) : 'unknown error';
     throw new HttpsError(
-      'internal',
+      'failed-precondition',
       `Could not send email (${reason}). Check SMTP_PASS (Gmail App Password), SMTP_FROM, and Cloud Function logs.`,
     );
   }
