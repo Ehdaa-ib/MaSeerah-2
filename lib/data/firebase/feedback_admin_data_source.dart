@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../core/validators.dart';
 import '../../model/feedback.dart';
 
 /// Admin-only access to `feedback` (requires admin email or `users.role == admin`).
@@ -13,12 +14,12 @@ class FeedbackAdminDataSource {
 
   Future<List<FeedbackAdminRow>> fetchAll() async {
     final snap = await _db.collection(_collection).get();
-    final userNames = await _loadUserNames(
-      snap.docs
-          .map((d) => (d.data()['userId'] as String?) ?? '')
-          .where((id) => id.isNotEmpty)
-          .toSet(),
-    );
+    final userIds = snap.docs
+        .map((d) => (d.data()['userId'] as String?) ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final userNames = await _loadUserNames(userIds);
+    final userEmails = await _loadUserEmails(userIds);
 
     final rows = snap.docs.map((d) {
       final data = Map<String, dynamic>.from(d.data());
@@ -27,6 +28,7 @@ class FeedbackAdminDataSource {
         documentId: d.id,
         entry: entry,
         userDisplayName: userNames[entry.userId],
+        userEmail: userEmails[entry.userId],
       );
     }).toList();
 
@@ -57,6 +59,37 @@ class FeedbackAdminDataSource {
       }
     }
     return out;
+  }
+
+  Future<Map<String, String>> _loadUserEmails(Set<String> userIds) async {
+    if (userIds.isEmpty) return {};
+    final out = <String, String>{};
+    final ids = userIds.toList();
+    for (var i = 0; i < ids.length; i += 10) {
+      final chunk = ids.sublist(i, i + 10 > ids.length ? ids.length : i + 10);
+      final snap = await _db
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final doc in snap.docs) {
+        final email = (doc.data()['email'] as String?)?.trim() ?? '';
+        if (email.isNotEmpty && Validators.validateEmail(email)) {
+          out[doc.id] = email;
+        }
+      }
+    }
+    return out;
+  }
+
+  /// Resolves the customer's email from `users/{uid}` (Firestore profile).
+  Future<String?> fetchUserEmail(String userId) async {
+    final id = userId.trim();
+    if (id.isEmpty) return null;
+    final doc = await _db.collection('users').doc(id).get();
+    if (!doc.exists) return null;
+    final email = (doc.data()?['email'] as String?)?.trim() ?? '';
+    if (email.isEmpty || !Validators.validateEmail(email)) return null;
+    return email;
   }
 
   Future<void> appendAdminResponse({
@@ -95,10 +128,12 @@ class FeedbackAdminRow {
   final String documentId;
   final FeedbackEntry entry;
   final String? userDisplayName;
+  final String? userEmail;
 
   FeedbackAdminRow({
     required this.documentId,
     required this.entry,
     this.userDisplayName,
+    this.userEmail,
   });
 }

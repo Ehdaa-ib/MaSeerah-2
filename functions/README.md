@@ -9,6 +9,7 @@ Callable functions send a **6-digit OTP** by email, verify it, and set the user 
 | `sendPasswordResetOtp` | Ensures user exists in Auth, rate-limits resends, stores **hashed** OTP in Firestore, emails plain OTP |
 | `verifyPasswordResetOtp` | Checks hash, expiry, attempt limit; sets `verified: true` |
 | `resetPasswordWithOtp` | Requires `verified`, updates password, deletes session doc |
+| `sendFeedbackReply` | **Admin only** — emails customer feedback reply (SMTP), appends `adminResponses` on `feedback/{id}` |
 
 ## Deploy
 
