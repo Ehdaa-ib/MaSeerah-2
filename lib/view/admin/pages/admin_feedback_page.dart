@@ -137,243 +137,37 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
       return;
     }
 
-    await _showReplyDialog(row, customerEmail);
-  }
-
-  Future<void> _showReplyDialog(
-    FeedbackAdminRow row,
-    String customerEmail,
-  ) async {
-    final toController = TextEditingController(text: customerEmail);
-    final subjectController =
-        TextEditingController(text: _defaultReplySubject);
-    final bodyController = TextEditingController(text: _feedbackReplyTemplate);
-    var opening = false;
-
-    await showDialog<void>(
+    if (!mounted) return;
+    final validatedEmail = customerEmail;
+    final result = await showDialog<_FeedbackReplyDialogResult>(
       context: context,
-      barrierDismissible: !opening,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final inputDecoration = InputDecoration(
-              filled: true,
-              fillColor: Colors.white.withOpacity(0.55),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade600),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.brown, width: 2),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            );
-
-            return AlertDialog(
-              backgroundColor: AppColors.beige,
-              title: const Text(
-                'Reply to Feedback',
-                style: TextStyle(
-                  color: AppColors.brown,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              content: SizedBox(
-                width: 560,
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Journey: ${row.entry.journeyId}',
-                        style: TextStyle(
-                          color: AppColors.brown.withOpacity(0.85),
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'To',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.brown,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: toController,
-                        readOnly: true,
-                        style: const TextStyle(color: AppColors.brown),
-                        decoration: inputDecoration,
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'Subject',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.brown,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: subjectController,
-                        enabled: !opening,
-                        style: const TextStyle(color: AppColors.brown),
-                        decoration: inputDecoration,
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'Message',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.brown,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Continue below the template in Arabic and English, then open your email app to send.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.brown.withOpacity(0.75),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: bodyController,
-                        enabled: !opening,
-                        maxLines: 14,
-                        minLines: 8,
-                        style: const TextStyle(color: AppColors.brown),
-                        decoration: inputDecoration,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: opening ? null : () => Navigator.of(ctx).pop(),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: AppColors.brown),
-                  ),
-                ),
-                FilledButton(
-                  onPressed: opening
-                      ? null
-                      : () async {
-                          final to = toController.text.trim();
-                          final subject = subjectController.text.trim();
-                          final body = bodyController.text;
-
-                          if (!Validators.validateEmail(to)) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Customer email is not valid.'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
-                          if (subject.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Subject is required.'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
-                          if (body.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Message body is required.'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
-
-                          setDialogState(() => opening = true);
-                          final mailto = buildFeedbackReplyMailto(
-                            to: to,
-                            subject: subject,
-                            body: body,
-                          );
-                          try {
-                            final launched = await launchUrl(
-                              mailto,
-                              mode: LaunchMode.externalApplication,
-                            );
-                            if (!context.mounted) return;
-                            setDialogState(() => opening = false);
-                            if (!launched) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Could not open your email app.',
-                                  ),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                              return;
-                            }
-                            Navigator.of(ctx).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Opened your email app to reply to $to. '
-                                  'Finish the message and send it from there.',
-                                ),
-                                backgroundColor: Colors.green,
-                                duration: const Duration(seconds: 5),
-                              ),
-                            );
-                          } catch (_) {
-                            if (!context.mounted) return;
-                            setDialogState(() => opening = false);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Could not open your email app.',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.brown,
-                    foregroundColor: AppColors.beige,
-                    disabledBackgroundColor: AppColors.brown.withOpacity(0.4),
-                  ),
-                  child: opening
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.beige,
-                          ),
-                        )
-                      : const Text('Open in email app'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (ctx) => _FeedbackReplyDialog(
+        row: row,
+        customerEmail: validatedEmail,
+      ),
     );
+    if (!mounted || result == null) return;
 
-    toController.dispose();
-    subjectController.dispose();
-    bodyController.dispose();
+    switch (result) {
+      case _FeedbackReplyOpenedEmail(:final recipientEmail):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Opened your email app to reply to $recipientEmail. '
+              'Finish the message and send it from there.',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      case _FeedbackReplyLaunchFailed():
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open your email app.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+    }
   }
 
   Future<void> _openDetail(FeedbackAdminRow row) async {
@@ -680,6 +474,254 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
               ),
             ),
           const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+}
+
+sealed class _FeedbackReplyDialogResult {
+  const _FeedbackReplyDialogResult();
+}
+
+final class _FeedbackReplyLaunchFailed extends _FeedbackReplyDialogResult {
+  const _FeedbackReplyLaunchFailed();
+}
+
+final class _FeedbackReplyOpenedEmail extends _FeedbackReplyDialogResult {
+  const _FeedbackReplyOpenedEmail(this.recipientEmail);
+
+  final String recipientEmail;
+}
+
+class _FeedbackReplyDialog extends StatefulWidget {
+  const _FeedbackReplyDialog({
+    required this.row,
+    required this.customerEmail,
+  });
+
+  final FeedbackAdminRow row;
+  final String customerEmail;
+
+  @override
+  State<_FeedbackReplyDialog> createState() => _FeedbackReplyDialogState();
+}
+
+class _FeedbackReplyDialogState extends State<_FeedbackReplyDialog> {
+  late final TextEditingController _toController;
+  late final TextEditingController _subjectController;
+  late final TextEditingController _bodyController;
+  bool _opening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _toController = TextEditingController(text: widget.customerEmail);
+    _subjectController = TextEditingController(text: _defaultReplySubject);
+    _bodyController = TextEditingController(text: _feedbackReplyTemplate);
+  }
+
+  @override
+  void dispose() {
+    _toController.dispose();
+    _subjectController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _inputDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.55),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade600),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.brown, width: 2),
+      ),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );
+  }
+
+  Future<void> _openInEmailApp() async {
+    final to = _toController.text.trim();
+    final subject = _subjectController.text.trim();
+    final body = _bodyController.text;
+
+    if (!Validators.validateEmail(to)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Customer email is not valid.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (subject.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Subject is required.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (body.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Message body is required.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _opening = true);
+    final mailto = buildFeedbackReplyMailto(
+      to: to,
+      subject: subject,
+      body: body,
+    );
+
+    bool launched = false;
+    try {
+      launched = await launchUrl(
+        mailto,
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      launched = false;
+    }
+
+    if (!mounted) return;
+
+    if (!launched) {
+      setState(() => _opening = false);
+      Navigator.of(context).pop(const _FeedbackReplyLaunchFailed());
+      return;
+    }
+
+    Navigator.of(context).pop(_FeedbackReplyOpenedEmail(to));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inputDecoration = _inputDecoration();
+
+    return PopScope(
+      canPop: !_opening,
+      child: AlertDialog(
+        backgroundColor: AppColors.beige,
+        title: const Text(
+          'Reply to Feedback',
+          style: TextStyle(
+            color: AppColors.brown,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Journey: ${widget.row.entry.journeyId}',
+                  style: TextStyle(
+                    color: AppColors.brown.withOpacity(0.85),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'To',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.brown,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _toController,
+                  readOnly: true,
+                  style: const TextStyle(color: AppColors.brown),
+                  decoration: inputDecoration,
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Subject',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.brown,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _subjectController,
+                  enabled: !_opening,
+                  style: const TextStyle(color: AppColors.brown),
+                  decoration: inputDecoration,
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Message',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.brown,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Continue below the template in Arabic and English, then open your email app to send.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.brown.withOpacity(0.75),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _bodyController,
+                  enabled: !_opening,
+                  maxLines: 14,
+                  minLines: 8,
+                  style: const TextStyle(color: AppColors.brown),
+                  decoration: inputDecoration,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _opening ? null : () => Navigator.of(context).pop(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.brown),
+            ),
+          ),
+          FilledButton(
+            onPressed: _opening ? null : _openInEmailApp,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brown,
+              foregroundColor: AppColors.beige,
+              disabledBackgroundColor: AppColors.brown.withOpacity(0.4),
+            ),
+            child: _opening
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.beige,
+                    ),
+                  )
+                : const Text('Open in email app'),
+          ),
         ],
       ),
     );
