@@ -135,34 +135,4 @@ async function sendPasswordResetOtpEmail(to, plainCode) {
   );
 }
 
-/**
- * @param {{ to: string, subject: string, text: string, adminEmail: string }} params
- */
-async function sendFeedbackReplyEmail({ to, subject, text, adminEmail }) {
-  const config = readSmtpConfig();
-  const smtpFrom = config.from || config.user;
-  const admin = String(adminEmail || '').trim();
-
-  logStep('sendFeedbackReplyEmail', {
-    adminEmail: admin || '(missing)',
-    recipientEmail: to,
-    smtpFrom: smtpFrom ? `${smtpFrom.slice(0, 3)}***` : '(missing)',
-  });
-
-  if (!admin) {
-    throwCallableError('failed-precondition', 'Admin email is required for Reply-To.');
-  }
-
-  await deliverMail(
-    {
-      from: smtpFrom,
-      to,
-      replyTo: admin,
-      subject: String(subject || 'Feedback Response').trim() || 'Feedback Response',
-      text: String(text || '').trim(),
-    },
-    'feedback-reply',
-  );
-}
-
-module.exports = { sendPasswordResetOtpEmail, sendFeedbackReplyEmail, deliverMail };
+module.exports = { sendPasswordResetOtpEmail, deliverMail };
