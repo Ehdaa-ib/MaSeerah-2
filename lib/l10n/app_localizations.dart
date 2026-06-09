@@ -895,7 +895,7 @@ abstract class AppLocalizations {
   /// No description provided for @memoryUploadNote.
   ///
   /// In en, this message translates to:
-  /// **'Add a photo at this landmark to continue. Use your camera or choose one from your gallery.'**
+  /// **'Add a photo at this landmark to save your memory, or skip to continue. Use your camera or choose one from your gallery.'**
   String get memoryUploadNote;
 
   /// No description provided for @memoryUploadPhotoRequired.

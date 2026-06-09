@@ -13,7 +13,7 @@ import '../../../data/firebase/landmark_memory_data_source.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/wait_for_auth.dart';
 
-/// Memory capture step between landmark content and the challenge (photo required per landmark).
+/// Memory capture step between landmark content and the challenge (photo optional per landmark).
 class LandmarkMemoryUploadSheet extends StatefulWidget {
   const LandmarkMemoryUploadSheet({
     super.key,
@@ -147,6 +147,11 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
       _selectedFile = null;
       _uploadCommitted = false;
     });
+  }
+
+  void _onSkip() {
+    if (_uploading) return;
+    widget.onContinueToChallenge();
   }
 
   Future<void> _onNext() async {
@@ -420,17 +425,60 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
     );
   }
 
+  Widget _skipSection(AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.memoryUploadSkipHint,
+          textAlign: TextAlign.center,
+          style: MapTextStyles.caption.copyWith(
+            color: MapDesignTokens.bodyColor.withValues(alpha: 0.72),
+            fontWeight: FontWeight.w500,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: MapDesignTokens.spaceSm),
+        TextButton(
+          onPressed: _uploading ? null : _onSkip,
+          style: TextButton.styleFrom(
+            foregroundColor: MapDesignTokens.secondaryAccent,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            minimumSize: MapDesignTokens.minimumTouchTarget,
+            tapTargetSize: MaterialTapTargetSize.padded,
+            textStyle: MapTextStyles.buttonLabel,
+          ),
+          child: Text(l10n.memoryUploadSkipForNow),
+        ),
+      ],
+    );
+  }
+
   Widget _pickPhotoBody(AppLocalizations l10n) {
-    return SingleChildScrollView(
-      padding: MapDesignTokens.paddingLandmarkScroll,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _instructionCard(l10n.memoryUploadNote),
-          const SizedBox(height: MapDesignTokens.spaceLg),
-          _uploadArea(l10n),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: MapDesignTokens.paddingLandmarkScroll,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _instructionCard(l10n.memoryUploadNote),
+                const SizedBox(height: MapDesignTokens.spaceLg),
+                _uploadArea(l10n),
+              ],
+            ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(22, 0, 22, 16),
+            child: _skipSection(l10n),
+          ),
+        ),
+      ],
     );
   }
 

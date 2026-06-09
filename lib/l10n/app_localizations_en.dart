@@ -448,7 +448,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get memoryUploadNote =>
-      'Add a photo at this landmark to continue. Use your camera or choose one from your gallery.';
+      'Add a photo at this landmark to save your memory, or skip to continue. Use your camera or choose one from your gallery.';
 
   @override
   String get memoryUploadPhotoRequired =>

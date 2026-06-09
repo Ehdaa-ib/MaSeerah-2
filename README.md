@@ -1,16 +1,30 @@
-# maseerah_app
+# MaSeerah
 
-A new Flutter project.
+MaSeerah is a cross-platform Flutter mobile app that turns Islamic heritage sites in Medina into interactive, gamified walking journeys. Users explore themed routes such as Darb Al-Sunnah and the Battle of Uhud, unlock landmarks on a custom map, read Seerah narratives, solve educational challenges, capture photo memories, and receive curated local recommendations.
 
-## Getting Started
+## Capstone abstract
 
-This project is a starting point for a Flutter application.
+The competition-ready abstract (~500 words), keywords, tagline, and submission placeholders are in [ABSTRACT.md](ABSTRACT.md).
 
-A few resources to get you started if this is your first Flutter project:
+## Tech stack
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- **Frontend:** Flutter (Dart), Material Design
+- **Backend:** Firebase (Auth, Firestore, Storage, Cloud Functions)
+- **Payments:** Moyasar (SAR, Mada, Apple Pay)
+- **Maps:** Custom interactive map + Google Maps directions
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Getting started
+
+This is a Flutter application. For setup and development:
+
+- [Flutter documentation](https://docs.flutter.dev/)
+- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+
+Run the app:
+
+```bash
+flutter pub get
+flutter run
+```
+
+See [DEPLOY_FIRESTORE_RULES.md](DEPLOY_FIRESTORE_RULES.md) and [functions/README.md](functions/README.md) for Firebase and Cloud Functions setup.
