@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -36,7 +35,11 @@ class RecommendationListPopup extends StatelessWidget {
             title: l10n.recommendationListTitle,
             onClose: () => Navigator.of(context).pop(),
           ),
-          Divider(height: 1, thickness: 1, color: MapDesignTokens.borderSubtle(0.1)),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: MapDesignTokens.borderSubtle(0.1),
+          ),
           Expanded(
             child: sorted.isEmpty
                 ? Center(
@@ -74,14 +77,19 @@ class RecommendationListPopup extends StatelessWidget {
                     primary: false,
                     padding: const EdgeInsets.fromLTRB(6, 10, 6, 12),
                     itemCount: sorted.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: MapDesignTokens.spaceSm),
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: MapDesignTokens.spaceSm),
                     itemBuilder: (context, i) {
                       final p = sorted[i];
                       return Material(
                         color: MapDesignTokens.cardHighlightGreen(0.22),
-                        borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
+                        borderRadius: BorderRadius.circular(
+                          MapDesignTokens.radiusCard,
+                        ),
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
+                          borderRadius: BorderRadius.circular(
+                            MapDesignTokens.radiusCard,
+                          ),
                           onTap: () {
                             if (onPickPlace != null) {
                               onPickPlace!(p);
@@ -90,14 +98,20 @@ class RecommendationListPopup extends StatelessWidget {
                             }
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 11,
+                            ),
                             child: Row(
                               children: [
-                                _RecommendationListPhotoStrip(urls: p.imageUrls),
+                                _RecommendationListPhotoStrip(
+                                  urls: p.imageUrls,
+                                ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         p.name,
@@ -116,7 +130,8 @@ class RecommendationListPopup extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                         style: MapTextStyles.caption.copyWith(
                                           fontSize: 13,
-                                          color: MapDesignTokens.bodyColor.withValues(alpha: 0.88),
+                                          color: MapDesignTokens.bodyColor
+                                              .withValues(alpha: 0.88),
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -152,7 +167,8 @@ class _RecommendationListPhotoStrip extends StatelessWidget {
   static const double _stripW = 100;
   static const double _slideW = 72;
 
-  List<String> get _valid => urls.where((u) => u.trim().startsWith('http')).toList();
+  List<String> get _valid =>
+      urls.where((u) => u.trim().startsWith('http')).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -173,49 +189,49 @@ class _RecommendationListPhotoStrip extends StatelessWidget {
                 ),
               )
             : valid.length == 1
-                ? AppNetworkImage(
-                    url: valid.first,
-                    fit: BoxFit.cover,
-                    width: _stripW,
-                    height: _h,
-                    memCacheWidth: (_stripW * 2).round(),
-                    error: ColoredBox(
-                      color: AppColors.green.withValues(alpha: 0.4),
-                      child: Center(
-                        child: Icon(
-                          Icons.broken_image_outlined,
-                          color: MapDesignTokens.iconMuted(0.5),
-                        ),
-                      ),
+            ? AppNetworkImage(
+                url: valid.first,
+                fit: BoxFit.cover,
+                width: _stripW,
+                height: _h,
+                memCacheWidth: (_stripW * 2).round(),
+                error: ColoredBox(
+                  color: AppColors.green.withValues(alpha: 0.4),
+                  child: Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      color: MapDesignTokens.iconMuted(0.5),
                     ),
-                  )
-                : ListView.separated(
-                    primary: false,
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.zero,
-                    itemCount: valid.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 4),
-                    itemBuilder: (_, i) => SizedBox(
-                      width: _slideW,
-                      height: _h,
-                      child: AppNetworkImage(
-                        url: valid[i],
-                        fit: BoxFit.cover,
-                        width: _slideW,
-                        height: _h,
-                        memCacheWidth: (_slideW * 2).round(),
-                        error: ColoredBox(
-                          color: AppColors.green.withValues(alpha: 0.35),
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            size: 22,
-                            color: MapDesignTokens.iconMuted(0.45),
-                          ),
-                        ),
+                  ),
+                ),
+              )
+            : ListView.separated(
+                primary: false,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.zero,
+                itemCount: valid.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 4),
+                itemBuilder: (_, i) => SizedBox(
+                  width: _slideW,
+                  height: _h,
+                  child: AppNetworkImage(
+                    url: valid[i],
+                    fit: BoxFit.cover,
+                    width: _slideW,
+                    height: _h,
+                    memCacheWidth: (_slideW * 2).round(),
+                    error: ColoredBox(
+                      color: AppColors.green.withValues(alpha: 0.35),
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        size: 22,
+                        color: MapDesignTokens.iconMuted(0.45),
                       ),
                     ),
                   ),
+                ),
+              ),
       ),
     );
   }

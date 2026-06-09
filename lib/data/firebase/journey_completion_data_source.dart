@@ -7,7 +7,8 @@ class JourneyCompletionDataSource {
   static const String _collection = 'journeyCompletions';
 
   /// Append-only history under the user profile (never removed by [clearCompletion]).
-  static const String userCompletionHistorySubcollection = 'journeyCompletionHistory';
+  static const String userCompletionHistorySubcollection =
+      'journeyCompletionHistory';
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -41,18 +42,14 @@ class JourneyCompletionDataSource {
         .doc(instanceId);
 
     final batch = _firestore.batch();
-    batch.set(
-      mainRef,
-      {
-        'userId': userId,
-        'journeyId': journeyId,
-        'userJourneyId': instanceId,
-        'completedAt': FieldValue.serverTimestamp(),
-        // Journey was finished on the map; feedback may still be pending.
-        'awaitingFeedback': true,
-      },
-      SetOptions(merge: true),
-    );
+    batch.set(mainRef, {
+      'userId': userId,
+      'journeyId': journeyId,
+      'userJourneyId': instanceId,
+      'completedAt': FieldValue.serverTimestamp(),
+      // Journey was finished on the map; feedback may still be pending.
+      'awaitingFeedback': true,
+    }, SetOptions(merge: true));
     batch.set(historyRef, {
       'userId': userId,
       'journeyId': journeyId,
@@ -135,7 +132,10 @@ class JourneyCompletionDataSource {
         )) {
       return fromField;
     }
-    if (!LandmarkMemoryDataSource.isCatalogJourneyDocId(docId, catalogJourneyId: catalog)) {
+    if (!LandmarkMemoryDataSource.isCatalogJourneyDocId(
+      docId,
+      catalogJourneyId: catalog,
+    )) {
       return docId;
     }
     return null;
@@ -201,7 +201,9 @@ class JourneyCompletionDataSource {
         final data = doc.data();
         final stored = (data['journeyId'] as String?)?.trim() ?? '';
         if (stored.isEmpty) continue;
-        final storedVariants = LandmarkMemoryDataSource.journeyIdVariants(stored);
+        final storedVariants = LandmarkMemoryDataSource.journeyIdVariants(
+          stored,
+        );
         if (!storedVariants.any(variants.contains)) continue;
 
         final playthroughId = _playthroughIdFromCompletionData(
@@ -248,7 +250,9 @@ class JourneyCompletionDataSource {
     required String catalogJourneyId,
     DateTime? completedAt,
   }) async {
-    final variants = LandmarkMemoryDataSource.journeyIdVariants(catalogJourneyId);
+    final variants = LandmarkMemoryDataSource.journeyIdVariants(
+      catalogJourneyId,
+    );
     final snap = await _firestore
         .collection('users')
         .doc(userId)
@@ -267,11 +271,14 @@ class JourneyCompletionDataSource {
       final data = doc.data();
       final stored = (data['journeyId'] as String?)?.trim() ?? '';
       if (stored.isNotEmpty) {
-        final storedVariants = LandmarkMemoryDataSource.journeyIdVariants(stored);
+        final storedVariants = LandmarkMemoryDataSource.journeyIdVariants(
+          stored,
+        );
         if (!storedVariants.any(variants.contains)) continue;
       }
 
-      final candidate = (data['userJourneyId'] as String?)?.trim() ??
+      final candidate =
+          (data['userJourneyId'] as String?)?.trim() ??
           (data['journeyHistoryId'] as String?)?.trim() ??
           doc.id;
       if (LandmarkMemoryDataSource.isCatalogJourneyDocId(
@@ -348,4 +355,3 @@ class JourneyCompletionDataSource {
     return null;
   }
 }
-

@@ -7,7 +7,7 @@ import '../../model/recommendation_place.dart';
 /// Collection documents can optionally include [landmarksJourneyId] / [catalogJourneyId] to scope by journey.
 class RecommendationPlacesDataSource {
   RecommendationPlacesDataSource({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+    : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
@@ -58,7 +58,9 @@ class RecommendationPlacesDataSource {
     QuerySnapshot<Map<String, dynamic>> snap = await col.get();
 
     if (snap.docs.isEmpty && kDebugMode) {
-      debugPrint('[RecommendationPlaces] collection=$id rawDocs=0 (empty or no read access)');
+      debugPrint(
+        '[RecommendationPlaces] collection=$id rawDocs=0 (empty or no read access)',
+      );
     }
 
     final all = <RecommendationPlace>[];
@@ -90,7 +92,9 @@ class RecommendationPlacesDataSource {
       final lj = p.landmarksJourneyId?.trim();
       final cj = p.catalogJourneyId?.trim();
       if (lj == null && cj == null) return true;
-      if (landmarksJourneyId.isNotEmpty && lj == landmarksJourneyId.trim()) return true;
+      if (landmarksJourneyId.isNotEmpty && lj == landmarksJourneyId.trim()) {
+        return true;
+      }
       final cat = catalogJourneyId?.trim();
       if (cat != null && cat.isNotEmpty && cj == cat) return true;
       return false;

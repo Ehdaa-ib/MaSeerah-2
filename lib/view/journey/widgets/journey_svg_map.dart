@@ -6,6 +6,7 @@ import 'package:path_drawing/path_drawing.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../core/map_design_tokens.dart';
+
 /// Journey map: **PNGs** for artwork, **`map.svg`** only for region paths (taps + clip holes).
 ///
 /// [activeMapAssetPath] is the full-color raster underneath. [inactiveMapAssetPath] is drawn
@@ -17,8 +18,10 @@ import '../../../core/map_design_tokens.dart';
 class JourneySvgMap extends StatefulWidget {
   /// SVG read for geometry only (not painted).
   final String assetPath;
+
   /// Full-color map image drawn under the inactive overlay in dual-map mode (e.g. PNG).
   final String activeMapAssetPath;
+
   /// Inactive map image drawn on top and clipped (e.g. PNG). Use `''` to disable dual-map mode.
   final String inactiveMapAssetPath;
   final int regionCount;
@@ -50,7 +53,8 @@ class JourneySvgMap extends StatefulWidget {
   State<JourneySvgMap> createState() => _JourneySvgMapState();
 }
 
-class _JourneySvgMapState extends State<JourneySvgMap> with SingleTickerProviderStateMixin {
+class _JourneySvgMapState extends State<JourneySvgMap>
+    with SingleTickerProviderStateMixin {
   late Future<_SvgSplitResult> _future;
   late AnimationController _floatController;
 
@@ -85,6 +89,7 @@ class _JourneySvgMapState extends State<JourneySvgMap> with SingleTickerProvider
     if (widget.allowTapCompleted && region < widget.currentRegion) return true;
     return false;
   }
+
   Future<_SvgSplitResult> _loadAndSplit() async {
     final raw = await rootBundle.loadString(widget.assetPath);
     return _SvgSplitter.splitIntoRegions(raw, widget.regionCount);
@@ -113,7 +118,11 @@ class _JourneySvgMapState extends State<JourneySvgMap> with SingleTickerProvider
 
         if (widget.inactiveMapAssetPath.isNotEmpty) {
           if (widget.activeMapAssetPath.isEmpty) {
-            return _rasterMapWithHits(context, res, top: widget.inactiveMapAssetPath);
+            return _rasterMapWithHits(
+              context,
+              res,
+              top: widget.inactiveMapAssetPath,
+            );
           }
           return LayoutBuilder(
             builder: (context, constraints) {
@@ -153,7 +162,8 @@ class _JourneySvgMapState extends State<JourneySvgMap> with SingleTickerProvider
                     ),
                   ),
                   _buildActiveRegionBorderOverlay(res),
-                  _regionTapOverlay(context, hit),                ],
+                  _regionTapOverlay(context, hit),
+                ],
               );
             },
           );
@@ -191,7 +201,8 @@ class _JourneySvgMapState extends State<JourneySvgMap> with SingleTickerProvider
               gaplessPlayback: true,
             ),
             _buildActiveRegionBorderOverlay(res),
-            _regionTapOverlay(context, hit),          ],
+            _regionTapOverlay(context, hit),
+          ],
         );
       },
     );
@@ -234,6 +245,7 @@ class _JourneySvgMapState extends State<JourneySvgMap> with SingleTickerProvider
     );
   }
 }
+
 class _SvgSplitResult {
   final bool hasAllRegions;
   final _ViewBox viewBox;
@@ -277,7 +289,8 @@ class _SvgSplitter {
     }
 
     final String? overlayInner =
-        _extractMapOverlayBodyById(svg) ?? _extractLooseOverlayAfterRegion1(svg);
+        _extractMapOverlayBodyById(svg) ??
+        _extractLooseOverlayAfterRegion1(svg);
     if (overlayInner != null && overlayInner.isNotEmpty) {
       _mergeOverlayPathsIntoRegionHit(hitPaths, overlayInner, bindRegion: 1);
     }
@@ -339,9 +352,10 @@ class _SvgSplitter {
     if (m == null) return null;
     final inner = m.group(1)!.trim();
     if (inner.isEmpty) return null;
-    if (!RegExp(r'<(path|g|circle|rect|ellipse|polygon|polyline|line)\b',
-            caseSensitive: false)
-        .hasMatch(inner)) {
+    if (!RegExp(
+      r'<(path|g|circle|rect|ellipse|polygon|polyline|line)\b',
+      caseSensitive: false,
+    ).hasMatch(inner)) {
       return null;
     }
     return inner;
@@ -356,10 +370,7 @@ class _SvgSplitter {
     if (existing == null) return;
     var combined = existing;
 
-    final re = RegExp(
-      r'<path\b[^>]*\bd="([^"]+)"',
-      caseSensitive: false,
-    );
+    final re = RegExp(r'<path\b[^>]*\bd="([^"]+)"', caseSensitive: false);
     for (final m in re.allMatches(overlayInner)) {
       final d = m.group(1);
       if (d == null || d.isEmpty) continue;
@@ -424,7 +435,10 @@ class _SvgSplitter {
   }
 
   static String _extractViewBox(String svg) {
-    final m = RegExp(r'viewBox="([^"]+)"', caseSensitive: false).firstMatch(svg);
+    final m = RegExp(
+      r'viewBox="([^"]+)"',
+      caseSensitive: false,
+    ).firstMatch(svg);
     return m?.group(1) ?? '0 0 860 1700';
   }
 
@@ -461,7 +475,10 @@ class _SvgSplitter {
     // 2) class="region_N" / class="regionN" (possibly with other classes too)
     // Prefer the *enclosing* <g> that contains the region path so decorations
     // inside that group are included and grayed together.
-    final enclosingGroup = _extractEnclosingGroupForRegionPath(svg, regionNumber);
+    final enclosingGroup = _extractEnclosingGroupForRegionPath(
+      svg,
+      regionNumber,
+    );
     if (enclosingGroup != null) return enclosingGroup;
 
     // Then try a group directly tagged with the region token.
@@ -498,15 +515,19 @@ class _SvgSplitter {
     if (selfClosing != null) return selfClosing.group(0);
 
     final normal = RegExp(
-      r'<[a-zA-Z_][^>]*class="[^"]*' + token + r'[^"]*"[^>]*>[\s\S]*?</[a-zA-Z_]+>',
+      r'<[a-zA-Z_][^>]*class="[^"]*' +
+          token +
+          r'[^"]*"[^>]*>[\s\S]*?</[a-zA-Z_]+>',
       caseSensitive: false,
     ).firstMatch(svg);
     return normal?.group(0);
   }
 
   static String? _extractFirstPathD(String elementSvg) {
-    final m = RegExp(r'<path\b[^>]*\bd="([^"]+)"', caseSensitive: false)
-        .firstMatch(elementSvg);
+    final m = RegExp(
+      r'<path\b[^>]*\bd="([^"]+)"',
+      caseSensitive: false,
+    ).firstMatch(elementSvg);
     return m?.group(1);
   }
 
@@ -521,7 +542,10 @@ class _SvgSplitter {
     return _extractFirstPathD(elementSvg);
   }
 
-  static String? _extractEnclosingGroupForRegionPath(String svg, int regionNumber) {
+  static String? _extractEnclosingGroupForRegionPath(
+    String svg,
+    int regionNumber,
+  ) {
     // Regex-based group extraction becomes unreliable/slow on big SVGs.
     // Instead: locate the first <path ... class="...regionN...">, then walk
     // outward to the enclosing <g>...</g> by counting nested group tags.
@@ -591,7 +615,10 @@ class _SvgSplitter {
   static int? _parseRegionNumberFromClasses(String classes) {
     final tokens = classes.split(RegExp(r'\s+')).where((t) => t.isNotEmpty);
     for (final t in tokens) {
-      final mm = RegExp(r'^region_?([1-9])$', caseSensitive: false).firstMatch(t);
+      final mm = RegExp(
+        r'^region_?([1-9])$',
+        caseSensitive: false,
+      ).firstMatch(t);
       if (mm != null) return int.tryParse(mm.group(1)!);
     }
     return null;
@@ -621,7 +648,12 @@ class _ViewBox {
       return const _ViewBox(x: 0, y: 0, width: 860, height: 1700);
     }
     double p(int i, double fallback) => double.tryParse(parts[i]) ?? fallback;
-    return _ViewBox(x: p(0, 0), y: p(1, 0), width: p(2, 860), height: p(3, 1700));
+    return _ViewBox(
+      x: p(0, 0),
+      y: p(1, 0),
+      width: p(2, 860),
+      height: p(3, 1700),
+    );
   }
 }
 
@@ -657,8 +689,7 @@ class _InactiveOverlayClipper extends CustomClipper<Path> {
 
   @override
   Path getClip(Size size) {
-    final outer = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final outer = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
     Path? holes;
     final maxR = currentRegion.clamp(0, regionCount);
     for (var i = 1; i <= maxR; i++) {

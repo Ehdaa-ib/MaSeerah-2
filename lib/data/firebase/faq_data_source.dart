@@ -9,11 +9,9 @@ class FaqDataSource {
 
   /// Live stream of all FAQ documents, ordered by the `order` field.
   Stream<List<FaqItem>> watchFaqs() {
-    return _firestore
-        .collection(collection)
-        .orderBy('order')
-        .snapshots()
-        .map((snapshot) {
+    return _firestore.collection(collection).orderBy('order').snapshots().map((
+      snapshot,
+    ) {
       return snapshot.docs
           .map((doc) => FaqItem.fromFirestore(doc.id, doc.data()))
           .toList();

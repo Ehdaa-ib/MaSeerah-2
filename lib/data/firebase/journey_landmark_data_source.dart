@@ -5,7 +5,7 @@ import '../../util/ttl_cache.dart';
 
 class JourneyLandmarkDataSource {
   JourneyLandmarkDataSource({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -14,16 +14,21 @@ class JourneyLandmarkDataSource {
   /// Perf: landmark catalog is static during a journey session.
   static const Duration _landmarkCacheTtl = Duration(minutes: 15);
 
-  static String _journeyListCacheKey(String journeyId) => 'landmarks_journey_$journeyId';
+  static String _journeyListCacheKey(String journeyId) =>
+      'landmarks_journey_$journeyId';
 
-  static String _landmarkDocCacheKey(String documentId) => 'landmark_doc_$documentId';
+  static String _landmarkDocCacheKey(String documentId) =>
+      'landmark_doc_$documentId';
 
   /// Single document `journey_landmarks/{documentId}` (e.g. `journey1landmark2` for a specific SVG region).
   Future<JourneyLandmark?> getLandmark(String documentId) async {
     final id = documentId.trim();
     if (id.isEmpty) return null;
 
-    final cached = TtlCache.read<JourneyLandmark>(_landmarkDocCacheKey(id), _landmarkCacheTtl);
+    final cached = TtlCache.read<JourneyLandmark>(
+      _landmarkDocCacheKey(id),
+      _landmarkCacheTtl,
+    );
     if (cached != null) return cached;
 
     final snap = await _firestore.collection(collection).doc(id).get();
@@ -52,23 +57,24 @@ class JourneyLandmarkDataSource {
         .where('journeyId', isEqualTo: jid)
         .get();
 
-    final list = snap.docs
-        .where((d) => !_isSoftDeleted(d.data()))
-        .map((d) => JourneyLandmark.fromFirestore(d.id, d.data()))
-        .where((l) => l.order > 0)
-        .toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final list =
+        snap.docs
+            .where((d) => !_isSoftDeleted(d.data()))
+            .map((d) => JourneyLandmark.fromFirestore(d.id, d.data()))
+            .where((l) => l.order > 0)
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
 
     TtlCache.write(_journeyListCacheKey(jid), list);
     return list;
   }
 
-  static bool _isSoftDeleted(Map<String, dynamic> data) => data['deletedAt'] != null;
+  static bool _isSoftDeleted(Map<String, dynamic> data) =>
+      data['deletedAt'] != null;
 
   /// All landmarks for admin (includes soft-deleted rows).
-  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> getLandmarkDocsForJourneyAdmin(
-    String journeyId,
-  ) async {
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+  getLandmarkDocsForJourneyAdmin(String journeyId) async {
     final snap = await _firestore
         .collection(collection)
         .where('journeyId', isEqualTo: journeyId)
@@ -93,10 +99,10 @@ class JourneyLandmarkDataSource {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    await _firestore.collection(collection).doc(documentId).set(
-          data,
-          SetOptions(merge: true),
-        );
+    await _firestore
+        .collection(collection)
+        .doc(documentId)
+        .set(data, SetOptions(merge: true));
   }
 
   /// Soft-delete: sets [deletedAt]. Map clients hide these via [getLandmarksForJourney].

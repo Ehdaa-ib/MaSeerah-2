@@ -68,14 +68,14 @@ class _AdminRecommendationsPageState extends State<AdminRecommendationsPage> {
           'Delete recommendation?',
           style: TextStyle(color: AppColors.brown, fontWeight: FontWeight.w800),
         ),
-        content: Text(
-          p.name,
-          style: const TextStyle(color: AppColors.brown),
-        ),
+        content: Text(p.name, style: const TextStyle(color: AppColors.brown)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.brown)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.brown),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -111,14 +111,11 @@ class _AdminRecommendationsPageState extends State<AdminRecommendationsPage> {
   }
 
   Future<void> _openEditor({RecommendationPlace? existing}) async {
-    final raw =
-        existing != null ? await _ds.rawDocument(existing.id) : null;
+    final raw = existing != null ? await _ds.rawDocument(existing.id) : null;
     final result = await showDialog<_RecFormResult>(
       context: context,
-      builder: (_) => _RecommendationFormDialog(
-        existing: existing,
-        rawFallback: raw,
-      ),
+      builder: (_) =>
+          _RecommendationFormDialog(existing: existing, rawFallback: raw),
     );
     if (result == null) return;
     try {
@@ -150,9 +147,7 @@ class _AdminRecommendationsPageState extends State<AdminRecommendationsPage> {
         : _places.where((p) {
             return p.name.toLowerCase().contains(q) ||
                 p.id.toLowerCase().contains(q) ||
-                (p.landmarksJourneyId ?? '')
-                    .toLowerCase()
-                    .contains(q);
+                (p.landmarksJourneyId ?? '').toLowerCase().contains(q);
           }).toList();
 
     return Stack(
@@ -167,29 +162,38 @@ class _AdminRecommendationsPageState extends State<AdminRecommendationsPage> {
                 style: const TextStyle(color: AppColors.brown),
                 decoration: InputDecoration(
                   hintText: 'Search recommendations',
-                  hintStyle:
-                      TextStyle(color: AppColors.brown.withOpacity(0.6)),
+                  hintStyle: TextStyle(color: AppColors.brown.withOpacity(0.6)),
                   filled: true,
                   fillColor: AppColors.beige,
-                  prefixIcon:
-                      const Icon(Icons.search_rounded, color: AppColors.brown),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AppColors.brown,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
-                    borderSide:
-                        BorderSide(color: Colors.grey.shade700, width: 1.5),
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade700,
+                      width: 1.5,
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
-                    borderSide:
-                        BorderSide(color: Colors.grey.shade700, width: 1.5),
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade700,
+                      width: 1.5,
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
-                    borderSide:
-                        const BorderSide(color: AppColors.brown, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.brown,
+                      width: 2,
+                    ),
                   ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -240,14 +244,18 @@ class _AdminRecommendationsPageState extends State<AdminRecommendationsPage> {
                         children: [
                           IconButton(
                             tooltip: 'Edit',
-                            icon:
-                                const Icon(Icons.edit_rounded, color: AppColors.brown),
+                            icon: const Icon(
+                              Icons.edit_rounded,
+                              color: AppColors.brown,
+                            ),
                             onPressed: () => _openEditor(existing: p),
                           ),
                           IconButton(
                             tooltip: 'Delete',
-                            icon: const Icon(Icons.delete_outline,
-                                color: AppColors.brown),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: AppColors.brown,
+                            ),
                             onPressed: () => _confirmDelete(p),
                           ),
                         ],
@@ -285,10 +293,7 @@ class _RecommendationFormDialog extends StatefulWidget {
   final RecommendationPlace? existing;
   final Map<String, dynamic>? rawFallback;
 
-  const _RecommendationFormDialog({
-    this.existing,
-    this.rawFallback,
-  });
+  const _RecommendationFormDialog({this.existing, this.rawFallback});
 
   @override
   State<_RecommendationFormDialog> createState() =>
@@ -323,16 +328,21 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
     _nameController = TextEditingController(text: p?.name ?? '');
     _descriptionController = TextEditingController(text: p?.description ?? '');
     _locationUrlController = TextEditingController(text: p?.locationUrl ?? '');
-    _averagePriceController =
-        TextEditingController(text: p?.averagePrice ?? '');
-    _distanceController =
-        TextEditingController(text: p?.distanceLabel == '—' ? '' : p?.distanceLabel);
-    _walkingController =
-        TextEditingController(text: p?.walkingLabel == '—' ? '' : p?.walkingLabel);
-    _landmarksJourneyIdController =
-        TextEditingController(text: p?.landmarksJourneyId ?? '');
-    _catalogJourneyIdController =
-        TextEditingController(text: p?.catalogJourneyId ?? '');
+    _averagePriceController = TextEditingController(
+      text: p?.averagePrice ?? '',
+    );
+    _distanceController = TextEditingController(
+      text: p?.distanceLabel == '—' ? '' : p?.distanceLabel,
+    );
+    _walkingController = TextEditingController(
+      text: p?.walkingLabel == '—' ? '' : p?.walkingLabel,
+    );
+    _landmarksJourneyIdController = TextEditingController(
+      text: p?.landmarksJourneyId ?? '',
+    );
+    _catalogJourneyIdController = TextEditingController(
+      text: p?.catalogJourneyId ?? '',
+    );
 
     final imgs = raw != null ? raw['images'] : null;
     if (imgs is List) {
@@ -493,7 +503,9 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
                     style: const TextStyle(color: AppColors.brown),
                     decoration: _dec(hintText: 'Place name'),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Name is required';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Name is required';
+                      }
                       return null;
                     },
                   ),
@@ -535,7 +547,9 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
                   TextFormField(
                     controller: _distanceController,
                     style: const TextStyle(color: AppColors.brown),
-                    decoration: _dec(hintText: 'Firestore: distnaceFromPreviosLandmark'),
+                    decoration: _dec(
+                      hintText: 'Firestore: distnaceFromPreviosLandmark',
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -640,8 +654,7 @@ class _RecommendationFormDialogState extends State<_RecommendationFormDialog> {
         borderRadius: BorderRadius.circular(15),
         borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
     );
   }
 }

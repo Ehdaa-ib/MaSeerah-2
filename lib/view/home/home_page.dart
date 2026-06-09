@@ -16,18 +16,14 @@ class HomePage extends StatelessWidget {
 
   void _openJourney(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => JourneyPurchaseScreen(user: user),
-      ),
+      MaterialPageRoute(builder: (_) => JourneyPurchaseScreen(user: user)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('MaSeerah'),
-      ),
+      appBar: AppBar(title: const Text('MaSeerah')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

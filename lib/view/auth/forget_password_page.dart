@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/error_messages.dart';
@@ -40,9 +39,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       setState(() => _isLoading = false);
       final email = _emailController.text.trim();
       await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => VerifyCodeScreen(email: email),
-        ),
+        MaterialPageRoute(builder: (context) => VerifyCodeScreen(email: email)),
       );
     } catch (e) {
       if (mounted) {
@@ -54,11 +51,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
-void _goToSignUp() {
-  Navigator.of(context).push(
-    MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
-  );
-}
+  void _goToSignUp() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
+    );
+  }
 
   void _goToLogin() {
     Navigator.of(context).pop();
@@ -96,7 +93,10 @@ void _goToSignUp() {
                       constraints: BoxConstraints(
                         minHeight: MediaQuery.of(context).size.height * 0.5,
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 35),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 35,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.beige.withOpacity(0.92),
                         borderRadius: BorderRadius.circular(20),
@@ -146,9 +146,7 @@ void _goToSignUp() {
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
-                              style: const TextStyle(
-                                color: AppColors.brown,
-                              ),
+                              style: const TextStyle(color: AppColors.brown),
                               decoration: InputDecoration(
                                 hintText: 'Enter your email',
                                 hintStyle: TextStyle(
@@ -196,8 +194,12 @@ void _goToSignUp() {
                                 ),
                               ),
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty) return 'Email is required';
-                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v.trim())) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Email is required';
+                                }
+                                if (!RegExp(
+                                  r'^[^@]+@[^@]+\.[^@]+$',
+                                ).hasMatch(v.trim())) {
                                   return 'Enter a valid email';
                                 }
                                 return null;
@@ -210,11 +212,16 @@ void _goToSignUp() {
                                 decoration: BoxDecoration(
                                   color: Colors.red.shade50,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.red.shade200),
+                                  border: Border.all(
+                                    color: Colors.red.shade200,
+                                  ),
                                 ),
                                 child: Text(
                                   _errorMessage!,
-                                  style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                                  style: TextStyle(
+                                    color: Colors.red.shade800,
+                                    fontSize: 13,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -225,7 +232,9 @@ void _goToSignUp() {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.brown,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(30),
                                 ),
@@ -238,7 +247,10 @@ void _goToSignUp() {
                                       width: 22,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.5,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
                                       ),
                                     )
                                   : const Text(
@@ -269,7 +281,8 @@ void _goToSignUp() {
                                       color: AppColors.brown,
                                       fontWeight: FontWeight.w600,
                                       decoration: TextDecoration.underline,
-                                      decorationColor: AppColors.brown.withOpacity(0.4),
+                                      decorationColor: AppColors.brown
+                                          .withOpacity(0.4),
                                     ),
                                   ),
                                 ),

@@ -109,7 +109,10 @@ class EmailValidation {
     final uri = Uri.parse(
       'https://cloudflare-dns.com/dns-query?name=${Uri.encodeComponent(domain)}&type=MX',
     );
-    final res = await http.get(uri, headers: {'accept': 'application/dns-json'});
+    final res = await http.get(
+      uri,
+      headers: {'accept': 'application/dns-json'},
+    );
     if (res.statusCode != 200) return null;
     return _parseGoogleDnsMx(jsonDecode(res.body) as Map<String, dynamic>);
   }

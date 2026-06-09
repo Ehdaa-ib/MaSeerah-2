@@ -79,9 +79,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (_checkingAccess) {
       return const Scaffold(
         backgroundColor: AppColors.green,
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.brown),
-        ),
+        body: Center(child: CircularProgressIndicator(color: AppColors.brown)),
       );
     }
 
@@ -91,7 +89,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         body: Center(
           child: Text(
             'Admin access required.',
-            style: TextStyle(color: AppColors.brown, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: AppColors.brown,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       );
@@ -152,12 +153,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               d.label,
                               style: TextStyle(
                                 color: AppColors.brown,
-                                fontWeight:
-                                    selected ? FontWeight.w700 : FontWeight.w500,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                               ),
                             ),
                             selected: selected,
-                            selectedTileColor: AppColors.green.withOpacity(0.25),
+                            selectedTileColor: AppColors.green.withOpacity(
+                              0.25,
+                            ),
                             onTap: () {
                               setState(() => _index = i);
                               Navigator.of(context).pop();
@@ -202,12 +206,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               d.label,
                               style: TextStyle(
                                 color: AppColors.brown,
-                                fontWeight:
-                                    selected ? FontWeight.w700 : FontWeight.w500,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                               ),
                             ),
                             selected: selected,
-                            selectedTileColor: AppColors.green.withOpacity(0.25),
+                            selectedTileColor: AppColors.green.withOpacity(
+                              0.25,
+                            ),
                             onTap: () => setState(() => _index = i),
                           );
                         },
@@ -258,8 +265,10 @@ class _AdminDrawerHeader extends StatelessWidget {
               color: AppColors.brown,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.admin_panel_settings_rounded,
-                color: AppColors.beige),
+            child: const Icon(
+              Icons.admin_panel_settings_rounded,
+              color: AppColors.beige,
+            ),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -277,10 +286,7 @@ class _AdminDrawerHeader extends StatelessWidget {
                 SizedBox(height: 2),
                 Text(
                   'Dashboard',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.brown,
-                  ),
+                  style: TextStyle(fontSize: 12, color: AppColors.brown),
                 ),
               ],
             ),

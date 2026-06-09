@@ -1,10 +1,5 @@
 /// Payment processing status.
-enum PaymentStatus {
-  processing,
-  success,
-  failed,
-  cancelled,
-}
+enum PaymentStatus { processing, success, failed, cancelled }
 
 extension PaymentStatusExtension on PaymentStatus {
   String get value {
@@ -37,11 +32,7 @@ extension PaymentStatusExtension on PaymentStatus {
 }
 
 /// Supported payment methods.
-enum PaymentMethod {
-  card,
-  mada,
-  applePay,
-}
+enum PaymentMethod { card, mada, applePay }
 
 extension PaymentMethodExtension on PaymentMethod {
   String get value {
@@ -113,7 +104,9 @@ class Payment {
       orderId: map['orderId'] as String? ?? '',
       amount: (map['amount'] as num?)?.toDouble() ?? 0,
       currency: map['currency'] as String? ?? 'SAR',
-      paymentMethod: PaymentMethodExtension.fromString(map['paymentMethod'] as String?),
+      paymentMethod: PaymentMethodExtension.fromString(
+        map['paymentMethod'] as String?,
+      ),
       status: PaymentStatusExtension.fromString(map['status'] as String?),
       gatewayTransactionId: map['gatewayTransactionId'] as String?,
       createdAt: map['createdAt'] is DateTime

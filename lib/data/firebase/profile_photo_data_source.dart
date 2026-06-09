@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 /// Uploads profile pictures to `profilePhotos/{userId}/{fileName}`.
 class ProfilePhotoDataSource {
   ProfilePhotoDataSource({FirebaseStorage? storage})
-      : _storage = storage ?? FirebaseStorage.instance;
+    : _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseStorage _storage;
 

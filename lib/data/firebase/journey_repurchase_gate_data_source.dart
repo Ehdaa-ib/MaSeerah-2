@@ -10,7 +10,7 @@ class JourneyRepurchaseGateDataSource {
   final FirebaseFirestore _firestore;
 
   JourneyRepurchaseGateDataSource({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   Future<void> setRequiresRepurchase({
     required String userId,
@@ -22,9 +22,9 @@ class JourneyRepurchaseGateDataSource {
         .collection(_subcollection)
         .doc(journeyId)
         .set({
-      'requiresNewPurchase': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+          'requiresNewPurchase': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   Future<void> clearRepurchaseGate({

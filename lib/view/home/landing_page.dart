@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/journey_availability.dart';
 import '../../data/firebase/journey_data_source.dart';
 import '../../data/repoImp/journey_repository_firebase.dart';
 import '../../model/journey.dart';
@@ -13,6 +14,7 @@ import '../journey/journey_list_screen.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/app_bottom_nav.dart';
 import 'profile_screen.dart';
+import '../journey/coming_soon_screen.dart';
 import '../journey/journey_purchase_screen.dart';
 
 /// Home page with search bar, scrollable journey cards, and bottom nav.
@@ -61,7 +63,9 @@ class _LandingPageState extends State<LandingPage> {
         setState(() => _journeys = journeys);
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('[LandingPage] journey catalog load failed: $e');
+      if (kDebugMode) {
+        debugPrint('[LandingPage] journey catalog load failed: $e');
+      }
     }
   }
 
@@ -80,13 +84,15 @@ class _LandingPageState extends State<LandingPage> {
             onActiveJourneysTap: () {
               Navigator.of(sheetContext).pop();
               setState(() => _selectedNavIndex = 1);
-              Navigator.of(landingContext).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const JourneyListScreen(),
-                ),
-              ).then((_) {
-                if (mounted) setState(() => _selectedNavIndex = 0);
-              });
+              Navigator.of(landingContext)
+                  .push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const JourneyListScreen(),
+                    ),
+                  )
+                  .then((_) {
+                    if (mounted) setState(() => _selectedNavIndex = 0);
+                  });
             },
             onProfileTap: () {
               Navigator.of(sheetContext).pop();
@@ -134,6 +140,7 @@ class _LandingPageState extends State<LandingPage> {
       price: 0,
       estimatedDuration: info.duration,
       stops: info.stops,
+      isAvailable: index == 0,
     );
   }
 
@@ -153,6 +160,19 @@ class _LandingPageState extends State<LandingPage> {
     }
 
     if (!mounted) return;
+
+    if (!JourneyAvailability.isPlayable(
+      journey: journey,
+      journeyId: journeyId,
+    )) {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ComingSoonScreen(journeyName: journey.name),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
         opaque: true,
@@ -170,11 +190,11 @@ class _LandingPageState extends State<LandingPage> {
     setState(() => _selectedNavIndex = 1);
     Navigator.of(context)
         .push(
-      MaterialPageRoute<void>(builder: (_) => const JourneyListScreen()),
-    )
+          MaterialPageRoute<void>(builder: (_) => const JourneyListScreen()),
+        )
         .then((_) {
-      if (mounted) setState(() => _selectedNavIndex = 0);
-    });
+          if (mounted) setState(() => _selectedNavIndex = 0);
+        });
   }
 
   @override
@@ -211,11 +231,13 @@ class _LandingPageState extends State<LandingPage> {
             onProfileTap: () {
               setState(() => _selectedNavIndex = 2);
               if (user != null) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                ).then((_) {
-                  if (mounted) setState(() => _selectedNavIndex = 0);
-                });
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    )
+                    .then((_) {
+                      if (mounted) setState(() => _selectedNavIndex = 0);
+                    });
               } else {
                 _openSignIn();
               }
@@ -264,7 +286,9 @@ class _LandingPageState extends State<LandingPage> {
                   focusNode: _searchFocusNode,
                   autofocus: false,
                   decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!.landingSearchExplore,
+                    hintText: AppLocalizations.of(
+                      context,
+                    )!.landingSearchExplore,
                     hintStyle: TextStyle(
                       color: AppColors.brown,
                       fontSize: 14,
@@ -301,12 +325,20 @@ class _LandingPageState extends State<LandingPage> {
       itemBuilder: (context, i) {
         final index = visibleIndices[i];
         final info = _journeyCardInfoForIndex(context, index);
+        final journeyId = _journeyIdForIndex(index);
+        final catalog =
+            _catalogJourneyForCard(index) ?? _stubJourneyForCard(index);
+        final isPlayable = JourneyAvailability.isPlayable(
+          journey: catalog,
+          journeyId: journeyId,
+        );
         return _JourneyCard(
           imagePath: _imagePathForIndex(index),
           title: info.title,
           rating: info.rating,
           duration: info.duration,
           stopsLabel: info.stops,
+          comingSoon: !isPlayable,
           onTap: () => unawaited(_openJourneyForCard(index)),
         );
       },
@@ -317,9 +349,16 @@ class _LandingPageState extends State<LandingPage> {
   List<int> _getVisibleCardIndices(String q) {
     if (q.isEmpty) return [0, 1, 2];
     final indices = <int>[];
-    if (q.contains('darb') || q.contains('alsunnah') || q.contains('sunnah')) indices.add(0);
+    if (q.contains('darb') || q.contains('alsunnah') || q.contains('sunnah')) {
+      indices.add(0);
+    }
     if (q.contains('uhud') || q.contains('battle')) indices.add(1);
-    if (q.contains('valley') || q.contains('adventure') || q.contains('vally') || q.contains('journey')) indices.add(2);
+    if (q.contains('valley') ||
+        q.contains('adventure') ||
+        q.contains('vally') ||
+        q.contains('journey')) {
+      indices.add(2);
+    }
     return indices.isEmpty ? [0, 1, 2] : indices;
   }
 
@@ -371,7 +410,6 @@ class _LandingPageState extends State<LandingPage> {
         );
     }
   }
-
 }
 
 class _JourneyCardInfo {
@@ -394,6 +432,7 @@ class _JourneyCard extends StatelessWidget {
   final double rating;
   final String duration;
   final String stopsLabel;
+  final bool comingSoon;
   final VoidCallback? onTap;
 
   const _JourneyCard({
@@ -402,6 +441,7 @@ class _JourneyCard extends StatelessWidget {
     required this.rating,
     required this.duration,
     required this.stopsLabel,
+    this.comingSoon = false,
     this.onTap,
   });
 
@@ -412,7 +452,7 @@ class _JourneyCard extends StatelessWidget {
     height: 1.2,
   );
 
-  Widget _buildCardContent() {
+  Widget _buildCardContent(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       width: double.infinity,
@@ -428,6 +468,14 @@ class _JourneyCard extends StatelessWidget {
               width: double.infinity,
               height: double.infinity,
             ),
+            if (comingSoon)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -436,13 +484,37 @@ class _JourneyCard extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withValues(alpha: 0.65),
+                      Colors.black.withValues(alpha: comingSoon ? 0.75 : 0.65),
                     ],
                     stops: const [0.45, 1.0],
                   ),
                 ),
               ),
             ),
+            if (comingSoon)
+              Positioned(
+                top: 14,
+                right: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.orange.withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    AppLocalizations.of(context)!.comingSoonBadge,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               left: 16,
               right: 16,
@@ -466,12 +538,22 @@ class _JourneyCard extends StatelessWidget {
                     spacing: 0,
                     runSpacing: 4,
                     children: [
-                      Icon(Icons.star, size: 16, color: Colors.white.withValues(alpha: 0.95)),
+                      Icon(
+                        Icons.star,
+                        size: 16,
+                        color: Colors.white.withValues(alpha: 0.95),
+                      ),
                       const SizedBox(width: 4),
                       Text(rating.toStringAsFixed(1), style: _detailStyle),
-                      Text('  |  ', style: _detailStyle.copyWith(color: Colors.white70)),
+                      Text(
+                        '  |  ',
+                        style: _detailStyle.copyWith(color: Colors.white70),
+                      ),
                       Text(duration, style: _detailStyle),
-                      Text('  |  ', style: _detailStyle.copyWith(color: Colors.white70)),
+                      Text(
+                        '  |  ',
+                        style: _detailStyle.copyWith(color: Colors.white70),
+                      ),
                       Text(stopsLabel, style: _detailStyle),
                     ],
                   ),
@@ -486,7 +568,7 @@ class _JourneyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final child = _buildCardContent();
+    final child = _buildCardContent(context);
     if (onTap != null) {
       return GestureDetector(onTap: onTap, child: child);
     }

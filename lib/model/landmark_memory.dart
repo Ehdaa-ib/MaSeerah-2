@@ -33,7 +33,8 @@ class LandmarkMemory {
   bool get isVideo => mediaType == 'video';
 
   static LandmarkMemory? fromDoc(String id, Map<String, dynamic> d) {
-    final url = (d['mediaUrl'] as String?)?.trim() ??
+    final url =
+        (d['mediaUrl'] as String?)?.trim() ??
         (d['imageUrl'] as String?)?.trim();
     if (url == null || url.isEmpty) return null;
     final order = _readInt(d['landmarkOrder']) ?? 0;
@@ -43,15 +44,18 @@ class LandmarkMemory {
     return LandmarkMemory(
       id: id,
       journeyId: (d['journeyId'] as String?)?.trim() ?? '',
-      userJourneyId: ((d['userJourneyId'] as String?) ??
-              (d['journeyHistoryId'] as String?))
-          ?.trim(),
+      userJourneyId:
+          ((d['userJourneyId'] as String?) ??
+                  (d['journeyHistoryId'] as String?))
+              ?.trim(),
       journeyTitle: (d['journeyTitle'] as String?)?.trim() ?? 'Journey',
       landmarkId: (d['landmarkId'] as String?)?.trim() ?? '',
       landmarkTitle: (d['landmarkTitle'] as String?)?.trim() ?? 'Landmark',
       landmarkOrder: order,
       mediaUrl: url,
-      mediaType: (d['mediaType'] as String?)?.trim() == 'video' ? 'video' : 'image',
+      mediaType: (d['mediaType'] as String?)?.trim() == 'video'
+          ? 'video'
+          : 'image',
       storagePath: (d['storagePath'] as String?)?.trim() ?? '',
       source: (d['source'] as String?)?.trim(),
       createdAt: createdAt,

@@ -5,7 +5,7 @@ import '../../model/recommendation_place.dart';
 /// Admin CRUD for curated places in the primary `recommendations` collection.
 class RecommendationPlacesAdminDataSource {
   RecommendationPlacesAdminDataSource({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+    : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
@@ -27,10 +27,10 @@ class RecommendationPlacesAdminDataSource {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    await _db.collection(collectionId).doc(documentId).set(
-          data,
-          SetOptions(merge: true),
-        );
+    await _db
+        .collection(collectionId)
+        .doc(documentId)
+        .set(data, SetOptions(merge: true));
   }
 
   Future<void> delete(String documentId) async {

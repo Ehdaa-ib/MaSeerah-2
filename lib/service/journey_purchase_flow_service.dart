@@ -36,7 +36,7 @@ class JourneyPurchaseUiState {
 /// Maps paid access + [JourneyUserStatusService] output to purchase-screen CTAs.
 class JourneyPurchaseFlowService {
   JourneyPurchaseFlowService({JourneyUserStatusService? statusService})
-      : _statusService = statusService ?? JourneyUserStatusService();
+    : _statusService = statusService ?? JourneyUserStatusService();
 
   final JourneyUserStatusService _statusService;
 
@@ -99,24 +99,11 @@ class JourneyPurchaseFlowService {
       );
     }
 
-    if (status.awaitingFeedback && status.status == JourneyUserStatus.completed) {
-      return JourneyPurchaseUiState(
-        action: JourneyPurchasePrimaryAction.giveFeedback,
-        status: status,
-        showHowToPlayInfo: false,
-      );
-    }
-
-    if (status.requiresRepurchase) {
+    // Finished playthroughs (with or without feedback) return to purchase — not Continue.
+    if (status.requiresRepurchase ||
+        status.status == JourneyUserStatus.completed) {
       return JourneyPurchaseUiState(
         action: JourneyPurchasePrimaryAction.purchase,
-        status: status,
-      );
-    }
-
-    if (status.status == JourneyUserStatus.completed && !status.awaitingFeedback) {
-      return JourneyPurchaseUiState(
-        action: JourneyPurchasePrimaryAction.viewHistory,
         status: status,
       );
     }

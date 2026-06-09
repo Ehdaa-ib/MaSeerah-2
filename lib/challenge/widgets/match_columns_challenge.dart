@@ -40,12 +40,16 @@ class _MatchColumnsChallengeState extends State<MatchColumnsChallenge> {
 
   List<String> get _topItems {
     final pairs = widget.stage.matchingPairs;
-    return widget.stage.parts.isNotEmpty ? widget.stage.parts : <String>[for (final p in pairs) p.left];
+    return widget.stage.parts.isNotEmpty
+        ? widget.stage.parts
+        : <String>[for (final p in pairs) p.left];
   }
 
   List<String> get _bottomItems {
     final pairs = widget.stage.matchingPairs;
-    return widget.stage.options.isNotEmpty ? widget.stage.options : {for (final p in pairs) p.right}.toList();
+    return widget.stage.options.isNotEmpty
+        ? widget.stage.options
+        : {for (final p in pairs) p.right}.toList();
   }
 
   @override
@@ -68,13 +72,16 @@ class _MatchColumnsChallengeState extends State<MatchColumnsChallenge> {
   void _reshuffle() {
     final top = List<String>.from(_topItems);
     final bottom = List<String>.from(_bottomItems);
-    final seed = ('${widget.stage.stageKey ?? 'direct'}:${widget.stage.index}').hashCode;
+    final seed =
+        ('${widget.stage.stageKey ?? 'direct'}:${widget.stage.index}').hashCode;
     top.shuffle(Random(seed));
     bottom.shuffle(Random(seed ^ 0x9E3779B9));
     _topShuffled = top;
     _bottomShuffled = bottom;
     if (kDebugMode) {
-      debugPrint('[MatchingUI] shuffled top=$_topShuffled bottom=$_bottomShuffled');
+      debugPrint(
+        '[MatchingUI] shuffled top=$_topShuffled bottom=$_bottomShuffled',
+      );
     }
   }
 
@@ -88,18 +95,30 @@ class _MatchColumnsChallengeState extends State<MatchColumnsChallenge> {
     });
     if (usedBy != null && usedBy != top) {
       next.remove(usedBy);
-      if (kDebugMode) debugPrint('[MatchingUI] reassign bottom="$bottom" from top="$usedBy" -> top="$top"');
+      if (kDebugMode) {
+        debugPrint(
+          '[MatchingUI] reassign bottom="$bottom" from top="$usedBy" -> top="$top"',
+        );
+      }
     }
 
     next[top] = bottom;
-    if (kDebugMode) debugPrint('[MatchingUI] connect top="$top" bottom="$bottom" matches=$next');
+    if (kDebugMode) {
+      debugPrint(
+        '[MatchingUI] connect top="$top" bottom="$bottom" matches=$next',
+      );
+    }
     widget.onChanged(next);
   }
 
   void _disconnectTop(String top) {
     final next = Map<String, String>.from(widget.selectedMatches);
     final removed = next.remove(top);
-    if (kDebugMode) debugPrint('[MatchingUI] disconnect top="$top" bottom="${removed ?? ''}"');
+    if (kDebugMode) {
+      debugPrint(
+        '[MatchingUI] disconnect top="$top" bottom="${removed ?? ''}"',
+      );
+    }
     widget.onChanged(next);
   }
 
@@ -129,7 +148,9 @@ class _MatchColumnsChallengeState extends State<MatchColumnsChallenge> {
           decoration: ChallengeStyles.cardDecoration,
           child: Text(
             'Matching data missing in this challenge.',
-            style: ChallengeStyles.bodyStyle.copyWith(color: ChallengeStyles.mutedBrown),
+            style: ChallengeStyles.bodyStyle.copyWith(
+              color: ChallengeStyles.mutedBrown,
+            ),
           ),
         ),
       );
@@ -144,7 +165,10 @@ class _MatchColumnsChallengeState extends State<MatchColumnsChallenge> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.stage.question ?? 'Match the pairs', style: ChallengeStyles.titleStyle),
+            Text(
+              widget.stage.question ?? 'Match the pairs',
+              style: ChallengeStyles.titleStyle,
+            ),
             const SizedBox(height: 14),
             Text(
               'Group A',
@@ -167,12 +191,19 @@ class _MatchColumnsChallengeState extends State<MatchColumnsChallenge> {
                       _selectedTop = t;
                     }
                   });
-                  if (kDebugMode && _selectedTop == t) debugPrint('[MatchingUI] selected top="$t"');
+                  if (kDebugMode && _selectedTop == t) {
+                    debugPrint('[MatchingUI] selected top="$t"');
+                  }
                 },
-                onClear: matches.containsKey(t) ? () => _disconnectTop(t) : null,
+                onClear: matches.containsKey(t)
+                    ? () => _disconnectTop(t)
+                    : null,
               ),
             const SizedBox(height: 18),
-            Container(height: 1, color: AppColors.brown.withValues(alpha: 0.10)),
+            Container(
+              height: 1,
+              color: AppColors.brown.withValues(alpha: 0.10),
+            ),
             const SizedBox(height: 18),
             Text(
               'Group B',
@@ -224,8 +255,12 @@ class _PromptCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final has = selectedAnswer != null && selectedAnswer!.trim().isNotEmpty;
-    final border = selected ? AppColors.orange : AppColors.brown.withValues(alpha: 0.14);
-    final fill = selected ? AppColors.orange.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.62);
+    final border = selected
+        ? AppColors.orange
+        : AppColors.brown.withValues(alpha: 0.14);
+    final fill = selected
+        ? AppColors.orange.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.62);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -268,13 +303,18 @@ class _PromptCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           selectedAnswer!,
-                          style: ChallengeStyles.bodyStyle.copyWith(fontWeight: FontWeight.w900),
+                          style: ChallengeStyles.bodyStyle.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                       if (onClear != null)
                         IconButton(
                           onPressed: onClear,
-                          icon: Icon(Icons.close_rounded, color: AppColors.brown.withValues(alpha: 0.75)),
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: AppColors.brown.withValues(alpha: 0.75),
+                          ),
                           splashRadius: 18,
                         ),
                     ],
@@ -304,8 +344,12 @@ class _AnswerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fill = used ? AppColors.beige.withValues(alpha: 0.55) : Colors.white.withValues(alpha: 0.62);
-    final border = used ? AppColors.brown.withValues(alpha: 0.10) : AppColors.brown.withValues(alpha: 0.14);
+    final fill = used
+        ? AppColors.beige.withValues(alpha: 0.55)
+        : Colors.white.withValues(alpha: 0.62);
+    final border = used
+        ? AppColors.brown.withValues(alpha: 0.10)
+        : AppColors.brown.withValues(alpha: 0.14);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -331,12 +375,18 @@ class _AnswerCard extends StatelessWidget {
                       text,
                       style: ChallengeStyles.bodyStyle.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: used ? AppColors.brown.withValues(alpha: 0.62) : AppColors.brown,
+                        color: used
+                            ? AppColors.brown.withValues(alpha: 0.62)
+                            : AppColors.brown,
                       ),
                     ),
                   ),
                   if (used)
-                    Icon(Icons.check_circle_rounded, size: 18, color: AppColors.orange.withValues(alpha: 0.85)),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 18,
+                      color: AppColors.orange.withValues(alpha: 0.85),
+                    ),
                 ],
               ),
             ),

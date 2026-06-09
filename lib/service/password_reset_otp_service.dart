@@ -7,8 +7,8 @@ import '../core/error_messages.dart';
 /// Replaces Firebase Auth's password-reset **link** flow; OTP is sent via SMTP from Functions.
 class PasswordResetOtpService {
   PasswordResetOtpService({FirebaseFunctions? functions})
-      : _functions =
-            functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+    : _functions =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
 
   final FirebaseFunctions _functions;
 
@@ -44,13 +44,13 @@ class PasswordResetOtpService {
       final msg = e.message?.trim() ?? '';
       switch (code) {
         case 'not-found':
-          return msg.isNotEmpty
-              ? msg
-              : 'No account found with this email.';
+          return msg.isNotEmpty ? msg : 'No account found with this email.';
         case 'permission-denied':
           return msg.isNotEmpty ? msg : 'Incorrect code.';
         case 'deadline-exceeded':
-          return msg.isNotEmpty ? msg : 'This code has expired. Request a new one.';
+          return msg.isNotEmpty
+              ? msg
+              : 'This code has expired. Request a new one.';
         case 'resource-exhausted':
           return msg.isNotEmpty ? msg : 'Please wait before trying again.';
         case 'failed-precondition':
@@ -62,7 +62,7 @@ class PasswordResetOtpService {
           return _isPlausibleUserFacingMessage(msg)
               ? msg
               : 'Password reset service failed. Deploy Functions, set OTP_PEPPER and SMTP, '
-                  'or try again later.';
+                    'or try again later.';
         default:
           return msg.isNotEmpty ? msg : toUserFriendlyMessage(e);
       }

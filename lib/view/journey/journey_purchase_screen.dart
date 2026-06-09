@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:moyasar/moyasar.dart' as moyasar;
 
 import '../../core/error_messages.dart';
+import '../../core/journey_availability.dart';
 import '../../data/firebase/journey_data_source.dart';
 import '../../data/firebase/order_data_source.dart';
 import '../../data/firebase/payment_data_source.dart';
@@ -28,11 +28,11 @@ import '../../data/firebase/journey_progress_data_source.dart';
 import '../../data/firebase/journey_repurchase_gate_data_source.dart';
 import '../../service/journey_inactivity_service.dart';
 import '../../service/journey_purchase_flow_service.dart';
-import '../../service/journey_user_status_service.dart';
 import 'journey_history_memories_screen.dart';
 import '../../util/wait_for_auth.dart';
 import '../feedback/feedback_screen.dart';
 import '../auth/login_screen.dart';
+import 'coming_soon_screen.dart';
 import 'journey_how_to_play_page.dart';
 import 'journey_map_screen.dart';
 
@@ -63,7 +63,6 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
 
   Journey? _journey;
   Order? _order;
-  AppUser? _user;
   String? _uid;
   String? _error;
   bool _descriptionExpanded = false;
@@ -83,7 +82,6 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   /// Saved map progress (in-progress journey); used for Continue + Active Journeys list.
   ActiveJourneyProgress? _savedProgress;
 
-  JourneyUserStatus _journeyStatus = JourneyUserStatus.notStarted;
   JourneyPurchaseUiState? _uiState;
 
   /// True until order/progress/completion reads finish (signed-in users only).
@@ -98,11 +96,7 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   Journey _resolveInitialJourney() {
     return widget.initialJourney ??
         JourneyDataSource.findInCatalogCache(widget.journeyId) ??
-        Journey(
-          journeyId: widget.journeyId,
-          name: widget.journeyId,
-          price: 0,
-        );
+        Journey(journeyId: widget.journeyId, name: widget.journeyId, price: 0);
   }
 
   @override
@@ -111,13 +105,22 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     final journeyRepo = JourneyRepositoryFirebase(JourneyDataSource());
     final orderRepo = OrderRepositoryFirebase(OrderDataSource());
     final paymentRepo = PaymentRepositoryFirebase(PaymentDataSource());
-    _orderService = OrderService(journeyRepo: journeyRepo, orderRepo: orderRepo);
-    _paymentService = PaymentService(orderRepo: orderRepo, paymentRepo: paymentRepo);
-    _accessService = AccessService(journeyRepo: journeyRepo, orderRepo: orderRepo);
+    _orderService = OrderService(
+      journeyRepo: journeyRepo,
+      orderRepo: orderRepo,
+    );
+    _paymentService = PaymentService(
+      orderRepo: orderRepo,
+      paymentRepo: paymentRepo,
+    );
+    _accessService = AccessService(
+      journeyRepo: journeyRepo,
+      orderRepo: orderRepo,
+    );
     _uid = FirebaseAuth.instance.currentUser?.uid;
-    _user = widget.user;
     _savedProgress = widget.initialSavedProgress;
     _journey = _resolveInitialJourney();
+    _redirectIfUnavailable(_journey!);
     _isAccessLoading = _uid != null && _uid!.trim().isNotEmpty;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -137,7 +140,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
           setState(() => _journey = cached);
         }
       } catch (e) {
-        if (kDebugMode) debugPrint('[JourneyDetails] catalog preload failed: $e');
+        if (kDebugMode) {
+          debugPrint('[JourneyDetails] catalog preload failed: $e');
+        }
       }
     }
     await _refreshJourneyDetails();
@@ -149,7 +154,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     try {
       return await future.timeout(_accessLoadTimeout);
     } catch (e) {
-      if (kDebugMode) debugPrint('[JourneyDetails] access read timeout/fail: $e');
+      if (kDebugMode) {
+        debugPrint('[JourneyDetails] access read timeout/fail: $e');
+      }
       return fallback;
     }
   }
@@ -176,12 +183,13 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       if (paidOrder != null) _order = paidOrder;
       _isAccessLoading = false;
       _uiState = ui;
-      _journeyStatus = ui.status.status;
     });
   }
 
   Future<void> _loadUserAccess({bool silent = false}) async {
-    if (kDebugMode) debugPrint('[JourneyDetails] access load journeyId=${widget.journeyId}');
+    if (kDebugMode) {
+      debugPrint('[JourneyDetails] access load journeyId=${widget.journeyId}');
+    }
     _uid = FirebaseAuth.instance.currentUser?.uid;
     final uid = _uid?.trim();
     if (uid == null || uid.isEmpty) {
@@ -211,8 +219,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     try {
       final results = await Future.wait<Object?>([
         _withTimeout<ActiveJourneyProgress?>(
-          JourneyInactivityService(progressDs: progressDs)
-              .resolveActiveProgress(userId: uid, journeyId: widget.journeyId),
+          JourneyInactivityService(
+            progressDs: progressDs,
+          ).resolveActiveProgress(userId: uid, journeyId: widget.journeyId),
           null,
         ),
         _withTimeout<Order?>(
@@ -234,7 +243,10 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
           false,
         ),
         _withTimeout<bool>(
-          repurchaseDs.requiresNewPurchase(userId: uid, journeyId: widget.journeyId),
+          repurchaseDs.requiresNewPurchase(
+            userId: uid,
+            journeyId: widget.journeyId,
+          ),
           false,
         ),
       ]);
@@ -249,19 +261,21 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       }
 
       if (journeyCompleted) {
-        awaitingFeedback = await _withTimeout<bool>(
-          completionDs.isAwaitingFeedback(
-            userId: uid,
-            journeyId: widget.journeyId,
-          ),
-          false,
-        ) ?? false;
+        awaitingFeedback =
+            await _withTimeout<bool>(
+              completionDs.isAwaitingFeedback(
+                userId: uid,
+                journeyId: widget.journeyId,
+              ),
+              false,
+            ) ??
+            false;
       }
     } catch (e) {
       if (kDebugMode) debugPrint('[JourneyDetails] access load failed: $e');
     }
 
-    if ((journeyCompleted && !awaitingFeedback) || requiresRepurchase) {
+    if (journeyCompleted || requiresRepurchase) {
       progress = null;
     }
 
@@ -288,8 +302,23 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       _requiresRepurchaseAfterFeedback = requiresRepurchase;
       _isAccessLoading = false;
       _uiState = ui;
-      _journeyStatus = ui.status.status;
     });
+  }
+
+  void _redirectIfUnavailable(Journey journey) {
+    if (!JourneyAvailability.isPlayable(
+      journey: journey,
+      journeyId: widget.journeyId,
+    )) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => ComingSoonScreen(journeyName: journey.name),
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _refreshJourneyDetails() async {
@@ -297,29 +326,14 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       final fresh = await journeyRepo.getById(widget.journeyId);
       if (!mounted || fresh == null) return;
       setState(() => _journey = fresh);
+      _redirectIfUnavailable(fresh);
     } catch (e) {
       if (kDebugMode) debugPrint('[JourneyDetails] journey refresh failed: $e');
     }
   }
 
   Future<void> _load() async {
-    await Future.wait([
-      _loadUserAccess(),
-      _ensureJourneyDetailsLoaded(),
-    ]);
-  }
-
-  Future<AppUser?> _getCurrentUser() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get();
-    if (!doc.exists || doc.data() == null) return null;
-    final data = Map<String, dynamic>.from(doc.data()!);
-    data['userId'] = doc.id;
-    return AppUser.fromMap(data);
+    await Future.wait([_loadUserAccess(), _ensureJourneyDetailsLoaded()]);
   }
 
   void _openSignIn() {
@@ -330,11 +344,11 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
           ),
         )
         .then((signedIn) async {
-      if (signedIn == true && mounted) {
-        await waitForAuth();
-        if (mounted) _load();
-      }
-    });
+          if (signedIn == true && mounted) {
+            await waitForAuth();
+            if (mounted) _load();
+          }
+        });
   }
 
   String _resolveLandmarksJourneyId() {
@@ -398,7 +412,8 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
           catalogJourneyId: widget.journeyId,
           initialRegion: progress.currentRegion,
           initialQubaChallengeCompleted: progress.qubaChallengeCompleted,
-          initialLastRegionChallengeCompleted: progress.lastRegionChallengeCompleted,
+          initialLastRegionChallengeCompleted:
+              progress.lastRegionChallengeCompleted,
           clearRecommendationTracking: clearRecommendationTracking,
           initialUserJourneyId: progress.userJourneyId,
         ),
@@ -454,38 +469,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     await _openMapWithProgress(saved, clearRecommendationTracking: true);
   }
 
-  /// Pushes How to Play on top of this screen so the system back button returns here.
-  void _pushHowToPlay({
-    required bool needsProgressBootstrap,
-    ActiveJourneyProgress? progress,
-    bool clearRecommendationTracking = false,
-  }) {
-    final title = _journey?.name ?? AppLocalizations.of(context)!.journeyPurchaseTitle;
-    Navigator.of(context)
-        .push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => JourneyHowToPlayPage(
-          catalogJourneyId: widget.journeyId,
-          journeyTitle: title,
-          landmarksJourneyId: _resolveLandmarksJourneyId(),
-          presentation: JourneyHowToPlayPresentation.mandatoryFirstTime,
-          needsProgressBootstrap: needsProgressBootstrap,
-          progressFirestoreDocId: progress?.firestoreDocId,
-          initialRegion: progress?.currentRegion,
-          initialQubaChallengeCompleted: progress?.qubaChallengeCompleted ?? false,
-          initialLastRegionChallengeCompleted: progress?.lastRegionChallengeCompleted ?? false,
-          clearRecommendationTracking: clearRecommendationTracking,
-          hasSavedMapProgress: progress != null,
-          onManualPrimary: null,
-        ),
-      ),
-    )
-        .then((_) {
-      if (mounted) _load();
-    });
-  }
-
-  Future<void> _handleHowToPlayManualPrimary(BuildContext howToPlayContext) async {
+  Future<void> _handleHowToPlayManualPrimary(
+    BuildContext howToPlayContext,
+  ) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
@@ -499,7 +485,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
     await waitForAuth();
     if (!howToPlayContext.mounted) return;
 
-    final title = _journey?.name ?? AppLocalizations.of(howToPlayContext)!.journeyPurchaseTitle;
+    final title =
+        _journey?.name ??
+        AppLocalizations.of(howToPlayContext)!.journeyPurchaseTitle;
 
     final prog = p;
     if (prog != null) {
@@ -511,14 +499,18 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
             catalogJourneyId: widget.journeyId,
             initialRegion: prog.currentRegion,
             initialQubaChallengeCompleted: prog.qubaChallengeCompleted,
-            initialLastRegionChallengeCompleted: prog.lastRegionChallengeCompleted,
+            initialLastRegionChallengeCompleted:
+                prog.lastRegionChallengeCompleted,
             clearRecommendationTracking: false,
           ),
         ),
       );
       Future<void>(() async {
         try {
-          await _accessService.startJourney(userId: uid, journeyId: widget.journeyId);
+          await _accessService.startJourney(
+            userId: uid,
+            journeyId: widget.journeyId,
+          );
         } catch (_) {}
       });
       return;
@@ -541,9 +533,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(toUserFriendlyMessage(e))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(toUserFriendlyMessage(e))));
       }
       return;
     }
@@ -562,37 +554,32 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   }
 
   void _openHowToPlayManual() {
-    final title = _journey?.name ?? AppLocalizations.of(context)!.journeyPurchaseTitle;
+    final title =
+        _journey?.name ?? AppLocalizations.of(context)!.journeyPurchaseTitle;
     Navigator.of(context)
         .push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => JourneyHowToPlayPage(
-          catalogJourneyId: widget.journeyId,
-          journeyTitle: title,
-          landmarksJourneyId: _resolveLandmarksJourneyId(),
-          presentation: JourneyHowToPlayPresentation.manualFromPurchase,
-          needsProgressBootstrap: false,
-          progressFirestoreDocId: _savedProgress?.firestoreDocId,
-          initialRegion: _savedProgress?.currentRegion,
-          initialQubaChallengeCompleted: _savedProgress?.qubaChallengeCompleted ?? false,
-          initialLastRegionChallengeCompleted: _savedProgress?.lastRegionChallengeCompleted ?? false,
-          clearRecommendationTracking: false,
-          hasSavedMapProgress: _savedProgress != null,
-          onManualPrimary: _handleHowToPlayManualPrimary,
-        ),
-      ),
-    )
+          MaterialPageRoute<void>(
+            builder: (_) => JourneyHowToPlayPage(
+              catalogJourneyId: widget.journeyId,
+              journeyTitle: title,
+              landmarksJourneyId: _resolveLandmarksJourneyId(),
+              presentation: JourneyHowToPlayPresentation.manualFromPurchase,
+              needsProgressBootstrap: false,
+              progressFirestoreDocId: _savedProgress?.firestoreDocId,
+              initialRegion: _savedProgress?.currentRegion,
+              initialQubaChallengeCompleted:
+                  _savedProgress?.qubaChallengeCompleted ?? false,
+              initialLastRegionChallengeCompleted:
+                  _savedProgress?.lastRegionChallengeCompleted ?? false,
+              clearRecommendationTracking: false,
+              hasSavedMapProgress: _savedProgress != null,
+              onManualPrimary: _handleHowToPlayManualPrimary,
+            ),
+          ),
+        )
         .then((_) {
-      if (mounted) _load();
-    });
-  }
-
-  Future<void> _goToMapReplacingSelf({
-    required ActiveJourneyProgress? progress,
-    bool clearRecommendationTracking = false,
-  }) async {
-    if (progress == null) return;
-    await _openMapWithProgress(progress, clearRecommendationTracking: clearRecommendationTracking);
+          if (mounted) _load();
+        });
   }
 
   Future<void> _purchaseAndPay() async {
@@ -653,7 +640,8 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
   }
 
   void _openPaymentScreen(Payment payment) {
-    final supported = !kIsWeb &&
+    final supported =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
             defaultTargetPlatform == TargetPlatform.iOS);
     if (!supported) {
@@ -721,7 +709,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(AppLocalizations.of(context)!.journeyPurchaseStartYourJourney),
+                content: Text(
+                  AppLocalizations.of(context)!.journeyPurchaseStartYourJourney,
+                ),
               ),
             );
           } catch (e) {
@@ -734,7 +724,9 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
           }
         } else if (result.status == moyasar.PaymentStatus.failed) {
           try {
-            await _paymentService.handlePaymentFailed(paymentId: payment.paymentId!);
+            await _paymentService.handlePaymentFailed(
+              paymentId: payment.paymentId!,
+            );
           } catch (_) {}
           if (!mounted) return;
           Navigator.of(context).pop();
@@ -810,45 +802,48 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                 fit: StackFit.expand,
                 children: [
                   Positioned.fill(
-                    child: Image.asset(
-                      'images/image3.png',
-                      fit: BoxFit.cover,
+                    child: Image.asset('images/image3.png', fit: BoxFit.cover),
+                  ),
+                  SingleChildScrollView(
+                    padding: EdgeInsetsDirectional.fromSTEB(
+                      24,
+                      MediaQuery.of(context).padding.top + kToolbarHeight + 24,
+                      24,
+                      24,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          '${payment.amount.toStringAsFixed(2)} ${payment.currency}',
+                          style: const TextStyle(
+                            color: AppColors.brown,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _journey?.name ??
+                              AppLocalizations.of(
+                                context,
+                              )!.journeyPurchaseTitle,
+                          style: const TextStyle(
+                            color: AppColors.brown,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        moyasar.CreditCard(
+                          config: config,
+                          onPaymentResult: onPaymentResult,
+                        ),
+                      ],
                     ),
                   ),
-                SingleChildScrollView(
-                  padding: EdgeInsetsDirectional.fromSTEB(
-                    24,
-                    MediaQuery.of(context).padding.top + kToolbarHeight + 24,
-                    24,
-                    24,
-                  ),
-                  child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      '${payment.amount.toStringAsFixed(2)} ${payment.currency}',
-                      style: const TextStyle(
-                        color: AppColors.brown,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _journey?.name ?? AppLocalizations.of(context)!.journeyPurchaseTitle,
-                      style: const TextStyle(
-                        color: AppColors.brown,
-                        fontSize: 16,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    moyasar.CreditCard(config: config, onPaymentResult: onPaymentResult),
-                  ],
-                ),
-              ),
-            ],
+                ],
               ),
             ),
           ),
@@ -904,7 +899,10 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
         if (progress == null) {
           throw Exception('No saved progress found. Start the journey again.');
         }
-        await _openMapWithProgress(progress, clearRecommendationTracking: false);
+        await _openMapWithProgress(
+          progress,
+          clearRecommendationTracking: false,
+        );
         return;
       }
 
@@ -988,8 +986,13 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
         actions: [
           if (showHowToPlayInfo)
             IconButton(
-              tooltip: AppLocalizations.of(context)!.journeyPurchaseHowToPlayInfo,
-              icon: Icon(Icons.info_outline, color: AppColors.brown.withValues(alpha: 0.92)),
+              tooltip: AppLocalizations.of(
+                context,
+              )!.journeyPurchaseHowToPlayInfo,
+              icon: Icon(
+                Icons.info_outline,
+                color: AppColors.brown.withValues(alpha: 0.92),
+              ),
               onPressed: _openHowToPlayManual,
             ),
         ],
@@ -1039,19 +1042,23 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                         _descriptionExpanded
                             ? description
                             : (description.length > previewLength
-                                ? '${description.substring(0, previewLength)}...'
-                                : description),
+                                  ? '${description.substring(0, previewLength)}...'
+                                  : description),
                         style: const TextStyle(
                           fontSize: 14,
                           color: AppColors.brown,
                           height: 1.5,
                         ),
                       ),
-                      if (description.length > previewLength && !_descriptionExpanded)
+                      if (description.length > previewLength &&
+                          !_descriptionExpanded)
                         GestureDetector(
-                          onTap: () => setState(() => _descriptionExpanded = true),
+                          onTap: () =>
+                              setState(() => _descriptionExpanded = true),
                           child: Text(
-                            AppLocalizations.of(context)!.journeyPurchaseReadMore,
+                            AppLocalizations.of(
+                              context,
+                            )!.journeyPurchaseReadMore,
                             style: const TextStyle(
                               fontSize: 14,
                               color: AppColors.brown,
@@ -1060,11 +1067,15 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
                             ),
                           ),
                         )
-                      else if (description.length > previewLength && _descriptionExpanded)
+                      else if (description.length > previewLength &&
+                          _descriptionExpanded)
                         GestureDetector(
-                          onTap: () => setState(() => _descriptionExpanded = false),
+                          onTap: () =>
+                              setState(() => _descriptionExpanded = false),
                           child: Text(
-                            AppLocalizations.of(context)!.journeyPurchaseReadLess,
+                            AppLocalizations.of(
+                              context,
+                            )!.journeyPurchaseReadLess,
                             style: const TextStyle(
                               fontSize: 14,
                               color: AppColors.brown,
@@ -1161,8 +1172,14 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _InfoItem(icon: Icons.directions_walk, text: j.distance ?? '5 km'),
-          _InfoItem(icon: Icons.access_time, text: j.estimatedDuration ?? '2-3 hours'),
-          _InfoItem(icon: Icons.language, text: j.languages ?? 'Arabic, English'),
+          _InfoItem(
+            icon: Icons.access_time,
+            text: j.estimatedDuration ?? '2-3 hours',
+          ),
+          _InfoItem(
+            icon: Icons.language,
+            text: j.languages ?? 'Arabic, English',
+          ),
         ],
       ),
     );
@@ -1188,29 +1205,35 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        ...items.map((text) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: Icon(Icons.error_outline, size: 22, color: AppColors.orange),
+        ...items.map(
+          (text) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Icon(
+                    Icons.error_outline,
+                    size: 22,
+                    color: AppColors.orange,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      text,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.brown,
-                        height: 1.6,
-                      ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    text,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.brown,
+                      height: 1.6,
                     ),
                   ),
-                ],
-              ),
-            )),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1250,7 +1273,8 @@ class _JourneyPurchaseScreenState extends State<JourneyPurchaseScreen> {
       onTap: _isPurchasing ? null : _onPrimaryAction,
       isGreen: false,
       centered: centered,
-      showLoadingIndicator: (_isAccessLoading && _uiState == null) ||
+      showLoadingIndicator:
+          (_isAccessLoading && _uiState == null) ||
           _startingJourney ||
           _isPurchasing,
     );
@@ -1326,7 +1350,9 @@ class _DetailCard extends StatelessWidget {
                     value!,
                     style: TextStyle(
                       fontSize: 15,
-                      color: valueColorOrange ? AppColors.orange : Colors.black87,
+                      color: valueColorOrange
+                          ? AppColors.orange
+                          : Colors.black87,
                     ),
                   ),
                 ],
@@ -1354,10 +1380,7 @@ class _InfoItem extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           text,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppColors.brown,
-          ),
+          style: const TextStyle(fontSize: 14, color: AppColors.brown),
         ),
       ],
     );

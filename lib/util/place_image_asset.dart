@@ -10,7 +10,9 @@ const Map<String, String> _kPlaceImageStemAliases = {
 };
 
 // Arabic diacritics commonly found in names; removing them makes matching more robust.
-final _arabicDiacritics = RegExp(r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]');
+final _arabicDiacritics = RegExp(
+  r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]',
+);
 
 /// Normalized key for matching Firestore landmark `name` ↔ image filename stem.
 ///
@@ -59,7 +61,8 @@ Future<String?> resolvePlaceImageAsset(String placeName) async {
   if (wanted.isEmpty) return null;
   final aliasKey = alias != null ? _normalizeStemKey(alias) : null;
   final normMap = await _loadNormalizedStemToPathFromManifest();
-  final resolved = normMap[wanted] ?? (aliasKey != null ? normMap[aliasKey] : null);
+  final resolved =
+      normMap[wanted] ?? (aliasKey != null ? normMap[aliasKey] : null);
 
   if (kDebugMode && resolved == null) {
     // Print a small, actionable diagnostic when matching fails.
@@ -114,7 +117,9 @@ Future<Set<String>> _loadImageKeySetFromManifest() async {
     final out = <String>{};
     for (final key in assets) {
       if (!key.startsWith('images/')) continue;
-      if (key.endsWith('.jpeg') || key.endsWith('.jpg') || key.endsWith('.png')) {
+      if (key.endsWith('.jpeg') ||
+          key.endsWith('.jpg') ||
+          key.endsWith('.png')) {
         out.add(key);
       }
     }
@@ -129,7 +134,9 @@ Future<Set<String>> _loadImageKeySetFromManifest() async {
         for (final k in decoded.keys) {
           final key = k.toString();
           if (!key.startsWith('images/')) continue;
-          if (key.endsWith('.jpeg') || key.endsWith('.jpg') || key.endsWith('.png')) {
+          if (key.endsWith('.jpeg') ||
+              key.endsWith('.jpg') ||
+              key.endsWith('.png')) {
             out.add(key);
           }
         }

@@ -17,9 +17,14 @@ abstract final class MapButtonStyles {
     return FilledButton.styleFrom(
       backgroundColor: MapDesignTokens.primaryAccent,
       foregroundColor: Colors.white,
-      disabledBackgroundColor: MapDesignTokens.primaryAccent.withValues(alpha: 0.4),
+      disabledBackgroundColor: MapDesignTokens.primaryAccent.withValues(
+        alpha: 0.4,
+      ),
       disabledForegroundColor: Colors.white.withValues(alpha: 0.88),
-      padding: EdgeInsets.symmetric(vertical: verticalPadding, horizontal: horizontalPadding),
+      padding: EdgeInsets.symmetric(
+        vertical: verticalPadding,
+        horizontal: horizontalPadding,
+      ),
       minimumSize: MapDesignTokens.minimumTouchTarget,
       tapTargetSize: MaterialTapTargetSize.padded,
       shape: RoundedRectangleBorder(
@@ -32,11 +37,17 @@ abstract final class MapButtonStyles {
   }
 
   /// Brown filled (Show Hint when enabled).
-  static ButtonStyle secondaryFilled({TextStyle? textStyle, double horizontalPadding = 14}) {
+  static ButtonStyle secondaryFilled({
+    TextStyle? textStyle,
+    double horizontalPadding = 14,
+  }) {
     return FilledButton.styleFrom(
       backgroundColor: MapDesignTokens.secondaryAccent,
       foregroundColor: MapDesignTokens.popupBackground,
-      padding: EdgeInsets.symmetric(vertical: 14, horizontal: horizontalPadding),
+      padding: EdgeInsets.symmetric(
+        vertical: 14,
+        horizontal: horizontalPadding,
+      ),
       minimumSize: MapDesignTokens.minimumTouchTarget,
       tapTargetSize: MaterialTapTargetSize.padded,
       shape: RoundedRectangleBorder(
@@ -46,12 +57,19 @@ abstract final class MapButtonStyles {
     );
   }
 
-  static ButtonStyle secondaryOutlined({bool enabled = true, TextStyle? textStyle}) {
+  static ButtonStyle secondaryOutlined({
+    bool enabled = true,
+    TextStyle? textStyle,
+  }) {
     return OutlinedButton.styleFrom(
       foregroundColor: enabled
           ? MapDesignTokens.secondaryAccent
           : MapDesignTokens.secondaryAccent.withValues(alpha: 0.55),
-      side: BorderSide(color: MapDesignTokens.secondaryAccent.withValues(alpha: enabled ? 0.45 : 0.25)),
+      side: BorderSide(
+        color: MapDesignTokens.secondaryAccent.withValues(
+          alpha: enabled ? 0.45 : 0.25,
+        ),
+      ),
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       minimumSize: MapDesignTokens.minimumTouchTarget,
       tapTargetSize: MaterialTapTargetSize.padded,
@@ -63,12 +81,20 @@ abstract final class MapButtonStyles {
   }
 
   /// Disabled hint button.
-  static ButtonStyle hintDisabledOutlined({TextStyle? textStyle, double horizontalPadding = 14}) {
+  static ButtonStyle hintDisabledOutlined({
+    TextStyle? textStyle,
+    double horizontalPadding = 14,
+  }) {
     return OutlinedButton.styleFrom(
-      padding: EdgeInsets.symmetric(vertical: 14, horizontal: horizontalPadding),
+      padding: EdgeInsets.symmetric(
+        vertical: 14,
+        horizontal: horizontalPadding,
+      ),
       minimumSize: MapDesignTokens.minimumTouchTarget,
       tapTargetSize: MaterialTapTargetSize.padded,
-      side: BorderSide(color: MapDesignTokens.secondaryAccent.withValues(alpha: 0.25)),
+      side: BorderSide(
+        color: MapDesignTokens.secondaryAccent.withValues(alpha: 0.25),
+      ),
       foregroundColor: MapDesignTokens.secondaryAccent.withValues(alpha: 0.55),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(MapDesignTokens.radiusButton),
@@ -77,8 +103,9 @@ abstract final class MapButtonStyles {
     );
   }
 
-  static const ButtonStyle _challengeFooterLabelAlignment =
-      ButtonStyle(alignment: Alignment.center);
+  static const ButtonStyle _challengeFooterLabelAlignment = ButtonStyle(
+    alignment: Alignment.center,
+  );
 
   /// Hint + check row on the challenge overlay: centered, single-line labels.
   static ButtonStyle challengeFooterHintEnabled() {

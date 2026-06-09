@@ -22,8 +22,10 @@ class JourneyLandmark {
   });
 
   /// Canonical Firestore field names (also try [firestoreDistanceAliases] / [firestoreWalkingTimeAliases]).
-  static const String firestoreFieldDistanceFromPreviousMeters = 'distanceFromPreviousMeters';
-  static const String firestoreFieldWalkingTimeFromPreviousMinutes = 'walkingTimeFromPreviousMinutes';
+  static const String firestoreFieldDistanceFromPreviousMeters =
+      'distanceFromPreviousMeters';
+  static const String firestoreFieldWalkingTimeFromPreviousMinutes =
+      'walkingTimeFromPreviousMinutes';
 
   static const List<String> firestoreDistanceAliases = [
     firestoreFieldDistanceFromPreviousMeters,
@@ -71,10 +73,19 @@ class JourneyLandmark {
   final String? nextLandmarkId;
 
   bool get hasCoordinates =>
-      latitude != null && longitude != null && latitude!.isFinite && longitude!.isFinite;
+      latitude != null &&
+      longitude != null &&
+      latitude!.isFinite &&
+      longitude!.isFinite;
 
   static String? _readDescription(Map<String, dynamic> data) {
-    const keys = ['description', 'landmarkDescription', 'about', 'desc', 'details'];
+    const keys = [
+      'description',
+      'landmarkDescription',
+      'about',
+      'desc',
+      'details',
+    ];
     for (final key in keys) {
       final v = data[key];
       if (v is String && v.trim().isNotEmpty) return v.trim();
@@ -82,7 +93,10 @@ class JourneyLandmark {
     return null;
   }
 
-  factory JourneyLandmark.fromFirestore(String docId, Map<String, dynamic> data) {
+  factory JourneyLandmark.fromFirestore(
+    String docId,
+    Map<String, dynamic> data,
+  ) {
     final order = _readOrder(data);
     final lat = _readLatitude(data);
     final lng = _readLongitude(data);
@@ -95,7 +109,10 @@ class JourneyLandmark {
           : 'Landmark',
       description: _readDescription(data),
       distanceFromPreviousMeters: _readDistanceFromLandmarkData(data),
-      walkingTimeFromPreviousMinutes: _readWalkingTimeFromLandmarkData(data, docId),
+      walkingTimeFromPreviousMinutes: _readWalkingTimeFromLandmarkData(
+        data,
+        docId,
+      ),
       latitude: lat,
       longitude: lng,
       challenge: ChallengeQuizParser.tryParse(
@@ -122,7 +139,10 @@ class JourneyLandmark {
   }
 
   /// First non-null finite numeric among [keys] on [data] (top-level).
-  static double? _readFirstDoubleFromKeys(Map<String, dynamic> data, List<String> keys) {
+  static double? _readFirstDoubleFromKeys(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
     for (final key in keys) {
       if (!data.containsKey(key)) continue;
       final v = _coerceToDouble(data[key]);
@@ -138,7 +158,14 @@ class JourneyLandmark {
   ) {
     final top = _readFirstDoubleFromKeys(data, keys);
     if (top != null) return top;
-    for (final nest in ['route', 'leg', 'segment', 'navigation', 'meta', 'details']) {
+    for (final nest in [
+      'route',
+      'leg',
+      'segment',
+      'navigation',
+      'meta',
+      'details',
+    ]) {
       final inner = _asStringKeyedMap(data[nest]);
       if (inner == null) continue;
       final v = _readFirstDoubleFromKeys(inner, keys);
@@ -164,10 +191,20 @@ class JourneyLandmark {
   }) {
     for (final e in data.entries) {
       if (_normalizeFieldKey(e.key) == _walkingCanonicalNorm) {
-        return parseWalkingTimeFromPreviousMinutesValue(e.value, debugDocId: debugDocId);
+        return parseWalkingTimeFromPreviousMinutesValue(
+          e.value,
+          debugDocId: debugDocId,
+        );
       }
     }
-    for (final nest in ['route', 'leg', 'segment', 'navigation', 'meta', 'details']) {
+    for (final nest in [
+      'route',
+      'leg',
+      'segment',
+      'navigation',
+      'meta',
+      'details',
+    ]) {
       final inner = _asStringKeyedMap(data[nest]);
       if (inner == null) continue;
       for (final e in inner.entries) {
@@ -216,8 +253,14 @@ class JourneyLandmark {
     return out;
   }
 
-  static double? _readWalkingTimeFromLandmarkData(Map<String, dynamic> data, String docId) {
-    final flex = walkingTimeFromPreviousMinutesFromRawMap(data, debugDocId: docId);
+  static double? _readWalkingTimeFromLandmarkData(
+    Map<String, dynamic> data,
+    String docId,
+  ) {
+    final flex = walkingTimeFromPreviousMinutesFromRawMap(
+      data,
+      debugDocId: docId,
+    );
     if (flex != null) return flex;
 
     return _readNumericFromLandmarkData(data, firestoreWalkingTimeAliases);

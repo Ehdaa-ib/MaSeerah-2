@@ -43,7 +43,9 @@ class FeedbackDataSource {
         .get();
 
     if (snap.docs.isEmpty) return null;
-    return FeedbackEntry.fromMap(Map<String, dynamic>.from(snap.docs.first.data()));
+    return FeedbackEntry.fromMap(
+      Map<String, dynamic>.from(snap.docs.first.data()),
+    );
   }
 
   Future<List<FeedbackEntry>> _loadAllForUser(String uid) async {
@@ -52,12 +54,17 @@ class FeedbackDataSource {
     void addFromData(Map<String, dynamic> data, {String? docId}) {
       final entry = FeedbackEntry.fromMap(data);
       if (entry.userId.trim() != uid) return;
-      final key = docId ?? '${entry.journeyId}_${entry.createdAt?.millisecondsSinceEpoch ?? 0}';
+      final key =
+          docId ??
+          '${entry.journeyId}_${entry.createdAt?.millisecondsSinceEpoch ?? 0}';
       byKey[key] = entry;
     }
 
     try {
-      final root = await _firestore.collection(_collection).where('userId', isEqualTo: uid).get();
+      final root = await _firestore
+          .collection(_collection)
+          .where('userId', isEqualTo: uid)
+          .get();
       for (final doc in root.docs) {
         addFromData(doc.data(), docId: doc.id);
       }
@@ -77,9 +84,14 @@ class FeedbackDataSource {
     return byKey.values.toList();
   }
 
-  static bool _feedbackBelongsToJourney(String storedJourneyId, Set<String> tryIds) {
+  static bool _feedbackBelongsToJourney(
+    String storedJourneyId,
+    Set<String> tryIds,
+  ) {
     if (storedJourneyId.trim().isEmpty || tryIds.isEmpty) return false;
-    final storedVariants = LandmarkMemoryDataSource.journeyIdVariants(storedJourneyId);
+    final storedVariants = LandmarkMemoryDataSource.journeyIdVariants(
+      storedJourneyId,
+    );
     for (final x in storedVariants) {
       if (tryIds.contains(x)) return true;
       final cx = x.replaceAll('_', '').toLowerCase();
@@ -101,7 +113,9 @@ class FeedbackDataSource {
 
     final scoped = userJourneyId?.trim();
     if (scoped != null && scoped.isNotEmpty) {
-      final byScope = candidates.where((e) => (e.userJourneyId ?? '').trim() == scoped).toList();
+      final byScope = candidates
+          .where((e) => (e.userJourneyId ?? '').trim() == scoped)
+          .toList();
       if (byScope.isNotEmpty) {
         byScope.sort((a, b) {
           final ta = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -153,7 +167,10 @@ class FeedbackDataSource {
     if (uid.isEmpty || instanceId.isEmpty) return null;
 
     final cacheKey = _instanceFeedbackCacheKey(uid, instanceId);
-    final cached = TtlCache.read<_FeedbackLookupCache>(cacheKey, _instanceFeedbackCacheTtl);
+    final cached = TtlCache.read<_FeedbackLookupCache>(
+      cacheKey,
+      _instanceFeedbackCacheTtl,
+    );
     if (cached != null) return cached.entry;
 
     if (LandmarkMemoryDataSource.isCatalogJourneyDocId(
@@ -244,7 +261,8 @@ class FeedbackDataSource {
         .where((e) => _feedbackBelongsToJourney(e.journeyId, tryIds))
         .toList();
 
-    final requireTimeWindow = scopedToPlaythrough ||
+    final requireTimeWindow =
+        scopedToPlaythrough ||
         feedbackAfterExclusive != null ||
         feedbackBeforeExclusive != null;
 
@@ -287,8 +305,15 @@ class FeedbackDataSource {
   }) async {
     final ext = _extensionFromPath(file.path);
     final name = '${DateTime.now().microsecondsSinceEpoch}_$index$ext';
-    final ref = _storage.ref().child('feedbackPhotos').child(userId).child(journeyId).child(name);
-    final metadata = SettableMetadata(contentType: _contentTypeForPath(file.path));
+    final ref = _storage
+        .ref()
+        .child('feedbackPhotos')
+        .child(userId)
+        .child(journeyId)
+        .child(name);
+    final metadata = SettableMetadata(
+      contentType: _contentTypeForPath(file.path),
+    );
 
     try {
       final UploadTask task;
@@ -325,19 +350,17 @@ class FeedbackDataSource {
 
     return Future.wait(
       files.asMap().entries.map(
-            (e) => _uploadOne(
-              userId: userId,
-              journeyId: journeyId,
-              file: e.value,
-              index: e.key,
-            ),
-          ),
+        (e) => _uploadOne(
+          userId: userId,
+          journeyId: journeyId,
+          file: e.value,
+          index: e.key,
+        ),
+      ),
     );
   }
 
-  Future<void> create({
-    required FeedbackEntry entry,
-  }) async {
+  Future<void> create({required FeedbackEntry entry}) async {
     final data = <String, dynamic>{
       'userId': entry.userId,
       'journeyId': entry.journeyId,

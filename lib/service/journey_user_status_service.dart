@@ -3,12 +3,7 @@ import '../data/firebase/journey_progress_data_source.dart';
 import '../data/firebase/journey_repurchase_gate_data_source.dart';
 import 'journey_inactivity_service.dart';
 
-enum JourneyUserStatus {
-  loading,
-  notStarted,
-  active,
-  completed,
-}
+enum JourneyUserStatus { loading, notStarted, active, completed }
 
 class JourneyUserStatusResult {
   JourneyUserStatusResult({
@@ -30,16 +25,14 @@ class JourneyUserStatusResult {
 /// - `completed` is driven by completion/repurchase gate.
 class JourneyUserStatusService {
   JourneyUserStatusService({
-    JourneyProgressDataSource? progressDs,
     JourneyCompletionDataSource? completionDs,
     JourneyRepurchaseGateDataSource? repurchaseGateDs,
     JourneyInactivityService? inactivityService,
-  })  : _progressDs = progressDs ?? JourneyProgressDataSource(),
-        _completionDs = completionDs ?? JourneyCompletionDataSource(),
-        _repurchaseGateDs = repurchaseGateDs ?? JourneyRepurchaseGateDataSource(),
-        _inactivity = inactivityService ?? JourneyInactivityService();
+  }) : _completionDs = completionDs ?? JourneyCompletionDataSource(),
+       _repurchaseGateDs =
+           repurchaseGateDs ?? JourneyRepurchaseGateDataSource(),
+       _inactivity = inactivityService ?? JourneyInactivityService();
 
-  final JourneyProgressDataSource _progressDs;
   final JourneyInactivityService _inactivity;
   final JourneyCompletionDataSource _completionDs;
   final JourneyRepurchaseGateDataSource _repurchaseGateDs;
@@ -60,7 +53,10 @@ class JourneyUserStatusService {
     }
 
     // IMPORTANT: progress is the primary "continue" signal and should not depend on orders.
-    final progress = await _inactivity.resolveActiveProgress(userId: uid, journeyId: jid);
+    final progress = await _inactivity.resolveActiveProgress(
+      userId: uid,
+      journeyId: jid,
+    );
     if (progress != null) {
       return JourneyUserStatusResult(
         status: JourneyUserStatus.active,
@@ -71,7 +67,10 @@ class JourneyUserStatusService {
     }
 
     // After feedback, we require a new purchase.
-    final requiresRepurchase = await _repurchaseGateDs.requiresNewPurchase(userId: uid, journeyId: jid);
+    final requiresRepurchase = await _repurchaseGateDs.requiresNewPurchase(
+      userId: uid,
+      journeyId: jid,
+    );
     if (requiresRepurchase) {
       return JourneyUserStatusResult(
         status: JourneyUserStatus.completed,
@@ -81,9 +80,15 @@ class JourneyUserStatusService {
       );
     }
 
-    final completed = await _completionDs.isCompleted(userId: uid, journeyId: jid);
+    final completed = await _completionDs.isCompleted(
+      userId: uid,
+      journeyId: jid,
+    );
     if (completed) {
-      final awaitingFeedback = await _completionDs.isAwaitingFeedback(userId: uid, journeyId: jid);
+      final awaitingFeedback = await _completionDs.isAwaitingFeedback(
+        userId: uid,
+        journeyId: jid,
+      );
       return JourneyUserStatusResult(
         status: JourneyUserStatus.completed,
         progress: null,
@@ -100,4 +105,3 @@ class JourneyUserStatusService {
     );
   }
 }
-

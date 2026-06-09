@@ -6,8 +6,9 @@ class JourneyInactivityService {
   JourneyInactivityService({
     JourneyProgressDataSource? progressDs,
     JourneyRepurchaseGateDataSource? repurchaseGateDs,
-  })  : _progressDs = progressDs ?? JourneyProgressDataSource(),
-        _repurchaseGateDs = repurchaseGateDs ?? JourneyRepurchaseGateDataSource();
+  }) : _progressDs = progressDs ?? JourneyProgressDataSource(),
+       _repurchaseGateDs =
+           repurchaseGateDs ?? JourneyRepurchaseGateDataSource();
 
   final JourneyProgressDataSource _progressDs;
   final JourneyRepurchaseGateDataSource _repurchaseGateDs;
@@ -17,7 +18,9 @@ class JourneyInactivityService {
 
   bool isInactive(ActiveJourneyProgress progress) {
     if (progress.updatedAtMillis <= 0) return false;
-    final lastActive = DateTime.fromMillisecondsSinceEpoch(progress.updatedAtMillis);
+    final lastActive = DateTime.fromMillisecondsSinceEpoch(
+      progress.updatedAtMillis,
+    );
     return DateTime.now().difference(lastActive) >= inactivityLimit;
   }
 
@@ -61,7 +64,9 @@ class JourneyInactivityService {
   }
 
   /// Deletes inactive docs; returns journeys that remain active.
-  Future<List<ActiveJourneyProgress>> purgeInactiveForUser(String userId) async {
+  Future<List<ActiveJourneyProgress>> purgeInactiveForUser(
+    String userId,
+  ) async {
     final all = await _progressDs.listAll(userId: userId);
     final remaining = <ActiveJourneyProgress>[];
     for (final p in all) {

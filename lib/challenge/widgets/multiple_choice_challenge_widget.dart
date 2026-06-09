@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -16,10 +15,12 @@ class MultipleChoiceChallengeWidget extends StatefulWidget {
   final ChallengeStageModel stage;
 
   @override
-  State<MultipleChoiceChallengeWidget> createState() => _MultipleChoiceChallengeWidgetState();
+  State<MultipleChoiceChallengeWidget> createState() =>
+      _MultipleChoiceChallengeWidgetState();
 }
 
-class _MultipleChoiceChallengeWidgetState extends State<MultipleChoiceChallengeWidget> {
+class _MultipleChoiceChallengeWidgetState
+    extends State<MultipleChoiceChallengeWidget> {
   String? _selected;
   String? _feedback;
 
@@ -33,7 +34,9 @@ class _MultipleChoiceChallengeWidgetState extends State<MultipleChoiceChallengeW
       expected: widget.stage.answer,
     );
     debugPrint('[MultipleChoice] correct=$ok choice=$_selected');
-    setState(() => _feedback = ok ? 'Correct (placeholder)' : 'Not quite — try again.');
+    setState(
+      () => _feedback = ok ? 'Correct (placeholder)' : 'Not quite — try again.',
+    );
   }
 
   @override
@@ -72,7 +75,9 @@ class _MultipleChoiceChallengeWidgetState extends State<MultipleChoiceChallengeW
               backgroundColor: AppColors.orange,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Check answer'),
           ),
@@ -82,7 +87,9 @@ class _MultipleChoiceChallengeWidgetState extends State<MultipleChoiceChallengeW
               _feedback!,
               style: ChallengeStyles.bodyStyle.copyWith(
                 fontWeight: FontWeight.w600,
-                color: _feedback!.startsWith('Correct') ? const Color(0xFF2E7D32) : AppColors.brown,
+                color: _feedback!.startsWith('Correct')
+                    ? const Color(0xFF2E7D32)
+                    : AppColors.brown,
               ),
             ),
           ],

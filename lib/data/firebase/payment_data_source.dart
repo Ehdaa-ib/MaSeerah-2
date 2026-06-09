@@ -64,8 +64,13 @@ class PaymentDataSource {
     return app.Payment.fromMap(saved, id: doc.id);
   }
 
-  Future<app.Payment> updateStatus(String paymentId, app.PaymentStatus status) async {
-    await _firestore.collection(_collection).doc(paymentId).update({'status': status.value});
+  Future<app.Payment> updateStatus(
+    String paymentId,
+    app.PaymentStatus status,
+  ) async {
+    await _firestore.collection(_collection).doc(paymentId).update({
+      'status': status.value,
+    });
     final p = await getById(paymentId);
     if (p == null) throw Exception('Payment not found');
     return p.copyWith(status: status);
@@ -77,10 +82,15 @@ class PaymentDataSource {
     String? gatewayTransactionId,
   ) async {
     final updates = <String, dynamic>{'status': status.value};
-    if (gatewayTransactionId != null) updates['gatewayTransactionId'] = gatewayTransactionId;
+    if (gatewayTransactionId != null) {
+      updates['gatewayTransactionId'] = gatewayTransactionId;
+    }
     await _firestore.collection(_collection).doc(paymentId).update(updates);
     final p = await getById(paymentId);
     if (p == null) throw Exception('Payment not found');
-    return p.copyWith(status: status, gatewayTransactionId: gatewayTransactionId ?? p.gatewayTransactionId);
+    return p.copyWith(
+      status: status,
+      gatewayTransactionId: gatewayTransactionId ?? p.gatewayTransactionId,
+    );
   }
 }

@@ -41,7 +41,8 @@ class LandmarkMemoryUploadSheet extends StatefulWidget {
   final VoidCallback onContinueToChallenge;
 
   @override
-  State<LandmarkMemoryUploadSheet> createState() => _LandmarkMemoryUploadSheetState();
+  State<LandmarkMemoryUploadSheet> createState() =>
+      _LandmarkMemoryUploadSheetState();
 }
 
 class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
@@ -76,7 +77,9 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.memoryUploadPickFailed)),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.memoryUploadPickFailed),
+          ),
         );
       }
     }
@@ -95,7 +98,9 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.memoryUploadPickFailed)),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.memoryUploadPickFailed),
+          ),
         );
       }
     }
@@ -108,31 +113,51 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
       context: context,
       backgroundColor: AppColors.beige,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(MapDesignTokens.radiusCard)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MapDesignTokens.radiusCard),
+        ),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.photo_camera_outlined, color: MapDesignTokens.iconMuted()),
-              title: Text(l10n.memoryUploadTakePhoto, style: MapTextStyles.bodySmall),
+              leading: Icon(
+                Icons.photo_camera_outlined,
+                color: MapDesignTokens.iconMuted(),
+              ),
+              title: Text(
+                l10n.memoryUploadTakePhoto,
+                style: MapTextStyles.bodySmall,
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _takePhoto();
               },
             ),
             ListTile(
-              leading: Icon(Icons.photo_library_outlined, color: MapDesignTokens.iconMuted()),
-              title: Text(l10n.memoryUploadFromGallery, style: MapTextStyles.bodySmall),
+              leading: Icon(
+                Icons.photo_library_outlined,
+                color: MapDesignTokens.iconMuted(),
+              ),
+              title: Text(
+                l10n.memoryUploadFromGallery,
+                style: MapTextStyles.bodySmall,
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickFromGallery();
               },
             ),
             ListTile(
-              leading: Icon(Icons.close, color: MapDesignTokens.closeIconColor()),
-              title: Text(l10n.memoryUploadCancel, style: MapTextStyles.bodySmall),
+              leading: Icon(
+                Icons.close,
+                color: MapDesignTokens.closeIconColor(),
+              ),
+              title: Text(
+                l10n.memoryUploadCancel,
+                style: MapTextStyles.bodySmall,
+              ),
               onTap: () => Navigator.pop(ctx),
             ),
           ],
@@ -160,7 +185,11 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
     final file = _selectedFile;
     if (file == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.memoryUploadPhotoRequired)),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.memoryUploadPhotoRequired,
+          ),
+        ),
       );
       return;
     }
@@ -173,7 +202,11 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || uid.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.memoryUploadSignInRequired)),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.memoryUploadSignInRequired,
+          ),
+        ),
       );
       return;
     }
@@ -182,7 +215,9 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
     if (instanceId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Journey session is not ready yet. Please wait a moment and try again.'),
+          content: Text(
+            'Journey session is not ready yet. Please wait a moment and try again.',
+          ),
         ),
       );
       return;
@@ -249,7 +284,11 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
                 minHeight: _headerSideSlot,
               ),
               onPressed: _uploading ? null : widget.onClose,
-              icon: const Icon(Icons.arrow_back_ios, size: 20, color: AppColors.brown),
+              icon: const Icon(
+                Icons.arrow_back_ios,
+                size: 20,
+                color: AppColors.brown,
+              ),
             ),
           ),
           Expanded(
@@ -308,7 +347,10 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
         borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 22, horizontal: MapDesignTokens.spaceLg),
+          padding: const EdgeInsets.symmetric(
+            vertical: 22,
+            horizontal: MapDesignTokens.spaceLg,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
             border: Border.all(color: MapDesignTokens.borderSubtle(0.2)),
@@ -333,13 +375,17 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
               Text(
                 l10n.memoryUploadTakeOrUpload,
                 textAlign: TextAlign.center,
-                style: MapTextStyles.bodyBold.copyWith(color: MapDesignTokens.titleColor),
+                style: MapTextStyles.bodyBold.copyWith(
+                  color: MapDesignTokens.titleColor,
+                ),
               ),
               const SizedBox(height: MapDesignTokens.spaceXs),
               Text(
                 l10n.memoryUploadGalleryOrCamera,
                 textAlign: TextAlign.center,
-                style: MapTextStyles.caption.copyWith(fontWeight: FontWeight.w500),
+                style: MapTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -351,7 +397,12 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
   Widget _fullImagePreview(XFile file) {
     Widget image;
     if (kIsWeb) {
-      image = Image.network(file.path, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+      image = Image.network(
+        file.path,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
     } else {
       image = Image.file(
         File(file.path),
@@ -412,7 +463,10 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
                   ? const SizedBox(
                       height: 22,
                       width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(
                       l10n.memoryUploadNext,
@@ -486,13 +540,8 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: _fullImagePreview(_selectedFile!),
-        ),
-        SafeArea(
-          top: false,
-          child: _retakeNextRow(l10n),
-        ),
+        Expanded(child: _fullImagePreview(_selectedFile!)),
+        SafeArea(top: false, child: _retakeNextRow(l10n)),
       ],
     );
   }
@@ -512,7 +561,11 @@ class _LandmarkMemoryUploadSheetState extends State<LandmarkMemoryUploadSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildHeader(l10n.memoryUploadTitle),
-          Divider(height: 1, thickness: 1, color: MapDesignTokens.borderSubtle(0.14)),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: MapDesignTokens.borderSubtle(0.14),
+          ),
           Expanded(
             child: hasMedia ? _previewPhotoBody(l10n) : _pickPhotoBody(l10n),
           ),

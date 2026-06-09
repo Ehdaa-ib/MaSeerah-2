@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -41,139 +40,152 @@ class RecommendationDetailsModal extends StatelessWidget {
     final body = MapPopupSurface(
       child: LayoutBuilder(
         builder: (context, _) {
-            final l10n = AppLocalizations.of(context)!;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: SafeArea(
-                    bottom: false,
-                    child: SingleChildScrollView(
-                      primary: false,
-                      padding: EdgeInsets.zero,
-                      physics: const BouncingScrollPhysics(),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _HeroGallery(
-                            urls: gallery,
-                            onBack: onBack,
-                            onClose: () => Navigator.of(context).pop(),
+          final l10n = AppLocalizations.of(context)!;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: SafeArea(
+                  bottom: false,
+                  child: SingleChildScrollView(
+                    primary: false,
+                    padding: EdgeInsets.zero,
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _HeroGallery(
+                          urls: gallery,
+                          onBack: onBack,
+                          onClose: () => Navigator.of(context).pop(),
+                        ),
+                        Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                            18,
+                            16,
+                            18,
+                            10,
                           ),
-                                Padding(
-                                  padding: const EdgeInsetsDirectional.fromSTEB(18, 16, 18, 10),
-                                  child: Text(
-                                    place.name,
-                                    style: MapTextStyles.popupTitle,
+                          child: Text(
+                            place.name,
+                            style: MapTextStyles.popupTitle,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          child: place.description.trim().isEmpty
+                              ? Text(
+                                  l10n.recommendationNoDescription,
+                                  style: MapTextStyles.body.copyWith(
+                                    color: AppColors.brown.withValues(
+                                      alpha: 0.55,
+                                    ),
                                   ),
+                                )
+                              : Text(
+                                  place.description.trim(),
+                                  style: MapTextStyles.body,
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                                  child: place.description.trim().isEmpty
-                                      ? Text(
-                                          l10n.recommendationNoDescription,
-                                          style: MapTextStyles.body.copyWith(
-                                            color: AppColors.brown.withValues(alpha: 0.55),
-                                          ),
-                                        )
-                                      : Text(
-                                          place.description.trim(),
-                                          style: MapTextStyles.body,
+                        ),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          child: LayoutBuilder(
+                            builder: (context, c) {
+                              final useTwoCol = c.maxWidth > 340;
+                              final gap = 10.0;
+                              final half = (c.maxWidth - gap) / 2;
+                              final fullW = c.maxWidth;
+
+                              Widget slot(Widget child) => SizedBox(
+                                width: useTwoCol ? half : fullW,
+                                child: child,
+                              );
+
+                              return Wrap(
+                                spacing: gap,
+                                runSpacing: gap,
+                                children: [
+                                  slot(
+                                    MapInfoChip(
+                                      icon: Icons.payments_outlined,
+                                      label:
+                                          l10n.recommendationChipAveragePrice,
+                                      value: place.averagePrice,
+                                    ),
+                                  ),
+                                  slot(
+                                    MapInfoChip(
+                                      icon: Icons.directions_walk_outlined,
+                                      label: l10n.recommendationChipWalkTime,
+                                      value: place.walkingLabel,
+                                    ),
+                                  ),
+                                  slot(
+                                    MapInfoChip(
+                                      icon: Icons.straighten_outlined,
+                                      label: l10n
+                                          .recommendationChipDistanceFromLast,
+                                      value: place.distanceLabel,
+                                    ),
+                                  ),
+                                  if (place.rating != null)
+                                    slot(
+                                      MapInfoChip(
+                                        icon: Icons.star_rounded,
+                                        label: l10n.recommendationChipRating,
+                                        value: place.rating!.toStringAsFixed(1),
+                                        iconColor: AppColors.orange.withValues(
+                                          alpha: 0.88,
                                         ),
-                                ),
-                                const SizedBox(height: 16),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                                  child: LayoutBuilder(
-                                    builder: (context, c) {
-                                      final useTwoCol = c.maxWidth > 340;
-                                      final gap = 10.0;
-                                      final half = (c.maxWidth - gap) / 2;
-                                      final fullW = c.maxWidth;
-
-                                      Widget slot(Widget child) => SizedBox(
-                                            width: useTwoCol ? half : fullW,
-                                            child: child,
-                                          );
-
-                                      return Wrap(
-                                        spacing: gap,
-                                        runSpacing: gap,
-                                        children: [
-                                          slot(
-                                            MapInfoChip(
-                                              icon: Icons.payments_outlined,
-                                              label: l10n.recommendationChipAveragePrice,
-                                              value: place.averagePrice,
-                                            ),
-                                          ),
-                                          slot(
-                                            MapInfoChip(
-                                              icon: Icons.directions_walk_outlined,
-                                              label: l10n.recommendationChipWalkTime,
-                                              value: place.walkingLabel,
-                                            ),
-                                          ),
-                                          slot(
-                                            MapInfoChip(
-                                              icon: Icons.straighten_outlined,
-                                              label: l10n.recommendationChipDistanceFromLast,
-                                              value: place.distanceLabel,
-                                            ),
-                                          ),
-                                          if (place.rating != null)
-                                            slot(
-                                              MapInfoChip(
-                                                icon: Icons.star_rounded,
-                                                label: l10n.recommendationChipRating,
-                                                value: place.rating!.toStringAsFixed(1),
-                                                iconColor:
-                                                    AppColors.orange.withValues(alpha: 0.88),
-                                              ),
-                                            ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                ),
-                                if (priceCategories.isNotEmpty) ...[
-                                  const SizedBox(height: 18),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                                    child: Text(
-                                      l10n.recommendationPriceRanges,
-                                      style: MapTextStyles.sectionHeading,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                                    child: Column(
-                                      children: [
-                                        for (var i = 0; i < priceCategories.length; i++) ...[
-                                          if (i > 0) const SizedBox(height: 8),
-                                          _PriceCategoryCard(category: priceCategories[i]),
-                                        ],
-                                      ],
-                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        if (priceCategories.isNotEmpty) ...[
+                          const SizedBox(height: 18),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 18),
+                            child: Text(
+                              l10n.recommendationPriceRanges,
+                              style: MapTextStyles.sectionHeading,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 18),
+                            child: Column(
+                              children: [
+                                for (
+                                  var i = 0;
+                                  i < priceCategories.length;
+                                  i++
+                                ) ...[
+                                  if (i > 0) const SizedBox(height: 8),
+                                  _PriceCategoryCard(
+                                    category: priceCategories[i],
                                   ),
                                 ],
-                                const SizedBox(height: 20),
                               ],
                             ),
                           ),
-                        ),
-                      ),
-                      _StickyMapsCta(
-                        onOpenMaps: () {
-                          launchRecommendationLocationUrl(
-                            context,
-                            place.locationUrl,
-                          );
-                        },
-                      ),
-                    ],
-                  );
+                        ],
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              _StickyMapsCta(
+                onOpenMaps: () {
+                  launchRecommendationLocationUrl(context, place.locationUrl);
+                },
+              ),
+            ],
+          );
         },
       ),
     );
@@ -192,7 +204,6 @@ class RecommendationDetailsModal extends StatelessWidget {
 
     return SizedBox.expand(child: body);
   }
-
 }
 
 class _PriceCategoryCard extends StatelessWidget {
@@ -256,11 +267,7 @@ class _PriceCategoryCard extends StatelessWidget {
 }
 
 class _HeroGallery extends StatefulWidget {
-  const _HeroGallery({
-    required this.urls,
-    this.onBack,
-    required this.onClose,
-  });
+  const _HeroGallery({required this.urls, this.onBack, required this.onClose});
 
   final List<String> urls;
   final VoidCallback? onBack;
@@ -296,10 +303,7 @@ class _HeroGalleryState extends State<_HeroGallery> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppColors.green.withValues(alpha: 0.55),
-            AppColors.beige,
-          ],
+          colors: [AppColors.green.withValues(alpha: 0.55), AppColors.beige],
         ),
       ),
       child: Center(
@@ -334,13 +338,13 @@ class _HeroGalleryState extends State<_HeroGallery> {
           child: urls.isEmpty
               ? _placeholder()
               : urls.length == 1
-                  ? _networkImage(urls.first)
-                  : PageView.builder(
-                      controller: _pageController,
-                      itemCount: urls.length,
-                      onPageChanged: (i) => setState(() => _pageIndex = i),
-                      itemBuilder: (_, i) => _networkImage(urls[i]),
-                    ),
+              ? _networkImage(urls.first)
+              : PageView.builder(
+                  controller: _pageController,
+                  itemCount: urls.length,
+                  onPageChanged: (i) => setState(() => _pageIndex = i),
+                  itemBuilder: (_, i) => _networkImage(urls[i]),
+                ),
         ),
         if (widget.onBack != null)
           Positioned(
@@ -432,8 +436,13 @@ class _StickyMapsCta extends StatelessWidget {
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: onOpenMaps,
-                icon: Icon(Icons.map_outlined, size: MapDesignTokens.iconStandard),
-                label: Text(AppLocalizations.of(context)!.recommendationOpenInGoogleMaps),
+                icon: Icon(
+                  Icons.map_outlined,
+                  size: MapDesignTokens.iconStandard,
+                ),
+                label: Text(
+                  AppLocalizations.of(context)!.recommendationOpenInGoogleMaps,
+                ),
                 style: MapButtonStyles.primaryFilled(),
               ),
             ),

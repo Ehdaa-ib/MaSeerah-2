@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -60,7 +59,9 @@ class RecommendationQuickPopup extends StatelessWidget {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              l10n.recommendationQuickDistanceLine(place.distanceLabel),
+                              l10n.recommendationQuickDistanceLine(
+                                place.distanceLabel,
+                              ),
                               style: MapTextStyles.caption.copyWith(
                                 color: MapDesignTokens.iconMuted(0.82),
                                 fontSize: 13,
@@ -69,7 +70,9 @@ class RecommendationQuickPopup extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              l10n.recommendationQuickWalkLine(place.walkingLabel),
+                              l10n.recommendationQuickWalkLine(
+                                place.walkingLabel,
+                              ),
                               style: MapTextStyles.caption.copyWith(
                                 color: MapDesignTokens.iconMuted(0.82),
                                 fontSize: 13,
@@ -81,8 +84,14 @@ class RecommendationQuickPopup extends StatelessWidget {
                               const SizedBox(height: MapDesignTokens.spaceXs),
                               Row(
                                 children: [
-                                  Icon(Icons.star_rounded, size: 16, color: AppColors.orange),
-                                  const SizedBox(width: MapDesignTokens.spaceXs),
+                                  Icon(
+                                    Icons.star_rounded,
+                                    size: 16,
+                                    color: AppColors.orange,
+                                  ),
+                                  const SizedBox(
+                                    width: MapDesignTokens.spaceXs,
+                                  ),
                                   Text(
                                     place.rating!.toStringAsFixed(1),
                                     style: MapTextStyles.captionBold.copyWith(
@@ -147,7 +156,8 @@ class _ThumbStrip extends StatelessWidget {
 
   static const double _size = 76;
 
-  List<String> get _valid => urls.where((u) => u.trim().startsWith('http')).toList();
+  List<String> get _valid =>
+      urls.where((u) => u.trim().startsWith('http')).toList();
 
   @override
   Widget build(BuildContext context) {

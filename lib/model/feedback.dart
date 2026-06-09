@@ -73,7 +73,9 @@ class FeedbackEntry {
     };
   }
 
-  static List<AdminFeedbackReply> _adminResponsesFromMap(Map<String, dynamic> map) {
+  static List<AdminFeedbackReply> _adminResponsesFromMap(
+    Map<String, dynamic> map,
+  ) {
     final raw = map['adminResponses'];
     if (raw is! List) return const [];
     final out = <AdminFeedbackReply>[];
@@ -105,13 +107,14 @@ class FeedbackEntry {
         if (primary.isNotEmpty) return primary;
         return (map['comment'] as String?)?.trim() ?? '';
       }(),
-      photos: (map['photos'] as List?)?.whereType<String>().toList() ?? const [],
+      photos:
+          (map['photos'] as List?)?.whereType<String>().toList() ?? const [],
       adminResponses: _adminResponsesFromMap(map),
-      adminResponse: (map['adminResponse'] as String?)?.trim().isNotEmpty == true
+      adminResponse:
+          (map['adminResponse'] as String?)?.trim().isNotEmpty == true
           ? (map['adminResponse'] as String).trim()
           : null,
       respondedAt: respondedTs is Timestamp ? respondedTs.toDate() : null,
     );
   }
 }
-

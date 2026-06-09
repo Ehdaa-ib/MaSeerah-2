@@ -41,10 +41,14 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
 
     try {
       await waitForAuth();
-      final usersCountFuture =
-          FirebaseFirestore.instance.collection('users').count().get();
-      final journeysCountFuture =
-          FirebaseFirestore.instance.collection('journeys').count().get();
+      final usersCountFuture = FirebaseFirestore.instance
+          .collection('users')
+          .count()
+          .get();
+      final journeysCountFuture = FirebaseFirestore.instance
+          .collection('journeys')
+          .count()
+          .get();
 
       final recentUsersFuture = FirebaseFirestore.instance
           .collection('users')
@@ -52,16 +56,17 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
           .limit(5)
           .get()
           .then((snapshot) {
-        return snapshot.docs.map((doc) {
-          final data = Map<String, dynamic>.from(doc.data());
-          return _RecentUser(
-            name: (data['name'] as String?)?.trim().isNotEmpty == true
-                ? (data['name'] as String).trim()
-                : '—',
-            email: (data['email'] as String?) ?? '—',
-          );
-        }).toList();
-      }).catchError((_) => <_RecentUser>[]);
+            return snapshot.docs.map((doc) {
+              final data = Map<String, dynamic>.from(doc.data());
+              return _RecentUser(
+                name: (data['name'] as String?)?.trim().isNotEmpty == true
+                    ? (data['name'] as String).trim()
+                    : '—',
+                email: (data['email'] as String?) ?? '—',
+              );
+            }).toList();
+          })
+          .catchError((_) => <_RecentUser>[]);
 
       final feedbackCountFuture = FirebaseFirestore.instance
           .collection('feedback')
@@ -119,8 +124,7 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
     var ratingN = 0;
     final distribution = List<int>.filled(5, 0);
     try {
-      final fb =
-          await FirebaseFirestore.instance.collection('feedback').get();
+      final fb = await FirebaseFirestore.instance.collection('feedback').get();
       for (final d in fb.docs) {
         final r = d.data()['overallRating'];
         if (r is num) {
@@ -312,8 +316,10 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
                             (r) => ListTile(
                               dense: true,
                               contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.route_rounded,
-                                  color: AppColors.brown),
+                              leading: const Icon(
+                                Icons.route_rounded,
+                                color: AppColors.brown,
+                              ),
                               title: Text(
                                 r.title,
                                 style: const TextStyle(color: AppColors.brown),
@@ -346,15 +352,19 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
                               contentPadding: EdgeInsets.zero,
                               leading: CircleAvatar(
                                 backgroundColor: AppColors.orange,
-                                child: const Icon(Icons.person,
-                                    color: AppColors.beige),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: AppColors.beige,
+                                ),
                               ),
-                              title: Text(u.name,
-                                  style:
-                                      const TextStyle(color: AppColors.brown)),
-                              subtitle: Text(u.email,
-                                  style:
-                                      const TextStyle(color: AppColors.brown)),
+                              title: Text(
+                                u.name,
+                                style: const TextStyle(color: AppColors.brown),
+                              ),
+                              subtitle: Text(
+                                u.email,
+                                style: const TextStyle(color: AppColors.brown),
+                              ),
                             ),
                           )
                           .toList(),
@@ -561,7 +571,9 @@ class _RatingDistributionChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxCount = buckets.isEmpty ? 0 : buckets.reduce((a, b) => a > b ? a : b);
+    final maxCount = buckets.isEmpty
+        ? 0
+        : buckets.reduce((a, b) => a > b ? a : b);
     return Column(
       children: List.generate(5, (i) {
         final stars = i + 1;
@@ -608,4 +620,3 @@ class _RatingDistributionChart extends StatelessWidget {
     );
   }
 }
-

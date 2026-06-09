@@ -16,6 +16,7 @@ import '../../data/firebase/journey_instance_data_source.dart';
 import '../../data/firebase/journey_data_source.dart';
 import '../../data/firebase/journey_landmark_data_source.dart';
 import '../../data/firebase/journey_progress_data_source.dart';
+import '../../data/firebase/journey_repurchase_gate_data_source.dart';
 import '../../challenge/challenge_renderer.dart';
 import '../../model/journey.dart';
 import '../../model/journey_landmark.dart';
@@ -44,13 +45,24 @@ List<String> _splitDescriptionParagraphs(String text) {
   final t = text.trim();
   if (t.isEmpty) return const [];
   if (RegExp(r'\n\n+').hasMatch(t)) {
-    return t.split(RegExp(r'\n\n+')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    return t
+        .split(RegExp(r'\n\n+'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
   if (t.contains('\n')) {
-    return t.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    return t
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
-  final sentences =
-      t.split(RegExp(r'(?<=[.!?])\s+')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  final sentences = t
+      .split(RegExp(r'(?<=[.!?])\s+'))
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
   if (sentences.length <= 2) return [t];
   final out = <String>[];
   final buf = StringBuffer();
@@ -78,7 +90,9 @@ List<InlineSpan> _readableSpans(String segment) {
     final parts = chunk.split(RegExp(r'\*\*'));
     for (var i = 0; i < parts.length; i++) {
       final style = i.isOdd ? bold : base;
-      if (parts[i].isNotEmpty) spans.add(TextSpan(text: parts[i], style: style));
+      if (parts[i].isNotEmpty) {
+        spans.add(TextSpan(text: parts[i], style: style));
+      }
     }
   }
 
@@ -104,18 +118,24 @@ List<InlineSpan> _readableSpans(String segment) {
 class JourneyMapScreen extends StatefulWidget {
   const JourneyMapScreen({
     super.key,
+
     /// Shown in the app bar until [catalogJourneyId] load completes (if any).
     this.journeyTitle = 'Journey',
+
     /// `journeyId` on `journey_landmarks` documents (Firestore).
     this.landmarksJourneyId = 'journey1',
+
     /// Document id in `journeys` (e.g. `journey_1`); used to load the real journey name.
     this.catalogJourneyId,
+
     /// Restored from [JourneyProgressDataSource] when continuing an in-progress journey.
     this.initialRegion,
     this.initialQubaChallengeCompleted = false,
     this.initialLastRegionChallengeCompleted = false,
+
     /// When true (new journey / paid restart), clears local recommendation "seen" tracking before loading prefs.
     this.clearRecommendationTracking = false,
+
     /// Unique playthrough id (`users/{uid}/journeyHistory/{userJourneyId}`).
     this.initialUserJourneyId,
   });
@@ -164,9 +184,7 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
 
   /// Optional labels when Firestore has no doc yet for that [order]. DB name wins when present.
   /// Region 8 → Bustan Al-Mustazil (mirror in Firestore: `order: 8`, `name: "Bustan Al-Mustazil"`).
-  static const Map<int, String> _knownRegionTitles = {
-    8: 'Bustan Al-Mustazil',
-  };
+  static const Map<int, String> _knownRegionTitles = {8: 'Bustan Al-Mustazil'};
 
   /// SVG **region** → `journey_landmarks` **document id** when the doc id does not match `order`
   /// (e.g. region 8 uses doc `journey1landmark2`).
@@ -249,7 +267,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   Future<void> _loadMapProgressOnce() async {
     final uid = FirebaseAuth.instance.currentUser?.uid.trim();
     final catalogId = _effectiveCatalogJourneyId();
-    if (uid == null || uid.isEmpty || catalogId == null || catalogId.isEmpty) return;
+    if (uid == null || uid.isEmpty || catalogId == null || catalogId.isEmpty) {
+      return;
+    }
     _cachedMapProgress = await _progressDs.getUserJourneyProgress(
       userId: uid,
       journeyId: catalogId,
@@ -259,10 +279,16 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   Future<void> _enforceInactivityOrExit() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final catalogId = _effectiveCatalogJourneyId();
-    if (uid == null || uid.trim().isEmpty || catalogId == null || catalogId.isEmpty) return;
+    if (uid == null ||
+        uid.trim().isEmpty ||
+        catalogId == null ||
+        catalogId.isEmpty) {
+      return;
+    }
 
     final inactivity = JourneyInactivityService(progressDs: _progressDs);
-    final progress = _cachedMapProgress ??
+    final progress =
+        _cachedMapProgress ??
         await _progressDs.getUserJourneyProgress(
           userId: uid,
           journeyId: catalogId,
@@ -273,7 +299,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     await inactivity.terminateIfInactive(userId: uid, progress: progress);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.journeyTerminatedInactivity)),
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(context)!.journeyTerminatedInactivity,
+        ),
+      ),
     );
     Navigator.of(context).pop();
   }
@@ -281,7 +311,12 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   Future<void> _ensureUserJourneyInstance() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final catalogId = _effectiveCatalogJourneyId();
-    if (uid == null || uid.trim().isEmpty || catalogId == null || catalogId.isEmpty) return;
+    if (uid == null ||
+        uid.trim().isEmpty ||
+        catalogId == null ||
+        catalogId.isEmpty) {
+      return;
+    }
 
     final fromWidget = widget.initialUserJourneyId?.trim();
     if (fromWidget != null && fromWidget.isNotEmpty) {
@@ -290,7 +325,8 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     }
 
     final trimmedUid = uid.trim();
-    final progress = _cachedMapProgress ??
+    final progress =
+        _cachedMapProgress ??
         await _progressDs.getUserJourneyProgress(
           userId: trimmedUid,
           journeyId: catalogId,
@@ -320,7 +356,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       userJourneyId: instanceId,
     );
     if (kDebugMode) {
-      debugPrint('[JourneyMap] created userJourneyId=$instanceId catalog=$catalogId');
+      debugPrint(
+        '[JourneyMap] created userJourneyId=$instanceId catalog=$catalogId',
+      );
     }
   }
 
@@ -336,8 +374,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       _recQuickTimer = null;
       await _recStore.clearAppearedForJourney(
         landmarksJourneyId: widget.landmarksJourneyId,
-        catalogJourneyId: widget.catalogJourneyId ??
-            RecommendationAppearanceStore.inferCatalogFromLandmarksId(widget.landmarksJourneyId),
+        catalogJourneyId:
+            widget.catalogJourneyId ??
+            RecommendationAppearanceStore.inferCatalogFromLandmarksId(
+              widget.landmarksJourneyId,
+            ),
       );
       if (!mounted) return;
       setState(() {
@@ -419,9 +460,14 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   }
 
   /// Eligibility using a place list (used while applying appeared filter before [_recommendations] is set).
-  Set<int> _eligibleAutoShowOrdersNowForPlaces(List<RecommendationPlace> places) {
+  Set<int> _eligibleAutoShowOrdersNowForPlaces(
+    List<RecommendationPlace> places,
+  ) {
     if (places.isEmpty) return {};
-    final region = _effectiveRegionForRecommendationEligibility().clamp(1, _mapRegionCount);
+    final region = _effectiveRegionForRecommendationEligibility().clamp(
+      1,
+      _mapRegionCount,
+    );
     if (region < 5) return {};
     final out = <int>{};
     if (region > 5) {
@@ -470,10 +516,15 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   void _refillRecQuickQueue() {
     final eligible = _eligibleAutoShowOrdersNow();
     if (eligible.isEmpty) return;
-    final sorted = _recommendations
-        .where((p) => eligible.contains(p.order) && !_recAppearedOrders.contains(p.order))
-        .toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final sorted =
+        _recommendations
+            .where(
+              (p) =>
+                  eligible.contains(p.order) &&
+                  !_recAppearedOrders.contains(p.order),
+            )
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
     final ids = _recQuickQueue.map((e) => e.id).toSet();
     for (final p in sorted) {
       if (ids.add(p.id)) _recQuickQueue.add(p);
@@ -483,7 +534,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   void _dequeueShowNextQuickRecommendation() {
     if (!mounted) return;
     if (_recommendationDetailsOpen || !_footerVisible) return;
-    if (_recQuickPlace != null || _recQuickInTransition || _recClosingSequence) return;
+    if (_recQuickPlace != null ||
+        _recQuickInTransition ||
+        _recClosingSequence) {
+      return;
+    }
     if (_recQuickQueue.isEmpty) return;
     final place = _recQuickQueue.removeAt(0);
     unawaited(_openQuickRecommendationPopup(place));
@@ -523,7 +578,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     unawaited(_closeQuickRecommendationPopupSequence(advance: true));
   }
 
-  Future<void> _closeQuickRecommendationPopupSequence({required bool advance}) async {
+  Future<void> _closeQuickRecommendationPopupSequence({
+    required bool advance,
+  }) async {
     if (_recClosingSequence) return;
     if (_recQuickPlace == null) {
       if (!_recQuickInTransition && advance) {
@@ -542,7 +599,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
         _recQuickSlide = const Offset(-0.06, 0);
       });
     }
-    await Future<void>.delayed(_kRecQuickFadeOut + const Duration(milliseconds: 40));
+    await Future<void>.delayed(
+      _kRecQuickFadeOut + const Duration(milliseconds: 40),
+    );
     if (!mounted || gen != _recQuickGen) {
       _recClosingSequence = false;
       _recQuickInTransition = false;
@@ -579,9 +638,16 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     if (_recommendationDetailsOpen) return;
     if (!_footerVisible) return;
     _refillRecQuickQueue();
-    if (_recQuickPlace != null || _recQuickInTransition || _recClosingSequence) return;
+    if (_recQuickPlace != null ||
+        _recQuickInTransition ||
+        _recClosingSequence) {
+      return;
+    }
     if (kDebugMode) {
-      final eff = _effectiveRegionForRecommendationEligibility().clamp(1, _mapRegionCount);
+      final eff = _effectiveRegionForRecommendationEligibility().clamp(
+        1,
+        _mapRegionCount,
+      );
       final elig = _eligibleAutoShowOrdersNow();
       if (eff >= 5 && _recQuickQueue.isEmpty) {
         if (_recommendations.isEmpty) {
@@ -591,7 +657,8 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
           );
         } else if (elig.isNotEmpty) {
           final hasUnshown = _recommendations.any(
-            (p) => elig.contains(p.order) && !_recAppearedOrders.contains(p.order),
+            (p) =>
+                elig.contains(p.order) && !_recAppearedOrders.contains(p.order),
           );
           if (!hasUnshown) {
             debugPrint(
@@ -608,10 +675,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   List<RecommendationPlace> _appearedRecommendationPlaces() {
     final eligible = _eligibleAutoShowOrdersNow();
     final set = _recAppearedOrders;
-    final out = _recommendations
-        .where((p) => set.contains(p.order) && eligible.contains(p.order))
-        .toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final out =
+        _recommendations
+            .where((p) => set.contains(p.order) && eligible.contains(p.order))
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
     return out;
   }
 
@@ -730,7 +798,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   }
 
   bool get _footerVisible =>
-      _regionSheetRegion == null && !_emptyChallengeOverlay && !_memoryUploadOverlay;
+      _regionSheetRegion == null &&
+      !_emptyChallengeOverlay &&
+      !_memoryUploadOverlay;
 
   /// Map page footer bar (not shown during region sheet / challenge / recommendation details).
   bool get _mapFooterChromeVisible =>
@@ -794,7 +864,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       _landmarksLoading = true;
     });
     try {
-      final list = await _landmarkDs.getLandmarksForJourney(widget.landmarksJourneyId);
+      final list = await _landmarkDs.getLandmarksForJourney(
+        widget.landmarksJourneyId,
+      );
       final docPairs = await Future.wait(
         _regionLandmarkDocumentIds.entries.map((e) async {
           final lm = await _landmarkDs.getLandmark(e.value);
@@ -902,7 +974,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.mapCouldNotOpenGoogleMaps)),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.mapCouldNotOpenGoogleMaps,
+          ),
+        ),
       );
     }
   }
@@ -915,8 +991,8 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
           ),
         )
         .then((signedIn) {
-      if (signedIn == true && mounted) setState(() {});
-    });
+          if (signedIn == true && mounted) setState(() {});
+        });
   }
 
   Future<void> _finishJourneyAndFeedback() async {
@@ -929,7 +1005,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
     if (journeyId == null || journeyId.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.mapCouldNotDetermineJourney)),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.mapCouldNotDetermineJourney,
+          ),
+        ),
       );
       return;
     }
@@ -948,22 +1028,26 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
         );
       }
       try {
+        await JourneyRepurchaseGateDataSource().setRequiresRepurchase(
+          userId: uid,
+          journeyId: journeyId,
+        );
+      } catch (_) {}
+      try {
         await _progressDs.delete(userId: uid, journeyId: journeyId);
       } catch (_) {}
       if (!mounted) return;
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (_) => FeedbackScreen(
-            journeyId: journeyId,
-            userJourneyId: instanceId,
-          ),
+          builder: (_) =>
+              FeedbackScreen(journeyId: journeyId, userJourneyId: instanceId),
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(toUserFriendlyMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(toUserFriendlyMessage(e))));
     }
   }
 
@@ -989,208 +1073,220 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
         _leaveMapToJourneyIntro();
       },
       child: Scaffold(
-      appBar: AppBar(
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        title: Text(
-          _appBarTitle(),
-          style: MapTextStyles.appBarTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        appBar: AppBar(
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          title: Text(
+            _appBarTitle(),
+            style: MapTextStyles.appBarTitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          backgroundColor: AppColors.beige,
+          centerTitle: true,
+          foregroundColor: AppColors.brown,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: AppColors.brown),
+            onPressed: _leaveMapToJourneyIntro,
+          ),
         ),
-        backgroundColor: AppColors.beige,
-        centerTitle: true,
-        foregroundColor: AppColors.brown,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.brown),
-          onPressed: _leaveMapToJourneyIntro,
-        ),
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(
-              color: AppColors.beige,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const svgWidth = 860.0;
-                  const svgHeight = 1700.0;
-                  final w = constraints.maxWidth;
-                  final h = w * (svgHeight / svgWidth);
-                  const topInset = 6.0;
-                  final bottomInset = _mapScrollBottomInset(context);
-                  final maxH = constraints.maxHeight;
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Container(
+                color: AppColors.beige,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    const svgWidth = 860.0;
+                    const svgHeight = 1700.0;
+                    final w = constraints.maxWidth;
+                    final h = w * (svgHeight / svgWidth);
+                    const topInset = 6.0;
+                    final bottomInset = _mapScrollBottomInset(context);
+                    final maxH = constraints.maxHeight;
 
-                  final map = SizedBox(
-                    width: w,
-                    height: h,
-                    child: JourneySvgMap(
-                      assetPath: 'images/map.svg',
-                      activeMapAssetPath: 'images/map_active.png',
-                      inactiveMapAssetPath: 'images/map_inactive.png',
-                      regionCount: _mapRegionCount,
-                      currentRegion: currentRegion,
-                      allowTapInactive: false,
-                      allowTapCompleted: true,
-                      onRegionTap: _onRegionTap,
-                    ),
-                  );
-
-                  // When the body is taller than the map, a plain [SingleChildScrollView]
-                  // leaves beige below the map; pin the map to the bottom (above the footer inset).
-                  if (topInset + h + bottomInset <= maxH) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: topInset),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.bottomCenter,
-                              child: map,
-                            ),
-                          ),
-                          SizedBox(height: bottomInset),
-                        ],
+                    final map = SizedBox(
+                      width: w,
+                      height: h,
+                      child: JourneySvgMap(
+                        assetPath: 'images/map.svg',
+                        activeMapAssetPath: 'images/map_active.png',
+                        inactiveMapAssetPath: 'images/map_inactive.png',
+                        regionCount: _mapRegionCount,
+                        currentRegion: currentRegion,
+                        allowTapInactive: false,
+                        allowTapCompleted: true,
+                        onRegionTap: _onRegionTap,
                       ),
                     );
-                  }
 
-                  return SingleChildScrollView(
-                    padding: EdgeInsets.only(
-                      top: topInset,
-                      bottom: bottomInset,
-                    ),
-                    child: map,
-                  );
-                },
+                    // When the body is taller than the map, a plain [SingleChildScrollView]
+                    // leaves beige below the map; pin the map to the bottom (above the footer inset).
+                    if (topInset + h + bottomInset <= maxH) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: topInset),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: map,
+                              ),
+                            ),
+                            SizedBox(height: bottomInset),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.only(
+                        top: topInset,
+                        bottom: bottomInset,
+                      ),
+                      child: map,
+                    );
+                  },
+                ),
               ),
             ),
-          ),
-          if (_mapFooterChromeVisible)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: AbsorbPointer(
-                absorbing: _recQuickPlace != null,
-                child: SafeArea(
-                  top: false,
-                  child: Material(
-                    elevation: 10,
-                    color: AppColors.beige,
-                    child: Padding(
-                      padding: MapDesignTokens.paddingFooter,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (!_showFinishJourneyInFooter) ...[
-                            Text(
-                              _footerPlaceName(),
-                              textAlign: TextAlign.center,
-                              style: MapTextStyles.footerPlaceName,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: MapDesignTokens.spaceMd),
-                          ],
-                          if (_showFinishJourneyInFooter)
-                            FilledButton.icon(
-                              onPressed: _finishJourneyAndFeedback,
-                              style: MapButtonStyles.primaryFilled(verticalPadding: 16),
-                              icon: Icon(
-                                Icons.rate_review_outlined,
-                                size: MapDesignTokens.iconStandard,
-                                color: Colors.white,
-                              ),
-                              label: Text(
-                                AppLocalizations.of(context)!.mapFinishJourneyFeedback,
-                                style: MapTextStyles.buttonLabel,
-                                maxLines: 2,
+            if (_mapFooterChromeVisible)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: AbsorbPointer(
+                  absorbing: _recQuickPlace != null,
+                  child: SafeArea(
+                    top: false,
+                    child: Material(
+                      elevation: 10,
+                      color: AppColors.beige,
+                      child: Padding(
+                        padding: MapDesignTokens.paddingFooter,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (!_showFinishJourneyInFooter) ...[
+                              Text(
+                                _footerPlaceName(),
                                 textAlign: TextAlign.center,
+                                style: MapTextStyles.footerPlaceName,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            )
-                          else
-                            FilledButton.icon(
-                              onPressed: _canOpenMapsForCurrentRegion()
-                                  ? _openGoogleMapsForCurrentRegion
-                                  : null,
-                              style: MapButtonStyles.primaryFilled(verticalPadding: 16),
-                              icon: Icon(
-                                Icons.map_outlined,
-                                size: MapDesignTokens.iconStandard,
-                                color: Colors.white,
+                              const SizedBox(height: MapDesignTokens.spaceMd),
+                            ],
+                            if (_showFinishJourneyInFooter)
+                              FilledButton.icon(
+                                onPressed: _finishJourneyAndFeedback,
+                                style: MapButtonStyles.primaryFilled(
+                                  verticalPadding: 16,
+                                ),
+                                icon: Icon(
+                                  Icons.rate_review_outlined,
+                                  size: MapDesignTokens.iconStandard,
+                                  color: Colors.white,
+                                ),
+                                label: Text(
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.mapFinishJourneyFeedback,
+                                  style: MapTextStyles.buttonLabel,
+                                  maxLines: 2,
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              )
+                            else
+                              FilledButton.icon(
+                                onPressed: _canOpenMapsForCurrentRegion()
+                                    ? _openGoogleMapsForCurrentRegion
+                                    : null,
+                                style: MapButtonStyles.primaryFilled(
+                                  verticalPadding: 16,
+                                ),
+                                icon: Icon(
+                                  Icons.map_outlined,
+                                  size: MapDesignTokens.iconStandard,
+                                  color: Colors.white,
+                                ),
+                                label: Text(
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.mapOpenGoogleMaps,
+                                ),
                               ),
-                              label: Text(AppLocalizations.of(context)!.mapOpenGoogleMaps),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          if (!_recommendationDetailsOpen)
-            Positioned(
-              top: 12,
-              right: 12,
-              child: SafeArea(
-                child: RecommendationIconButton(
-                  count: _appearedRecommendationPlaces().length,
-                  onPressed: _openRecommendationList,
-                ),
-              ),
-            ),
-          if (_regionSheetRegion != null) _buildRegionSheet(context),
-          if (_memoryUploadOverlay) _buildMemoryUploadOverlay(context),
-          if (_emptyChallengeOverlay) _buildEmptyChallengeOverlay(context),
-          if (_centerMessage != null) _buildCenterMessageOverlay(),
-          if (_recQuickPlace != null)
-            Positioned(
-              top: 72,
-              right: 12,
-              left: 12,
-              child: SafeArea(
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: AnimatedOpacity(
-                    opacity: _recQuickOpacity,
-                    duration: _kRecQuickFadeIn,
-                    curve: Curves.easeOut,
-                    child: AnimatedSlide(
-                      offset: _recQuickSlide,
-                      duration: _kRecQuickFadeIn,
-                      curve: Curves.easeOutCubic,
-                      child: RecommendationQuickPopup(
-                        key: ValueKey<String>(_recQuickPlace!.id),
-                        place: _recQuickPlace!,
-                        onClose: () => _dismissQuickRecommendation(),
-                        onDirections: () => launchRecommendationLocationUrl(
-                          context,
-                          _recQuickPlace!.locationUrl,
+                          ],
                         ),
-                        onView: () async {
-                          final p = _recQuickPlace!;
-                          if (mounted) {
-                            setState(() => _recommendationDetailsOpen = true);
-                          }
-                          await _closeQuickRecommendationPopupSequence(advance: false);
-                          if (!mounted) return;
-                          await _openRecommendationDetails(p);
-                        },
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+            if (!_recommendationDetailsOpen)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: SafeArea(
+                  child: RecommendationIconButton(
+                    count: _appearedRecommendationPlaces().length,
+                    onPressed: _openRecommendationList,
+                  ),
+                ),
+              ),
+            if (_regionSheetRegion != null) _buildRegionSheet(context),
+            if (_memoryUploadOverlay) _buildMemoryUploadOverlay(context),
+            if (_emptyChallengeOverlay) _buildEmptyChallengeOverlay(context),
+            if (_centerMessage != null) _buildCenterMessageOverlay(),
+            if (_recQuickPlace != null)
+              Positioned(
+                top: 72,
+                right: 12,
+                left: 12,
+                child: SafeArea(
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: AnimatedOpacity(
+                      opacity: _recQuickOpacity,
+                      duration: _kRecQuickFadeIn,
+                      curve: Curves.easeOut,
+                      child: AnimatedSlide(
+                        offset: _recQuickSlide,
+                        duration: _kRecQuickFadeIn,
+                        curve: Curves.easeOutCubic,
+                        child: RecommendationQuickPopup(
+                          key: ValueKey<String>(_recQuickPlace!.id),
+                          place: _recQuickPlace!,
+                          onClose: () => _dismissQuickRecommendation(),
+                          onDirections: () => launchRecommendationLocationUrl(
+                            context,
+                            _recQuickPlace!.locationUrl,
+                          ),
+                          onView: () async {
+                            final p = _recQuickPlace!;
+                            if (mounted) {
+                              setState(() => _recommendationDetailsOpen = true);
+                            }
+                            await _closeQuickRecommendationPopupSequence(
+                              advance: false,
+                            );
+                            if (!mounted) return;
+                            await _openRecommendationDetails(p);
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -1212,7 +1308,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
               child: Text(
                 _centerMessage!,
                 textAlign: TextAlign.center,
-                style: MapTextStyles.bodyBold.copyWith(fontWeight: FontWeight.w600),
+                style: MapTextStyles.bodyBold.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -1233,10 +1331,10 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
       });
     }
     return Positioned.fill(
-        child: Material(
-          color: MapDesignTokens.scrimOverMap(),
-          child: Center(
-            child: Container(
+      child: Material(
+        color: MapDesignTokens.scrimOverMap(),
+        child: Center(
+          child: Container(
             width: size.width * MapOverlaySheetSize.widthFraction,
             height: size.height * MapOverlaySheetSize.heightFraction,
             margin: MapDesignTokens.sheetOuterMargin,
@@ -1267,11 +1365,14 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                                 }
                                 if (nextLm == null) {
                                   try {
-                                    nextLm = await _landmarkDs.getLandmark(nextDocId);
+                                    nextLm = await _landmarkDs.getLandmark(
+                                      nextDocId,
+                                    );
                                   } catch (_) {}
                                 }
                               }
-                              final nextRegion = (nextLm?.order ?? (currentRegion + 1));
+                              final nextRegion =
+                                  (nextLm?.order ?? (currentRegion + 1));
                               if (nextRegion > _mapRegionCount) {
                                 return ChallengeNextDestination(
                                   name: l10n.mapJourneyCompleted,
@@ -1281,27 +1382,38 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                               final byOrder = _landmarkForRegion(nextRegion);
                               final nextResolved = nextLm ?? byOrder;
                               final name =
-                                  nextResolved?.name ?? byOrder?.name ?? l10n.regionNumber(nextRegion);
-                              final dist = nextResolved?.distanceFromPreviousMeters ??
+                                  nextResolved?.name ??
+                                  byOrder?.name ??
+                                  l10n.regionNumber(nextRegion);
+                              final dist =
+                                  nextResolved?.distanceFromPreviousMeters ??
                                   byOrder?.distanceFromPreviousMeters;
-                              var walk = nextResolved?.walkingTimeFromPreviousMinutes ??
+                              var walk =
+                                  nextResolved
+                                      ?.walkingTimeFromPreviousMinutes ??
                                   byOrder?.walkingTimeFromPreviousMinutes;
 
                               // Re-read from Firestore when model missed walking (key casing, web num type, etc.).
                               if (walk == null) {
-                                final fetchId = nextResolved?.documentId ?? byOrder?.documentId;
+                                final fetchId =
+                                    nextResolved?.documentId ??
+                                    byOrder?.documentId;
                                 if (fetchId != null) {
                                   try {
-                                    final snap = await FirebaseFirestore.instance
-                                        .collection(JourneyLandmarkDataSource.collection)
+                                    final snap = await FirebaseFirestore
+                                        .instance
+                                        .collection(
+                                          JourneyLandmarkDataSource.collection,
+                                        )
                                         .doc(fetchId)
                                         .get();
                                     final d = snap.data();
                                     if (d != null) {
-                                      walk = JourneyLandmark.walkingTimeFromPreviousMinutesFromRawMap(
-                                        d,
-                                        debugDocId: fetchId,
-                                      );
+                                      walk =
+                                          JourneyLandmark.walkingTimeFromPreviousMinutesFromRawMap(
+                                            d,
+                                            debugDocId: fetchId,
+                                          );
                                       if (kDebugMode && walk == null) {
                                         debugPrint(
                                           '[ChallengeNext] walkingStillNull doc=$fetchId '
@@ -1311,7 +1423,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                                       }
                                     }
                                   } catch (e) {
-                                    if (kDebugMode) debugPrint('[ChallengeNext] walking refetch: $e');
+                                    if (kDebugMode) {
+                                      debugPrint(
+                                        '[ChallengeNext] walking refetch: $e',
+                                      );
+                                    }
                                   }
                                 }
                               }
@@ -1333,14 +1449,17 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                             },
                             onResultNext: _onEmptyChallengeOverlayNext,
                             nextLandmarkDocumentId: lm?.nextLandmarkId,
-                            onChallengeResolved: ({required success, nextLandmarkDocumentId}) {
-                              if (!success) return;
-                              // TODO: Navigate using [nextLandmarkDocumentId] when journey routing supports it.
-                            },
+                            onChallengeResolved:
+                                ({required success, nextLandmarkDocumentId}) {
+                                  if (!success) return;
+                                  // TODO: Navigate using [nextLandmarkDocumentId] when journey routing supports it.
+                                },
                           )
                         : Center(
                             child: Text(
-                              AppLocalizations.of(context)!.mapChallengeComingSoon,
+                              AppLocalizations.of(
+                                context,
+                              )!.mapChallengeComingSoon,
                               style: MapTextStyles.body.copyWith(
                                 color: AppColors.brown.withValues(alpha: 0.75),
                               ),
@@ -1365,7 +1484,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   Widget _buildRegionSheet(BuildContext context) {
     final region = _regionSheetRegion!;
     final l10n = AppLocalizations.of(context)!;
-    final title = _landmarksLoading ? l10n.regionNumber(region) : _placeTitle(region);
+    final title = _landmarksLoading
+        ? l10n.regionNumber(region)
+        : _placeTitle(region);
     final lm = _landmarkForRegion(region);
     final description = lm?.description?.trim();
     final size = MediaQuery.sizeOf(context);
@@ -1392,7 +1513,9 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          AppLocalizations.of(context)!.mapCouldNotDetermineJourney,
+                          AppLocalizations.of(
+                            context,
+                          )!.mapCouldNotDetermineJourney,
                         ),
                       ),
                     );
@@ -1474,7 +1597,11 @@ class _JourneyMapScreenState extends State<JourneyMapScreen> {
   }
 
   void _onRegionTap(int region) {
-    if (_emptyChallengeOverlay || _memoryUploadOverlay || _regionSheetRegion != null) return;
+    if (_emptyChallengeOverlay ||
+        _memoryUploadOverlay ||
+        _regionSheetRegion != null) {
+      return;
+    }
 
     if (region > currentRegion) {
       _showCenterMessage(AppLocalizations.of(context)!.mapRegionNotReached);
@@ -1507,10 +1634,12 @@ class _RegionLandmarkChallengeSheet extends StatefulWidget {
   final VoidCallback onContentNext;
 
   @override
-  State<_RegionLandmarkChallengeSheet> createState() => _RegionLandmarkChallengeSheetState();
+  State<_RegionLandmarkChallengeSheet> createState() =>
+      _RegionLandmarkChallengeSheetState();
 }
 
-class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeSheet> {
+class _RegionLandmarkChallengeSheetState
+    extends State<_RegionLandmarkChallengeSheet> {
   static const int _initialSeconds = 5;
   int _secondsLeft = _initialSeconds;
   Timer? _timer;
@@ -1620,7 +1749,10 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
                 borderRadius: BorderRadius.circular(MapDesignTokens.radiusCard),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 child: Text(
                   _formatCountdown(),
                   style: MapTextStyles.caption.copyWith(
@@ -1635,7 +1767,11 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
               ),
             ),
           ),
-          Divider(height: 1, thickness: 1, color: MapDesignTokens.borderSubtle(0.14)),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: MapDesignTokens.borderSubtle(0.14),
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: MapDesignTokens.paddingLandmarkScroll,
@@ -1649,7 +1785,9 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
                     children: [
                       if (_placeImageAsset != null || _imageLoading) ...[
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(MapDesignTokens.radiusChip),
+                          borderRadius: BorderRadius.circular(
+                            MapDesignTokens.radiusChip,
+                          ),
                           child: AspectRatio(
                             aspectRatio: 16 / 9,
                             child: _placeImageAsset != null
@@ -1657,27 +1795,42 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
                                     _placeImageAsset!,
                                     fit: BoxFit.cover,
                                     gaplessPlayback: true,
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      color: AppColors.brown.withValues(alpha: 0.06),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        AppLocalizations.of(context)!.mapImageFailedToLoad,
-                                        style: MapTextStyles.caption.copyWith(
-                                          color: AppColors.brown.withValues(alpha: 0.7),
-                                          fontWeight: FontWeight.w600,
+                                    errorBuilder:
+                                        (
+                                          context,
+                                          error,
+                                          stackTrace,
+                                        ) => Container(
+                                          color: AppColors.brown.withValues(
+                                            alpha: 0.06,
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.mapImageFailedToLoad,
+                                            style: MapTextStyles.caption
+                                                .copyWith(
+                                                  color: AppColors.brown
+                                                      .withValues(alpha: 0.7),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
                                   )
                                 : Container(
-                                    color: AppColors.brown.withValues(alpha: 0.06),
+                                    color: AppColors.brown.withValues(
+                                      alpha: 0.06,
+                                    ),
                                     alignment: Alignment.center,
                                     child: SizedBox(
                                       width: 26,
                                       height: 26,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: AppColors.brown.withValues(alpha: 0.6),
+                                        color: AppColors.brown.withValues(
+                                          alpha: 0.6,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1700,17 +1853,22 @@ class _RegionLandmarkChallengeSheetState extends State<_RegionLandmarkChallengeS
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: challengeReady ? widget.onContentNext : null,
-                  style: MapButtonStyles.primaryFilled(
-                    enabled: challengeReady,
-                    verticalPadding: 16,
-                  ).copyWith(
-                    elevation: MaterialStateProperty.all(challengeReady ? 3.0 : 1.0),
-                  ),
+                  style:
+                      MapButtonStyles.primaryFilled(
+                        enabled: challengeReady,
+                        verticalPadding: 16,
+                      ).copyWith(
+                        elevation: WidgetStateProperty.all(
+                          challengeReady ? 3.0 : 1.0,
+                        ),
+                      ),
                   child: Text(
                     AppLocalizations.of(context)!.memoryUploadNext,
                     style: MapTextStyles.buttonLabelDense.copyWith(
                       letterSpacing: 0.2,
-                      color: Colors.white.withValues(alpha: challengeReady ? 1 : 0.9),
+                      color: Colors.white.withValues(
+                        alpha: challengeReady ? 1 : 0.9,
+                      ),
                     ),
                   ),
                 ),

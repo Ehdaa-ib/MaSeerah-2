@@ -7,14 +7,16 @@ class JourneyInstanceDataSource {
   final FirebaseFirestore _firestore;
 
   JourneyInstanceDataSource({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  DocumentReference<Map<String, dynamic>> _historyDoc(String userId, String instanceId) =>
-      _firestore
-          .collection('users')
-          .doc(userId)
-          .collection(journeyHistorySubcollection)
-          .doc(instanceId);
+  DocumentReference<Map<String, dynamic>> _historyDoc(
+    String userId,
+    String instanceId,
+  ) => _firestore
+      .collection('users')
+      .doc(userId)
+      .collection(journeyHistorySubcollection)
+      .doc(instanceId);
 
   /// Creates a new journey instance document; returns its id ([userJourneyId]).
   Future<String> createInstance({
@@ -36,7 +38,9 @@ class JourneyInstanceDataSource {
       'userId': uid,
       'journeyId': catalog,
       'userJourneyId': ref.id,
-      'journeyTitle': journeyTitle.trim().isEmpty ? 'Journey' : journeyTitle.trim(),
+      'journeyTitle': journeyTitle.trim().isEmpty
+          ? 'Journey'
+          : journeyTitle.trim(),
       'startedAt': FieldValue.serverTimestamp(),
       'lastUpdatedAt': FieldValue.serverTimestamp(),
     });
@@ -50,13 +54,10 @@ class JourneyInstanceDataSource {
     final uid = userId.trim();
     final iid = userJourneyId.trim();
     if (uid.isEmpty || iid.isEmpty) return;
-    await _historyDoc(uid, iid).set(
-      {
-        'userJourneyId': iid,
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await _historyDoc(uid, iid).set({
+      'userJourneyId': iid,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<void> markInstanceCompleted({
@@ -67,15 +68,12 @@ class JourneyInstanceDataSource {
     final uid = userId.trim();
     final iid = userJourneyId.trim();
     if (uid.isEmpty || iid.isEmpty) return;
-    await _historyDoc(uid, iid).set(
-      {
-        'userId': uid,
-        'journeyId': catalogJourneyId.trim(),
-        'userJourneyId': iid,
-        'completedAt': FieldValue.serverTimestamp(),
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await _historyDoc(uid, iid).set({
+      'userId': uid,
+      'journeyId': catalogJourneyId.trim(),
+      'userJourneyId': iid,
+      'completedAt': FieldValue.serverTimestamp(),
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

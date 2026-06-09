@@ -6,7 +6,7 @@ import '../../model/feedback.dart';
 /// Admin-only access to `feedback` (requires admin email or `users.role == admin`).
 class FeedbackAdminDataSource {
   FeedbackAdminDataSource({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+    : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 

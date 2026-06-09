@@ -13,9 +13,7 @@ class UserMediaActions {
   static Future<Uint8List?> fetchImageBytes(String url) async {
     final uri = Uri.tryParse(url.trim());
     if (uri == null || !uri.hasScheme) return null;
-    final response = await http
-        .get(uri)
-        .timeout(const Duration(seconds: 45));
+    final response = await http.get(uri).timeout(const Duration(seconds: 45));
     if (response.statusCode != 200) return null;
     return response.bodyBytes;
   }
@@ -35,17 +33,15 @@ class UserMediaActions {
   }) async {
     final dir = await getTemporaryDirectory();
     final ext = fileExtensionForUrl(url);
-    final path = '${dir.path}/${prefix}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final path =
+        '${dir.path}/${prefix}_${DateTime.now().millisecondsSinceEpoch}.$ext';
     final file = File(path);
     await file.writeAsBytes(bytes, flush: true);
     return file;
   }
 
   /// Opens the system share sheet (image file on mobile, URL on web).
-  static Future<void> shareImage({
-    required String url,
-    String? caption,
-  }) async {
+  static Future<void> shareImage({required String url, String? caption}) async {
     if (kIsWeb) {
       await Share.share(url, subject: caption);
       return;
@@ -53,10 +49,7 @@ class UserMediaActions {
     final bytes = await fetchImageBytes(url);
     if (bytes == null) throw const UserMediaActionException('download');
     final file = await writeTempImageFile(bytes, url: url);
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: caption,
-    );
+    await Share.shareXFiles([XFile(file.path)], text: caption);
   }
 
   /// Saves image to the device photo gallery (mobile/desktop via gal).

@@ -34,6 +34,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   String _gender = 'Prefer not to say';
   DateTime? _dateOfBirth;
+
   /// Shown read-only (from Firebase Auth / Firestore). Not editable on this screen.
   String _displayEmail = '';
   bool _loadingDoc = true;
@@ -61,7 +62,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: Colors.red.withValues(alpha: 0.7)),
       ),
-      labelStyle: const TextStyle(color: AppColors.brown, fontWeight: FontWeight.w500),
+      labelStyle: const TextStyle(
+        color: AppColors.brown,
+        fontWeight: FontWeight.w500,
+      ),
       hintStyle: TextStyle(color: AppColors.brown.withValues(alpha: 0.45)),
     );
   }
@@ -141,7 +145,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       setState(() {
         _loadingDoc = false;
-        _loadError = 'Could not load your profile. Pull to retry or open again.';
+        _loadError =
+            'Could not load your profile. Pull to retry or open again.';
       });
     }
   }
@@ -166,7 +171,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     setState(() => _uploadingImage = true);
     try {
-      final url = await _profilePhotoDs.uploadProfilePhoto(userId: uid, file: x);
+      final url = await _profilePhotoDs.uploadProfilePhoto(
+        userId: uid,
+        file: x,
+      );
       if (!mounted) return;
       setState(() => _profileImageUrl = url);
       try {
@@ -174,15 +182,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       } catch (_) {}
       if (kDebugMode) debugPrint('[EditProfile] profile image uploaded');
     } catch (e) {
-      if (kDebugMode) debugPrint('[EditProfile] profile image upload failed: $e');
+      if (kDebugMode) {
+        debugPrint('[EditProfile] profile image upload failed: $e');
+      }
       if (mounted) {
         final msg = e.toString();
-        final friendly = msg.contains('Storage rules') || msg.contains('permission-denied')
+        final friendly =
+            msg.contains('Storage rules') || msg.contains('permission-denied')
             ? 'Upload blocked: deploy Firebase Storage rules (profilePhotos path) from this project, then try again.'
             : 'Could not upload photo: $e';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendly)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(friendly)));
       }
     } finally {
       if (mounted) setState(() => _uploadingImage = false);
@@ -202,11 +213,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.photo_library_outlined, color: AppColors.brown),
-              title: const Text('Photos & gallery', style: TextStyle(color: AppColors.brown)),
+              leading: Icon(
+                Icons.photo_library_outlined,
+                color: AppColors.brown,
+              ),
+              title: const Text(
+                'Photos & gallery',
+                style: TextStyle(color: AppColors.brown),
+              ),
               subtitle: Text(
                 'Opens your device photo picker',
-                style: TextStyle(fontSize: 12, color: AppColors.brown.withValues(alpha: 0.65)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.brown.withValues(alpha: 0.65),
+                ),
               ),
               onTap: () {
                 Navigator.pop(ctx);
@@ -214,8 +234,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.photo_camera_outlined, color: AppColors.brown),
-              title: const Text('Take a photo', style: TextStyle(color: AppColors.brown)),
+              leading: Icon(
+                Icons.photo_camera_outlined,
+                color: AppColors.brown,
+              ),
+              title: const Text(
+                'Take a photo',
+                style: TextStyle(color: AppColors.brown),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickProfileImage(ImageSource.camera);
@@ -233,7 +259,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final first = DateTime(1900);
     final picked = await showDatePicker(
       context: context,
-      initialDate: initial.isAfter(now) ? DateTime(now.year - 18, 1, 1) : initial,
+      initialDate: initial.isAfter(now)
+          ? DateTime(now.year - 18, 1, 1)
+          : initial,
       firstDate: first,
       lastDate: now,
       builder: (context, child) {
@@ -250,7 +278,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       },
     );
     if (picked != null && mounted) {
-      setState(() => _dateOfBirth = DateTime(picked.year, picked.month, picked.day));
+      setState(
+        () => _dateOfBirth = DateTime(picked.year, picked.month, picked.day),
+      );
     }
   }
 
@@ -267,12 +297,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     if (_dateOfBirth != null) {
-      final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-      final d = DateTime(_dateOfBirth!.year, _dateOfBirth!.month, _dateOfBirth!.day);
+      final today = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+      );
+      final d = DateTime(
+        _dateOfBirth!.year,
+        _dateOfBirth!.month,
+        _dateOfBirth!.day,
+      );
       if (d.isAfter(today)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Date of birth cannot be in the future.')),
+            const SnackBar(
+              content: Text('Date of birth cannot be in the future.'),
+            ),
           );
         }
         setState(() => _saving = false);
@@ -285,7 +325,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       try {
         await user.updateDisplayName(_usernameCtrl.text.trim());
       } catch (e) {
-        if (kDebugMode) debugPrint('[EditProfile] updateDisplayName non-fatal: $e');
+        if (kDebugMode) {
+          debugPrint('[EditProfile] updateDisplayName non-fatal: $e');
+        }
       }
 
       final emailForFirestore =
@@ -302,19 +344,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         profileImageUrl: _profileImageUrl.trim(),
       );
 
-      if (kDebugMode) debugPrint('[EditProfile] Firestore profile update success uid=$uid');
+      if (kDebugMode) {
+        debugPrint('[EditProfile] Firestore profile update success uid=$uid');
+      }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile saved')));
       Navigator.of(context).pop(true);
     } catch (e) {
-      if (kDebugMode) debugPrint('[EditProfile] Firestore profile update failed: $e');
+      if (kDebugMode) {
+        debugPrint('[EditProfile] Firestore profile update failed: $e');
+      }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save profile: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -331,7 +377,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         title: const Text('Edit profile'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: (_saving || _uploadingImage) ? null : () => Navigator.of(context).pop(false),
+          onPressed: (_saving || _uploadingImage)
+              ? null
+              : () => Navigator.of(context).pop(false),
         ),
       ),
       body: Container(
@@ -343,224 +391,271 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         child: SafeArea(
           child: _loadingDoc
-              ? const Center(child: CircularProgressIndicator(color: AppColors.brown))
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.brown),
+                )
               : _loadError != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_loadError!, textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: _loadProfile,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Stack(
+                  children: [
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                      child: Form(
+                        key: _formKey,
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(_loadError!, textAlign: TextAlign.center),
+                            const SizedBox(height: 8),
+                            Center(child: _buildAvatarPreview()),
+                            if (_profileImageUrl.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.center,
+                                child: TextButton(
+                                  onPressed: (_saving || _uploadingImage)
+                                      ? null
+                                      : () async {
+                                          setState(() => _profileImageUrl = '');
+                                          try {
+                                            await FirebaseAuth
+                                                .instance
+                                                .currentUser
+                                                ?.updatePhotoURL(null);
+                                          } catch (_) {}
+                                        },
+                                  child: const Text(
+                                    'Remove photo',
+                                    style: TextStyle(color: AppColors.brown),
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _usernameCtrl,
+                              decoration: _fieldDecoration('Username'),
+                              textCapitalization: TextCapitalization.words,
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Username cannot be empty';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            InputDecorator(
+                              decoration: _fieldDecoration('Email').copyWith(
+                                suffixIcon: Icon(
+                                  Icons.lock_outline,
+                                  size: 20,
+                                  color: AppColors.brown.withValues(
+                                    alpha: 0.45,
+                                  ),
+                                ),
+                                helperText: 'Sign-in email — not editable here',
+                                helperStyle: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.brown.withValues(
+                                    alpha: 0.55,
+                                  ),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  _displayEmail.isEmpty ? '—' : _displayEmail,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: AppColors.brown,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _phoneCtrl,
+                              decoration: _fieldDecoration(
+                                'Phone number',
+                                hint: 'Optional',
+                              ),
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                  RegExp(r'[\d\s\-\+\(\)]'),
+                                ),
+                              ],
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
+                              validator: (v) {
+                                if (!_validPhone(v ?? '')) {
+                                  return 'Use 7–15 digits (spaces and + allowed)';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            InputDecorator(
+                              decoration: _fieldDecoration('Gender'),
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _genders.map((g) {
+                                  final selected = _gender == g;
+                                  return FilterChip(
+                                    label: Text(g),
+                                    selected: selected,
+                                    showCheckmark: false,
+                                    onSelected: _saving
+                                        ? null
+                                        : (v) {
+                                            if (!v) return;
+                                            setState(() => _gender = g);
+                                          },
+                                    selectedColor: AppColors.orange,
+                                    backgroundColor: AppColors.beige.withValues(
+                                      alpha: 0.85,
+                                    ),
+                                    side: BorderSide(
+                                      color: selected
+                                          ? AppColors.orange
+                                          : AppColors.brown.withValues(
+                                              alpha: 0.35,
+                                            ),
+                                      width: selected ? 2 : 1,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    labelStyle: TextStyle(
+                                      color: selected
+                                          ? AppColors.beige
+                                          : AppColors.brown,
+                                      fontWeight: selected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _nationalityCtrl,
+                              decoration: _fieldDecoration(
+                                'Nationality',
+                                hint: 'Optional',
+                              ),
+                              textCapitalization: TextCapitalization.words,
+                            ),
+                            const SizedBox(height: 16),
+                            InputDecorator(
+                              decoration: _fieldDecoration(
+                                'Date of birth',
+                                hint: 'Optional',
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _dateOfBirth == null
+                                          ? 'Not set'
+                                          : MaterialLocalizations.of(
+                                              context,
+                                            ).formatFullDate(_dateOfBirth!),
+                                      style: const TextStyle(
+                                        color: AppColors.brown,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: AppColors.brown,
+                                    ),
+                                    onPressed: _saving ? null : _pickDob,
+                                    child: const Text('Pick'),
+                                  ),
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: AppColors.brown,
+                                    ),
+                                    onPressed: _saving || _dateOfBirth == null
+                                        ? null
+                                        : () => setState(
+                                            () => _dateOfBirth = null,
+                                          ),
+                                    child: const Text('Clear'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 28),
                             FilledButton(
-                              onPressed: _loadProfile,
-                              child: const Text('Retry'),
+                              onPressed: _saving ? null : _save,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.brown,
+                                foregroundColor: AppColors.beige,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: Text(_saving ? 'Saving…' : 'Save changes'),
                             ),
                           ],
                         ),
                       ),
-                    )
-                  : Stack(
-                      children: [
-                        SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                          child: Form(
-                            key: _formKey,
+                    ),
+                    if (_saving || _uploadingImage)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black26,
+                          child: Center(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const SizedBox(height: 8),
-                                Center(child: _buildAvatarPreview()),
-                                if (_profileImageUrl.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.center,
-                                    child: TextButton(
-                                      onPressed: (_saving || _uploadingImage)
-                                          ? null
-                                          : () async {
-                                              setState(() => _profileImageUrl = '');
-                                              try {
-                                                await FirebaseAuth.instance.currentUser
-                                                    ?.updatePhotoURL(null);
-                                              } catch (_) {}
-                                            },
-                                      child: const Text(
-                                        'Remove photo',
-                                        style: TextStyle(color: AppColors.brown),
+                                const CircularProgressIndicator(
+                                  color: AppColors.beige,
+                                ),
+                                if (_uploadingImage && !_saving) ...[
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Uploading photo…',
+                                    style: TextStyle(
+                                      color: AppColors.beige.withValues(
+                                        alpha: 0.95,
                                       ),
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 16),
-                                TextFormField(
-                                  controller: _usernameCtrl,
-                                  decoration: _fieldDecoration('Username'),
-                                  textCapitalization: TextCapitalization.words,
-                                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) {
-                                      return 'Username cannot be empty';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                InputDecorator(
-                                  decoration: _fieldDecoration('Email').copyWith(
-                                    suffixIcon: Icon(
-                                      Icons.lock_outline,
-                                      size: 20,
-                                      color: AppColors.brown.withValues(alpha: 0.45),
-                                    ),
-                                    helperText: 'Sign-in email — not editable here',
-                                    helperStyle: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.brown.withValues(alpha: 0.55),
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4),
-                                    child: Text(
-                                      _displayEmail.isEmpty ? '—' : _displayEmail,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        color: AppColors.brown,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                TextFormField(
-                                  controller: _phoneCtrl,
-                                  decoration: _fieldDecoration('Phone number', hint: 'Optional'),
-                                  keyboardType: TextInputType.phone,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(RegExp(r'[\d\s\-\+\(\)]')),
-                                  ],
-                                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                                  validator: (v) {
-                                    if (!_validPhone(v ?? '')) {
-                                      return 'Use 7–15 digits (spaces and + allowed)';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                InputDecorator(
-                                  decoration: _fieldDecoration('Gender'),
-                                  child: Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: _genders.map((g) {
-                                      final selected = _gender == g;
-                                      return FilterChip(
-                                        label: Text(g),
-                                        selected: selected,
-                                        showCheckmark: false,
-                                        onSelected: _saving
-                                            ? null
-                                            : (v) {
-                                                if (!v) return;
-                                                setState(() => _gender = g);
-                                              },
-                                        selectedColor: AppColors.orange,
-                                        backgroundColor: AppColors.beige.withValues(alpha: 0.85),
-                                        side: BorderSide(
-                                          color: selected
-                                              ? AppColors.orange
-                                              : AppColors.brown.withValues(alpha: 0.35),
-                                          width: selected ? 2 : 1,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        labelStyle: TextStyle(
-                                          color: selected ? AppColors.beige : AppColors.brown,
-                                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                TextFormField(
-                                  controller: _nationalityCtrl,
-                                  decoration: _fieldDecoration('Nationality', hint: 'Optional'),
-                                  textCapitalization: TextCapitalization.words,
-                                ),
-                                const SizedBox(height: 16),
-                                InputDecorator(
-                                  decoration: _fieldDecoration('Date of birth', hint: 'Optional'),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          _dateOfBirth == null
-                                              ? 'Not set'
-                                              : MaterialLocalizations.of(context).formatFullDate(
-                                                    _dateOfBirth!,
-                                                  ),
-                                          style: const TextStyle(color: AppColors.brown),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        style: TextButton.styleFrom(foregroundColor: AppColors.brown),
-                                        onPressed: _saving ? null : _pickDob,
-                                        child: const Text('Pick'),
-                                      ),
-                                      TextButton(
-                                        style: TextButton.styleFrom(foregroundColor: AppColors.brown),
-                                        onPressed: _saving || _dateOfBirth == null
-                                            ? null
-                                            : () => setState(() => _dateOfBirth = null),
-                                        child: const Text('Clear'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 28),
-                                FilledButton(
-                                  onPressed: _saving ? null : _save,
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: AppColors.brown,
-                                    foregroundColor: AppColors.beige,
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                  child: Text(_saving ? 'Saving…' : 'Save changes'),
-                                ),
                               ],
                             ),
                           ),
                         ),
-                        if (_saving || _uploadingImage)
-                          Positioned.fill(
-                            child: Container(
-                              color: Colors.black26,
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const CircularProgressIndicator(color: AppColors.beige),
-                                    if (_uploadingImage && !_saving) ...[
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        'Uploading photo…',
-                                        style: TextStyle(color: AppColors.beige.withValues(alpha: 0.95)),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                      ),
+                  ],
+                ),
         ),
       ),
     );
@@ -568,7 +663,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildAvatarPreview() {
     final url = _profileImageUrl.trim();
-    final hasUrl = url.isNotEmpty && (url.startsWith('http://') || url.startsWith('https://'));
+    final hasUrl =
+        url.isNotEmpty &&
+        (url.startsWith('http://') || url.startsWith('https://'));
     return Column(
       children: [
         Stack(
@@ -584,7 +681,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     }
                   : null,
               child: !hasUrl
-                  ? Icon(Icons.person, size: 56, color: AppColors.brown.withValues(alpha: 0.55))
+                  ? Icon(
+                      Icons.person,
+                      size: 56,
+                      color: AppColors.brown.withValues(alpha: 0.55),
+                    )
                   : null,
             ),
             Positioned(
@@ -595,7 +696,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 shape: const CircleBorder(),
                 child: InkWell(
                   customBorder: const CircleBorder(),
-                  onTap: (_saving || _uploadingImage) ? null : _showImageSourceSheet,
+                  onTap: (_saving || _uploadingImage)
+                      ? null
+                      : _showImageSourceSheet,
                   child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: _uploadingImage
@@ -607,7 +710,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               color: AppColors.beige,
                             ),
                           )
-                        : const Icon(Icons.edit, size: 18, color: AppColors.beige),
+                        : const Icon(
+                            Icons.edit,
+                            size: 18,
+                            color: AppColors.beige,
+                          ),
                   ),
                 ),
               ),
@@ -618,7 +725,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Text(
           'Tap the pen to change your photo',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11, color: AppColors.brown.withValues(alpha: 0.55)),
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.brown.withValues(alpha: 0.55),
+          ),
         ),
       ],
     );

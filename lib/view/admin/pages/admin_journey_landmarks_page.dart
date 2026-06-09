@@ -49,8 +49,9 @@ class _AdminJourneyLandmarksPageState extends State<AdminJourneyLandmarksPage> {
     });
     try {
       await waitForAuth();
-      final docs =
-          await _ds.getLandmarkDocsForJourneyAdmin(widget.landmarksJourneyId);
+      final docs = await _ds.getLandmarkDocsForJourneyAdmin(
+        widget.landmarksJourneyId,
+      );
       if (!mounted) return;
       setState(() {
         _docs = docs;
@@ -147,7 +148,10 @@ class _AdminJourneyLandmarksPageState extends State<AdminJourneyLandmarksPage> {
                   child: Text(
                     'Landmarks journey ID: ${widget.landmarksJourneyId}\n'
                     'Story = description field. Clue / challenge = `quiz` JSON.',
-                    style: const TextStyle(color: AppColors.brown, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.brown,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -202,8 +206,10 @@ class _AdminJourneyLandmarksPageState extends State<AdminJourneyLandmarksPage> {
                             if (deleted)
                               IconButton(
                                 tooltip: 'Restore',
-                                icon: const Icon(Icons.unarchive_outlined,
-                                    color: AppColors.brown),
+                                icon: const Icon(
+                                  Icons.unarchive_outlined,
+                                  color: AppColors.brown,
+                                ),
                                 onPressed: () async {
                                   try {
                                     await _ds.restoreLandmark(d.id);
@@ -229,7 +235,9 @@ class _AdminJourneyLandmarksPageState extends State<AdminJourneyLandmarksPage> {
                             IconButton(
                               tooltip: deleted ? 'View' : 'Edit',
                               icon: Icon(
-                                deleted ? Icons.visibility_rounded : Icons.edit_rounded,
+                                deleted
+                                    ? Icons.visibility_rounded
+                                    : Icons.edit_rounded,
                                 color: AppColors.brown,
                               ),
                               onPressed: () => _openEditor(existing: d),
@@ -288,10 +296,7 @@ class _LandmarkFormDialog extends StatefulWidget {
   final String landmarksJourneyId;
   final QueryDocumentSnapshot<Map<String, dynamic>>? existing;
 
-  const _LandmarkFormDialog({
-    required this.landmarksJourneyId,
-    this.existing,
-  });
+  const _LandmarkFormDialog({required this.landmarksJourneyId, this.existing});
 
   @override
   State<_LandmarkFormDialog> createState() => _LandmarkFormDialogState();
@@ -324,8 +329,9 @@ class _LandmarkFormDialogState extends State<_LandmarkFormDialog> {
     _journeyIdController = TextEditingController(
       text: lm?.journeyId ?? widget.landmarksJourneyId,
     );
-    _orderController =
-        TextEditingController(text: lm != null ? '${lm.order}' : '');
+    _orderController = TextEditingController(
+      text: lm != null ? '${lm.order}' : '',
+    );
     _nameController = TextEditingController(text: lm?.name ?? '');
     _storyController = TextEditingController(text: lm?.description ?? '');
     _quizController = TextEditingController(
@@ -343,8 +349,9 @@ class _LandmarkFormDialogState extends State<_LandmarkFormDialog> {
     _walkController = TextEditingController(
       text: lm?.walkingTimeFromPreviousMinutes?.toString() ?? '',
     );
-    _nextController =
-        TextEditingController(text: lm != null ? (lm.nextLandmarkId ?? '') : '');
+    _nextController = TextEditingController(
+      text: lm != null ? (lm.nextLandmarkId ?? '') : '',
+    );
   }
 
   static String _quizToText(dynamic quiz) {
@@ -455,35 +462,27 @@ class _LandmarkFormDialogState extends State<_LandmarkFormDialog> {
       payload['quiz'] = quizDecoded;
     }
 
-    Navigator.of(context).pop(
-      _LmResult(
-        documentId: docId,
-        data: payload,
-        isCreate: !_edit,
-      ),
-    );
+    Navigator.of(
+      context,
+    ).pop(_LmResult(documentId: docId, data: payload, isCreate: !_edit));
   }
 
   void _archive() {
     final docId = _docIdController.text.trim();
     if (docId.isEmpty) return;
-    Navigator.of(context).pop(
-      _LmResult(documentId: docId, isDelete: true),
-    );
+    Navigator.of(context).pop(_LmResult(documentId: docId, isDelete: true));
   }
 
   void _restore() {
     final docId = _docIdController.text.trim();
     if (docId.isEmpty) return;
-    Navigator.of(context).pop(
-      _LmResult(documentId: docId, isRestore: true),
-    );
+    Navigator.of(context).pop(_LmResult(documentId: docId, isRestore: true));
   }
 
   @override
   Widget build(BuildContext context) {
-    final deleted = widget.existing != null &&
-        widget.existing!.data()['deletedAt'] != null;
+    final deleted =
+        widget.existing != null && widget.existing!.data()['deletedAt'] != null;
 
     return AlertDialog(
       backgroundColor: AppColors.beige,
@@ -595,7 +594,9 @@ class _LandmarkFormDialogState extends State<_LandmarkFormDialog> {
                         TextFormField(
                           controller: _latController,
                           keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true, signed: true),
+                            decimal: true,
+                            signed: true,
+                          ),
                           style: const TextStyle(color: AppColors.brown),
                           decoration: _inp('optional'),
                         ),
@@ -608,7 +609,9 @@ class _LandmarkFormDialogState extends State<_LandmarkFormDialog> {
                         TextFormField(
                           controller: _lngController,
                           keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true, signed: true),
+                            decimal: true,
+                            signed: true,
+                          ),
                           style: const TextStyle(color: AppColors.brown),
                           decoration: _inp('optional'),
                         ),
@@ -625,7 +628,8 @@ class _LandmarkFormDialogState extends State<_LandmarkFormDialog> {
                         TextFormField(
                           controller: _distController,
                           keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
+                            decimal: true,
+                          ),
                           style: const TextStyle(color: AppColors.brown),
                           decoration: _inp('optional'),
                         ),
@@ -638,7 +642,8 @@ class _LandmarkFormDialogState extends State<_LandmarkFormDialog> {
                         TextFormField(
                           controller: _walkController,
                           keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
+                            decimal: true,
+                          ),
                           style: const TextStyle(color: AppColors.brown),
                           decoration: _inp('optional'),
                         ),
@@ -664,7 +669,10 @@ class _LandmarkFormDialogState extends State<_LandmarkFormDialog> {
         if (_edit && deleted)
           TextButton(
             onPressed: _restore,
-            child: const Text('Restore', style: TextStyle(color: AppColors.brown)),
+            child: const Text(
+              'Restore',
+              style: TextStyle(color: AppColors.brown),
+            ),
           ),
         if (_edit && !deleted)
           TextButton(
@@ -727,8 +735,7 @@ class _LandmarkFormDialogState extends State<_LandmarkFormDialog> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 }

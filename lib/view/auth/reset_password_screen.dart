@@ -14,6 +14,7 @@ class ResetPasswordScreen extends StatefulWidget {
   });
 
   final String email;
+
   /// 6-digit OTP already verified on the previous screen.
   final String verificationCode;
 
@@ -54,7 +55,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       setState(() => _isLoading = false);
       final role = user.role.trim().toLowerCase();
       if (role == 'admin') {
-        Navigator.of(context).pushNamedAndRemoveUntil('/admin', (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/admin', (route) => false);
       } else {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -100,7 +103,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     const SizedBox(height: 0),
                     Container(
                       width: MediaQuery.of(context).size.width * 0.95,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 35),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 35,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.beige.withOpacity(0.92),
                         borderRadius: BorderRadius.circular(20),
@@ -149,9 +155,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
-                              style: const TextStyle(
-                                color: AppColors.brown,
-                              ),
+                              style: const TextStyle(color: AppColors.brown),
                               decoration: InputDecoration(
                                 hintText: 'Enter new password',
                                 hintStyle: TextStyle(
@@ -192,18 +196,27 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
-                                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
                                     color: Colors.grey.shade700,
                                     size: 22,
                                   ),
                                   onPressed: () {
-                                    setState(() => _obscurePassword = !_obscurePassword);
+                                    setState(
+                                      () =>
+                                          _obscurePassword = !_obscurePassword,
+                                    );
                                   },
                                 ),
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return 'Password is required';
-                                if (v.length < 6) return 'Password must be at least 6 characters';
+                                if (v == null || v.isEmpty) {
+                                  return 'Password is required';
+                                }
+                                if (v.length < 6) {
+                                  return 'Password must be at least 6 characters';
+                                }
                                 return null;
                               },
                             ),
@@ -220,9 +233,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             TextFormField(
                               controller: _confirmController,
                               obscureText: _obscureConfirm,
-                              style: const TextStyle(
-                                color: AppColors.brown,
-                              ),
+                              style: const TextStyle(color: AppColors.brown),
                               decoration: InputDecoration(
                                 hintText: 'Confirm new password',
                                 hintStyle: TextStyle(
@@ -263,17 +274,23 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
-                                    _obscureConfirm ? Icons.visibility_off : Icons.visibility,
+                                    _obscureConfirm
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
                                     color: Colors.grey.shade700,
                                     size: 22,
                                   ),
                                   onPressed: () {
-                                    setState(() => _obscureConfirm = !_obscureConfirm);
+                                    setState(
+                                      () => _obscureConfirm = !_obscureConfirm,
+                                    );
                                   },
                                 ),
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return 'Please confirm your password';
+                                if (v == null || v.isEmpty) {
+                                  return 'Please confirm your password';
+                                }
                                 if (v != _passwordController.text) {
                                   return 'Passwords do not match';
                                 }
@@ -287,11 +304,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.red.shade50,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.red.shade200),
+                                  border: Border.all(
+                                    color: Colors.red.shade200,
+                                  ),
                                 ),
                                 child: Text(
                                   _errorMessage!,
-                                  style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                                  style: TextStyle(
+                                    color: Colors.red.shade800,
+                                    fontSize: 13,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -302,7 +324,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.brown,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(30),
                                 ),
@@ -315,7 +339,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                       width: 22,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.5,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
                                       ),
                                     )
                                   : const Text(

@@ -8,10 +8,7 @@ import '../../model/faq_item.dart';
 
 const String _kSupportEmail = 'MaSeerah.help@gmail.com';
 
-final Uri _kMailtoUri = Uri(
-  scheme: 'mailto',
-  path: _kSupportEmail,
-);
+final Uri _kMailtoUri = Uri(scheme: 'mailto', path: _kSupportEmail);
 
 String _messageForFaqError(Object? error) {
   if (error is FirebaseException) {
@@ -147,9 +144,12 @@ class _FaqExpansionTile extends StatelessWidget {
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          collapsedShape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          collapsedShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           iconColor: AppColors.brown,
           collapsedIconColor: AppColors.brown,
           title: Text(
@@ -231,10 +231,7 @@ class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {

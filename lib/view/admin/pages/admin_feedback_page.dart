@@ -141,10 +141,8 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
     final validatedEmail = customerEmail;
     final result = await showDialog<_FeedbackReplyDialogResult>(
       context: context,
-      builder: (ctx) => _FeedbackReplyDialog(
-        row: row,
-        customerEmail: validatedEmail,
-      ),
+      builder: (ctx) =>
+          _FeedbackReplyDialog(row: row, customerEmail: validatedEmail),
     );
     if (!mounted || result == null) return;
 
@@ -198,14 +196,17 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
                   ),
                   if (row.userEmail != null && row.userEmail!.isNotEmpty)
                     _kv('Email', row.userEmail!),
-                  _kv('Submitted',
-                      row.entry.createdAt?.toLocal().toString() ?? '—'),
+                  _kv(
+                    'Submitted',
+                    row.entry.createdAt?.toLocal().toString() ?? '—',
+                  ),
                   _kv('Overall', '${row.entry.overallRating}/5'),
                   _kv(
-                      'Detail ratings',
-                      'content ${row.entry.contentRating}, '
-                      'rec ${row.entry.recommendationRating}, '
-                      'challenge ${row.entry.challengeRating}'),
+                    'Detail ratings',
+                    'content ${row.entry.contentRating}, '
+                        'rec ${row.entry.recommendationRating}, '
+                        'challenge ${row.entry.challengeRating}',
+                  ),
                   const SizedBox(height: 8),
                   const Text(
                     'Comment',
@@ -328,10 +329,7 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
           children: [
             Text(
               '$who • $when',
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.brown,
-              ),
+              style: const TextStyle(fontSize: 11, color: AppColors.brown),
             ),
             const SizedBox(height: 4),
             Text(
@@ -397,7 +395,10 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
               hintStyle: TextStyle(color: AppColors.brown.withOpacity(0.6)),
               filled: true,
               fillColor: AppColors.beige,
-              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.brown),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                color: AppColors.brown,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
                 borderSide: BorderSide(color: Colors.grey.shade700, width: 1.5),
@@ -410,8 +411,10 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
                 borderRadius: BorderRadius.circular(15),
                 borderSide: const BorderSide(color: AppColors.brown, width: 2),
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -462,8 +465,10 @@ class _AdminFeedbackPageState extends State<AdminFeedbackPage> {
                     children: [
                       IconButton(
                         tooltip: 'Reply to feedback',
-                        icon: const Icon(Icons.reply_rounded,
-                            color: AppColors.brown),
+                        icon: const Icon(
+                          Icons.reply_rounded,
+                          color: AppColors.brown,
+                        ),
                         onPressed: () => _openReplyEmail(r),
                       ),
                       const Icon(Icons.chevron_right, color: AppColors.brown),
@@ -495,10 +500,7 @@ final class _FeedbackReplyOpenedEmail extends _FeedbackReplyDialogResult {
 }
 
 class _FeedbackReplyDialog extends StatefulWidget {
-  const _FeedbackReplyDialog({
-    required this.row,
-    required this.customerEmail,
-  });
+  const _FeedbackReplyDialog({required this.row, required this.customerEmail});
 
   final FeedbackAdminRow row;
   final String customerEmail;
@@ -542,8 +544,7 @@ class _FeedbackReplyDialogState extends State<_FeedbackReplyDialog> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.brown, width: 2),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
   }
 
@@ -589,10 +590,7 @@ class _FeedbackReplyDialogState extends State<_FeedbackReplyDialog> {
 
     bool launched = false;
     try {
-      launched = await launchUrl(
-        mailto,
-        mode: LaunchMode.externalApplication,
-      );
+      launched = await launchUrl(mailto, mode: LaunchMode.externalApplication);
     } catch (_) {
       launched = false;
     }
@@ -618,10 +616,7 @@ class _FeedbackReplyDialogState extends State<_FeedbackReplyDialog> {
         backgroundColor: AppColors.beige,
         title: const Text(
           'Reply to Feedback',
-          style: TextStyle(
-            color: AppColors.brown,
-            fontWeight: FontWeight.w800,
-          ),
+          style: TextStyle(color: AppColors.brown, fontWeight: FontWeight.w800),
         ),
         content: SizedBox(
           width: 560,

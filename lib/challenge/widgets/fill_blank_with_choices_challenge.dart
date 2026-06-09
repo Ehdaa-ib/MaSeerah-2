@@ -71,7 +71,9 @@ class FillBlankWithChoicesChallenge extends StatelessWidget {
                     child: Text(
                       'No choices in this challenge.',
                       textAlign: TextAlign.center,
-                      style: ChallengeStyles.bodyStyle.copyWith(color: ChallengeStyles.mutedBrown),
+                      style: ChallengeStyles.bodyStyle.copyWith(
+                        color: ChallengeStyles.mutedBrown,
+                      ),
                     ),
                   );
                 }
@@ -108,7 +110,9 @@ class FillBlankWithChoicesChallenge extends StatelessWidget {
                   child: Text(
                     'No choices in this challenge.',
                     textAlign: TextAlign.center,
-                    style: ChallengeStyles.bodyStyle.copyWith(color: ChallengeStyles.mutedBrown),
+                    style: ChallengeStyles.bodyStyle.copyWith(
+                      color: ChallengeStyles.mutedBrown,
+                    ),
                   ),
                 )
               else
@@ -164,12 +168,19 @@ class _SentenceWithBlank extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: AppColors.orange.withValues(alpha: hasFill ? 0.14 : 0.1),
+                  color: AppColors.orange.withValues(
+                    alpha: hasFill ? 0.14 : 0.1,
+                  ),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: hasFill ? AppColors.orange : AppColors.orange.withValues(alpha: 0.55),
+                    color: hasFill
+                        ? AppColors.orange
+                        : AppColors.orange.withValues(alpha: 0.55),
                     width: hasFill ? 2 : 1.25,
                   ),
                 ),
@@ -189,7 +200,9 @@ class _SentenceWithBlank extends StatelessWidget {
                             style: ChallengeStyles.bodyStyle.copyWith(
                               fontWeight: FontWeight.w600,
                               letterSpacing: 2,
-                              color: ChallengeStyles.mutedBrown.withValues(alpha: 0.65),
+                              color: ChallengeStyles.mutedBrown.withValues(
+                                alpha: 0.65,
+                              ),
                               height: 1,
                             ),
                           ),
@@ -218,8 +231,12 @@ class _WideOptionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = selected ? AppColors.orange : AppColors.brown.withValues(alpha: 0.22);
-    final fill = selected ? AppColors.orange.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.72);
+    final borderColor = selected
+        ? AppColors.orange
+        : AppColors.brown.withValues(alpha: 0.22);
+    final fill = selected
+        ? AppColors.orange.withValues(alpha: 0.16)
+        : Colors.white.withValues(alpha: 0.72);
     return Material(
       color: fill,
       borderRadius: BorderRadius.circular(18),
@@ -247,7 +264,11 @@ class _WideOptionPill extends StatelessWidget {
                 ),
               ),
               if (selected)
-                Icon(Icons.check_circle_rounded, color: AppColors.orange, size: 22),
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.orange,
+                  size: 22,
+                ),
             ],
           ),
         ),

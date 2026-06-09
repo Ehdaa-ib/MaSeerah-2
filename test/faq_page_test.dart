@@ -6,12 +6,14 @@ import 'package:maseerah_app/model/faq_item.dart';
 import 'package:maseerah_app/view/faq/faqs_page.dart';
 
 void main() {
-  Widget _wrap(Widget child) => MaterialApp(home: child);
+  Widget wrap(Widget child) => MaterialApp(home: child);
 
-  testWidgets('FaqsPage shows loading while waiting with no data', (tester) async {
+  testWidgets('FaqsPage shows loading while waiting with no data', (
+    tester,
+  ) async {
     final controller = StreamController<List<FaqItem>>();
 
-    await tester.pumpWidget(_wrap(FaqsPage(faqsStream: controller.stream)));
+    await tester.pumpWidget(wrap(FaqsPage(faqsStream: controller.stream)));
 
     expect(find.text('FAQs'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -19,10 +21,12 @@ void main() {
     await controller.close();
   });
 
-  testWidgets('FaqsPage shows empty state when stream emits empty list', (tester) async {
+  testWidgets('FaqsPage shows empty state when stream emits empty list', (
+    tester,
+  ) async {
     final controller = StreamController<List<FaqItem>>();
 
-    await tester.pumpWidget(_wrap(FaqsPage(faqsStream: controller.stream)));
+    await tester.pumpWidget(wrap(FaqsPage(faqsStream: controller.stream)));
 
     controller.add(const <FaqItem>[]);
     await tester.pump();
@@ -34,10 +38,12 @@ void main() {
     await controller.close();
   });
 
-  testWidgets('FaqsPage renders FAQ items and expands to show answer', (tester) async {
+  testWidgets('FaqsPage renders FAQ items and expands to show answer', (
+    tester,
+  ) async {
     final controller = StreamController<List<FaqItem>>();
 
-    await tester.pumpWidget(_wrap(FaqsPage(faqsStream: controller.stream)));
+    await tester.pumpWidget(wrap(FaqsPage(faqsStream: controller.stream)));
 
     controller.add(const [
       FaqItem(id: '1', question: 'What is MaSeerah?', answer: 'A journey app.'),
@@ -55,10 +61,12 @@ void main() {
     await controller.close();
   });
 
-  testWidgets('FaqsPage shows error UI when stream emits error', (tester) async {
+  testWidgets('FaqsPage shows error UI when stream emits error', (
+    tester,
+  ) async {
     final controller = StreamController<List<FaqItem>>();
 
-    await tester.pumpWidget(_wrap(FaqsPage(faqsStream: controller.stream)));
+    await tester.pumpWidget(wrap(FaqsPage(faqsStream: controller.stream)));
 
     controller.addError(Exception('boom'));
     await tester.pump();
@@ -69,4 +77,3 @@ void main() {
     await controller.close();
   });
 }
-

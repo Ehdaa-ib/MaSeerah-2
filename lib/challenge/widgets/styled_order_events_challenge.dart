@@ -38,4 +38,3 @@ class StyledOrderEventsChallenge extends StatelessWidget {
     );
   }
 }
-

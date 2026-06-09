@@ -43,8 +43,8 @@ List<RecommendationPriceCategory> parseRecommendationNestedPrices(Object? raw) {
     final rangeText = (minVal != null && maxVal != null)
         ? '$minVal–$maxVal SR'
         : (minVal != null)
-            ? 'From $minVal SR'
-            : 'Up to $maxVal SR';
+        ? 'From $minVal SR'
+        : 'Up to $maxVal SR';
 
     out.add(
       RecommendationPriceCategory(
@@ -72,17 +72,26 @@ String? _firstNumber(String? line) {
 String _titleCaseCategory(String raw) {
   final s = raw.replaceAll('_', ' ').trim();
   if (s.isEmpty) return raw;
-  return s.split(RegExp(r'\s+')).map((w) {
-    if (w.isEmpty) return w;
-    return '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}';
-  }).join(' ');
+  return s
+      .split(RegExp(r'\s+'))
+      .map((w) {
+        if (w.isEmpty) return w;
+        return '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}';
+      })
+      .join(' ');
 }
 
 IconData _iconForCategory(String key) {
   final k = key.toLowerCase();
-  if (k.contains('coffee') || k.contains('cafe')) return Icons.local_cafe_outlined;
-  if (k.contains('restaurant') || k.contains('dining')) return Icons.restaurant_outlined;
+  if (k.contains('coffee') || k.contains('cafe')) {
+    return Icons.local_cafe_outlined;
+  }
+  if (k.contains('restaurant') || k.contains('dining')) {
+    return Icons.restaurant_outlined;
+  }
   if (k.contains('snack')) return Icons.cookie_outlined;
-  if (k.contains('shop') || k.contains('store')) return Icons.storefront_outlined;
+  if (k.contains('shop') || k.contains('store')) {
+    return Icons.storefront_outlined;
+  }
   return Icons.sell_outlined;
 }

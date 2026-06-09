@@ -2,10 +2,7 @@ import '../model/app_user.dart';
 
 abstract class AuthRepository {
   /// Signs in with email and password. Returns user profile (role from Firestore).
-  Future<AppUser> login({
-    required String email,
-    required String password,
-  });
+  Future<AppUser> login({required String email, required String password});
 
   /// Signs out the current user.
   Future<void> logout();

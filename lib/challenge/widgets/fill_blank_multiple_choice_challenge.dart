@@ -50,7 +50,9 @@ class FillBlankMultipleChoiceChallenge extends StatelessWidget {
             if (opts.isEmpty)
               Text(
                 'No options in this challenge.',
-                style: ChallengeStyles.bodyStyle.copyWith(color: ChallengeStyles.mutedBrown),
+                style: ChallengeStyles.bodyStyle.copyWith(
+                  color: ChallengeStyles.mutedBrown,
+                ),
               ),
           ],
         ),
@@ -86,7 +88,9 @@ class _SentenceWithBlank extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.orange.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.orange.withValues(alpha: 0.5)),
+                border: Border.all(
+                  color: AppColors.orange.withValues(alpha: 0.5),
+                ),
               ),
               child: Text(
                 (filled == null || filled!.trim().isEmpty) ? '_____ ' : filled!,
@@ -117,8 +121,12 @@ class _ChoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = selected ? AppColors.orange : AppColors.brown.withValues(alpha: 0.18);
-    final fill = selected ? AppColors.orange.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.65);
+    final border = selected
+        ? AppColors.orange
+        : AppColors.brown.withValues(alpha: 0.18);
+    final fill = selected
+        ? AppColors.orange.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.65);
     return Material(
       color: fill,
       borderRadius: BorderRadius.circular(14),
@@ -143,4 +151,3 @@ class _ChoiceCard extends StatelessWidget {
     );
   }
 }
-

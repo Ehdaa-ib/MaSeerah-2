@@ -41,7 +41,9 @@ class MyApp extends StatelessWidget {
           thumbVisibility: WidgetStateProperty.all(true),
           thickness: WidgetStateProperty.all(5),
           radius: const Radius.circular(3),
-          thumbColor: WidgetStateProperty.all(const Color(0xFFB8B8B8).withValues(alpha: 0.9)),
+          thumbColor: WidgetStateProperty.all(
+            const Color(0xFFB8B8B8).withValues(alpha: 0.9),
+          ),
         ),
       ),
       home: const LandingPage(),

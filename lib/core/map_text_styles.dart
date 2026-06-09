@@ -44,8 +44,14 @@ abstract final class MapTextStyles {
   );
 
   /// Landmark sheet rich description (`**bold**`, quotes); slightly larger for comfortable reading.
-  static final TextStyle bodyReading = body.copyWith(fontSize: 17, height: 1.62);
-  static final TextStyle bodyReadingBold = bodyBold.copyWith(fontSize: 17, height: 1.62);
+  static final TextStyle bodyReading = body.copyWith(
+    fontSize: 17,
+    height: 1.62,
+  );
+  static final TextStyle bodyReadingBold = bodyBold.copyWith(
+    fontSize: 17,
+    height: 1.62,
+  );
 
   /// Slightly smaller body (list secondary lines, hints).
   static const TextStyle bodySmall = TextStyle(

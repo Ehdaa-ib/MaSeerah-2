@@ -11,7 +11,9 @@ String toUserFriendlyMessage(dynamic e) {
     return _firebaseAuthMessageForCode(e.code);
   }
 
-  final str = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
+  final str = e is Exception
+      ? e.toString().replaceFirst('Exception: ', '')
+      : e.toString();
   if (_isFirestorePermissionDenied(str)) {
     return 'Payment could not be saved. Ask your admin to deploy the latest Firestore rules, then try again.';
   }
