@@ -9,7 +9,8 @@ Callable functions send a **6-digit OTP** by email, verify it, and set the user 
 | `sendPasswordResetOtp` | Ensures user exists in Auth, rate-limits resends, stores **hashed** OTP in Firestore, emails plain OTP |
 | `verifyPasswordResetOtp` | Checks hash, expiry, attempt limit; sets `verified: true` |
 | `resetPasswordWithOtp` | Requires `verified`, updates password, deletes session doc |
-| `sendFeedbackReply` | **Admin only** — emails customer feedback reply (SMTP), appends `adminResponses` on `feedback/{id}` |
+
+Admin feedback replies are sent from the app via **mailto** (the admin’s own email client), not through these callables.
 
 ## Deploy
 
@@ -53,8 +54,6 @@ Implemented in `services/email_service.js` so you can swap providers later.
 
 **Provider:** Nodemailer over **SMTP** (Gmail, Outlook, or any SMTP host). There is no SendGrid in this project unless you point SMTP at SendGrid’s relay.
 
-**Why feedback reply failed with a generic error:** Gen 2 creates **one Cloud Run service per function**. If `sendFeedbackReply` was never deployed, or was deployed **without** SMTP env vars, email fails while password reset may still work. The app now **falls back** to `sendPasswordResetOtp` with `mode: feedbackReply` (same service that already has SMTP).
-
 ### Configure SMTP (recommended)
 
 1. Copy `functions/.env.example` → `functions/.env` and fill in Gmail (or your provider).
@@ -74,7 +73,7 @@ npm run test:smtp -- your-test-inbox@gmail.com
 
 ### Manual Cloud Run variables (alternative)
 
-Set on **every** email-related service (`sendpasswordresetotp`, `sendfeedbackreply`, …):
+Set on **every** email-related service (`sendpasswordresetotp`, …):
 
 | Variable | Example (Gmail) |
 |----------|-----------------|

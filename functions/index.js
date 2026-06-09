@@ -2,7 +2,7 @@
  * Password reset via 6-digit OTP (email). Does NOT use Firebase Auth reset links.
  *
  * Callables (region us-central1 — match Flutter FirebaseFunctions.instanceFor):
- *   sendPasswordResetOtp, verifyPasswordResetOtp, resetPasswordWithOtp, sendFeedbackReply
+ *   sendPasswordResetOtp, verifyPasswordResetOtp, resetPasswordWithOtp
  *
  * Firestore: password_reset_otps/{sha256(email)} — client denied by rules; Admin SDK only.
  *
@@ -13,19 +13,14 @@
  * Deploy: firebase deploy --only functions
  */
 
+require('./load_env').loadEnvFile();
+
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 const { sendPasswordResetOtpEmail } = require('./services/email_service');
-const { handleSendFeedbackReply } = require('./handlers/feedback_reply_handler');
-const { wrapCallable } = require('./util/callable_errors');
-
-const handleSendFeedbackReplySafe = wrapCallable(
-  'sendFeedbackReply',
-  handleSendFeedbackReply,
-);
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -102,11 +97,6 @@ function generateSixDigitCode() {
 exports.sendPasswordResetOtp = onCall(
   { region: callableRegion, secrets: [otpPepperSecret] },
   async (request) => {
-  // Feedback replies use the same Cloud Run service as OTP (already has SMTP configured).
-  if (request.data && request.data.mode === 'feedbackReply') {
-    return handleSendFeedbackReplySafe(request);
-  }
-
   const emailRaw =
     request.data && request.data.email ? String(request.data.email) : '';
   const email = normalizeEmail(emailRaw);
@@ -368,8 +358,3 @@ exports.resetPasswordWithOtp = onCall(
   },
 );
 
-/** Dedicated callable (requires deploy). Uses same handler + SMTP secrets as OTP service. */
-exports.sendFeedbackReply = onCall(
-  { region: callableRegion },
-  handleSendFeedbackReplySafe,
-);

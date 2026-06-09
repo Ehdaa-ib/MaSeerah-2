@@ -81,14 +81,15 @@ class FeedbackAdminDataSource {
     return out;
   }
 
-  /// Resolves the customer's email from `users/{uid}` (Firestore profile).
+  /// Customer email from `users/{userId}.email` only (never userId / uid as address).
   Future<String?> fetchUserEmail(String userId) async {
     final id = userId.trim();
-    if (id.isEmpty) return null;
+    if (id.isEmpty || id.contains('@')) return null;
     final doc = await _db.collection('users').doc(id).get();
     if (!doc.exists) return null;
     final email = (doc.data()?['email'] as String?)?.trim() ?? '';
     if (email.isEmpty || !Validators.validateEmail(email)) return null;
+    if (email.toLowerCase() == id.toLowerCase()) return null;
     return email;
   }
 

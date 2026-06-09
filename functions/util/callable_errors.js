@@ -1,8 +1,22 @@
 /**
- * Wraps callable handlers so unexpected errors become HttpsError with a client-visible message.
+ * Wraps callable handlers — logs errors and returns client-visible HttpsError messages.
  */
 const { HttpsError } = require('firebase-functions/v2/https');
-const { logger } = require('firebase-functions');
+const { logStep, logError } = require('./log_step');
+
+/**
+ * Never surface bare "internal" to the client; attach message in details.
+ * @param {string} code
+ * @param {string} message
+ */
+function throwCallableError(code, message) {
+  const msg =
+    message && String(message).trim()
+      ? String(message).trim()
+      : 'Unknown email error';
+  const clientCode = code === 'internal' ? 'failed-precondition' : code;
+  throw new HttpsError(clientCode, msg, { message: msg });
+}
 
 /**
  * @param {string} label
@@ -10,35 +24,25 @@ const { logger } = require('firebase-functions');
  */
 function wrapCallable(label, handler) {
   return async (request) => {
+    logStep(`${label}: Function started`);
     try {
-      return await handler(request);
+      const result = await handler(request);
+      logStep(`${label}: completed OK`);
+      return result;
     } catch (e) {
       if (e instanceof HttpsError) {
-        logger.warn(`[${label}] HttpsError`, {
-          code: e.code,
-          message: e.message,
-          details: e.details,
-        });
-        if (!e.details && e.message) {
-          throw new HttpsError(e.code, e.message, { message: e.message });
-        }
-        throw e;
+        logError(`${label}: HttpsError`, e);
+        const msg = e.message || 'Unknown email error';
+        throwCallableError(e.code, msg);
       }
-      logger.error(`[${label}] unhandled exception`, {
-        message: e && e.message,
-        stack: e && e.stack,
-        name: e && e.name,
-      });
-      const detail =
+      logError(`${label}: EMAIL SEND ERROR`, e);
+      const msg =
         e && e.message && String(e.message).trim()
           ? String(e.message).trim()
-          : 'Unexpected server error';
-      throw new HttpsError(
-        'failed-precondition',
-        `${label} failed: ${detail}`,
-      );
+          : 'Unknown email error';
+      throwCallableError('internal', msg);
     }
   };
 }
 
-module.exports = { wrapCallable };
+module.exports = { wrapCallable, throwCallableError };
