@@ -64,10 +64,8 @@ class ChallengeRenderer extends StatefulWidget {
   final String? nextLandmarkDocumentId;
 
   /// Invoked when a stage reports success (e.g. fill-blank correct answer).
-  final void Function({
-    required bool success,
-    String? nextLandmarkDocumentId,
-  })? onChallengeResolved;
+  final void Function({required bool success, String? nextLandmarkDocumentId})?
+  onChallengeResolved;
 
   @override
   State<ChallengeRenderer> createState() => _ChallengeRendererState();
@@ -138,7 +136,9 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
       _resultAutoSolved = false;
     });
     if (kDebugMode) {
-      debugPrint('[Challenge] Next Stage -> stageIndex=$_stageIndex total=$total');
+      debugPrint(
+        '[Challenge] Next Stage -> stageIndex=$_stageIndex total=$total',
+      );
     }
   }
 
@@ -156,7 +156,9 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
         final order = s.correctOrder;
         if (order.isEmpty) return '—';
         // Sentence builder: show full sentence when it looks like words.
-        if (s.type == ChallengeType.arrangeSentenceAlternative) return order.join(' ');
+        if (s.type == ChallengeType.arrangeSentenceAlternative) {
+          return order.join(' ');
+        }
         return order.map((e) => '• $e').join('\n');
       case ChallengeType.fillBlankWithChoices:
       case ChallengeType.fillBlankWithMultipleChoice:
@@ -173,7 +175,10 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
     }
   }
 
-  Future<void> _showResult({required bool autoSolved, required bool isFinalStage}) async {
+  Future<void> _showResult({
+    required bool autoSolved,
+    required bool isFinalStage,
+  }) async {
     if (!mounted) return;
     final stage = _stage;
     final correctDisplay = _buildCorrectAnswerDisplay(stage);
@@ -187,7 +192,9 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
     }
     if (!mounted) return;
     setState(() {
-      _resultKind = isFinalStage ? _ResultKind.finalResult : _ResultKind.stageResult;
+      _resultKind = isFinalStage
+          ? _ResultKind.finalResult
+          : _ResultKind.stageResult;
       _resultAutoSolved = autoSolved;
       _correctAnswerDisplay = correctDisplay;
       _nextDestination = next;
@@ -214,8 +221,13 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
       case ChallengeType.fillBlankWithMultipleChoice:
       case ChallengeType.fillBlank:
       case ChallengeType.arrangeSentenceWithMultipleChoice:
-        final candidate = (_selectedAnswer is String) ? (_selectedAnswer as String) : '';
-        return ChallengeValidation.validateStringAnswer(candidate: candidate, expected: s.answer);
+        final candidate = (_selectedAnswer is String)
+            ? (_selectedAnswer as String)
+            : '';
+        return ChallengeValidation.validateStringAnswer(
+          candidate: candidate,
+          expected: s.answer,
+        );
       case ChallengeType.matchColumns:
       case ChallengeType.matching:
         final m = _selectedAnswer;
@@ -241,7 +253,10 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
           }
           // Fallback: join sentence and compare to `answer` if provided.
           final joined = list.join(' ').trim();
-          return ChallengeValidation.validateStringAnswer(candidate: joined, expected: s.answer);
+          return ChallengeValidation.validateStringAnswer(
+            candidate: joined,
+            expected: s.answer,
+          );
         }
         return false;
       case ChallengeType.elimination:
@@ -292,7 +307,9 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
 
     // Auto-solve at 5 wrong attempts.
     if (nextAttempts >= 5 && mounted) {
-      if (kDebugMode) debugPrint('[Challenge] autoSolve triggered stage=$_stageIndex');
+      if (kDebugMode) {
+        debugPrint('[Challenge] autoSolve triggered stage=$_stageIndex');
+      }
       final l10n = AppLocalizations.of(context)!;
       setState(() {
         _feedback = l10n.challengeFeedbackAutoSolved;
@@ -312,7 +329,9 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
     // Consume hint based on the current unlock point.
     final next = (_wrongAttempts == 4 && hints.length >= 2) ? 1 : 0;
     setState(() => _shownHintIndex = next);
-    if (kDebugMode) debugPrint('[Challenge] showHint idx=$next stage=$_stageIndex');
+    if (kDebugMode) {
+      debugPrint('[Challenge] showHint idx=$next stage=$_stageIndex');
+    }
   }
 
   @override
@@ -322,8 +341,12 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
       final next = _nextDestination;
       final isFinal = _resultKind == _ResultKind.finalResult;
       final isLast = isFinal && (next?.isLastRegion == true);
-      final title = _resultAutoSolved ? l10n.challengeResultPuzzleSolvedTitle : l10n.challengeResultCorrectTitle;
-      final primaryLabel = isFinal ? (isLast ? l10n.challengeButtonFinish : l10n.challengeButtonNext) : l10n.challengeButtonNextStage;
+      final title = _resultAutoSolved
+          ? l10n.challengeResultPuzzleSolvedTitle
+          : l10n.challengeResultCorrectTitle;
+      final primaryLabel = isFinal
+          ? (isLast ? l10n.challengeButtonFinish : l10n.challengeButtonNext)
+          : l10n.challengeButtonNextStage;
       return SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -355,18 +378,24 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
               title: l10n.challengeResultCorrectAnswerHeading,
               child: Text(
                 _correctAnswerDisplay ?? '—',
-                style: ChallengeStyles.bodyStyle.copyWith(fontWeight: FontWeight.w700),
+                style: ChallengeStyles.bodyStyle.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             if (isFinal) ...[
               const SizedBox(height: 12),
               _ResultCard(
-                title: isLast ? l10n.challengeResultJourneyCompletedHeading : l10n.challengeResultNextDestinationHeading,
+                title: isLast
+                    ? l10n.challengeResultJourneyCompletedHeading
+                    : l10n.challengeResultNextDestinationHeading,
                 child: Text(
                   isLast
                       ? l10n.challengeResultJourneyCompletedBody
                       : (next?.name ?? l10n.challengeResultNotAvailable),
-                  style: ChallengeStyles.bodyStyle.copyWith(fontWeight: FontWeight.w800),
+                  style: ChallengeStyles.bodyStyle.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -451,7 +480,9 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
 
     final hints = _stage.hints;
     final hintIdx = _shownHintIndex;
-    final shownHint = (hintIdx >= 0 && hintIdx < hints.length) ? hints[hintIdx] : null;
+    final shownHint = (hintIdx >= 0 && hintIdx < hints.length)
+        ? hints[hintIdx]
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -474,7 +505,9 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             child: KeyedSubtree(
-              key: ValueKey<String>('${_stage.index}_${_stage.stageKey ?? 'direct'}'),
+              key: ValueKey<String>(
+                '${_stage.index}_${_stage.stageKey ?? 'direct'}',
+              ),
               child: _buildForType(_stage),
             ),
           ),
@@ -503,7 +536,9 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
             _feedback!,
             style: ChallengeStyles.bodyStyle.copyWith(
               fontWeight: FontWeight.w700,
-              color: _lastCorrect ? MapDesignTokens.successColor : AppColors.brown,
+              color: _lastCorrect
+                  ? MapDesignTokens.successColor
+                  : AppColors.brown,
             ),
           ),
         ],
@@ -524,7 +559,8 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                         child: _hintEnabled
                             ? FilledButton(
                                 onPressed: _onShowHint,
-                                style: MapButtonStyles.challengeFooterHintEnabled(),
+                                style:
+                                    MapButtonStyles.challengeFooterHintEnabled(),
                                 child: Text(
                                   l10n.challengeShowHint,
                                   textAlign: TextAlign.center,
@@ -534,7 +570,8 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                               )
                             : OutlinedButton(
                                 onPressed: null,
-                                style: MapButtonStyles.challengeFooterHintDisabled(),
+                                style:
+                                    MapButtonStyles.challengeFooterHintDisabled(),
                                 child: Text(
                                   l10n.challengeShowHint,
                                   textAlign: TextAlign.center,
@@ -545,13 +582,18 @@ class _ChallengeRendererState extends State<ChallengeRenderer> {
                       ),
                       ColoredBox(
                         color: MapDesignTokens.popupBackground,
-                        child: SizedBox(width: MapDesignTokens.spaceMd, height: 1),
+                        child: SizedBox(
+                          width: MapDesignTokens.spaceMd,
+                          height: 1,
+                        ),
                       ),
                     ],
                     Expanded(
                       child: FilledButton(
                         onPressed: _busy ? null : _onCheckAnswer,
-                        style: MapButtonStyles.challengeFooterCheck(enabled: !_busy),
+                        style: MapButtonStyles.challengeFooterCheck(
+                          enabled: !_busy,
+                        ),
                         child: Text(
                           l10n.challengeCheckYourAnswer,
                           textAlign: TextAlign.center,
@@ -708,8 +750,10 @@ class _MetricCard extends StatelessWidget {
 
   final IconData icon;
   final String title;
+
   /// From Firestore `distanceFromPreviousMeters` / `walkingTimeFromPreviousMinutes` (often double).
   final double? amount;
+
   /// Shown beside the number, e.g. `m` or `min`.
   final String unitLabel;
 
@@ -783,11 +827,7 @@ class _MetricCard extends StatelessWidget {
 
 /// Optional outer card wrapper for embedding in sheets / routes.
 class ChallengeScaffoldCard extends StatelessWidget {
-  const ChallengeScaffoldCard({
-    super.key,
-    required this.child,
-    this.title,
-  });
+  const ChallengeScaffoldCard({super.key, required this.child, this.title});
 
   final Widget child;
   final String? title;

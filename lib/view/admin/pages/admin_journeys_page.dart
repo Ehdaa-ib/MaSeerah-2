@@ -45,7 +45,9 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
     try {
       await waitForAuth();
       final journeys = await _repo.getAll();
-      journeys.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      journeys.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
       if (!mounted) return;
       setState(() {
         _journeys = journeys;
@@ -68,10 +70,7 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
     if (result == null) return;
 
     try {
-      await _repo.create(
-        journeyId: result.journeyId,
-        journey: result.journey,
-      );
+      await _repo.create(journeyId: result.journeyId, journey: result.journey);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -124,10 +123,7 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
     if (result == null) return;
 
     try {
-      await _repo.update(
-        journeyId: journey.journeyId,
-        journey: result.journey,
-      );
+      await _repo.update(journeyId: journey.journeyId, journey: result.journey);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -165,7 +161,10 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _SearchField(controller: _searchController, hintText: 'Search journeys'),
+              _SearchField(
+                controller: _searchController,
+                hintText: 'Search journeys',
+              ),
               const SizedBox(height: 12),
               if (_loading)
                 const Padding(
@@ -180,7 +179,8 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
                 const _EmptyState(
                   icon: Icons.travel_explore_rounded,
                   title: 'No journeys yet',
-                  subtitle: 'Journeys will appear from the Firestore journeys collection.',
+                  subtitle:
+                      'Journeys will appear from the Firestore journeys collection.',
                 )
               else if (visible.isEmpty)
                 const _EmptyState(
@@ -196,7 +196,10 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: AppColors.orange,
-                        child: const Icon(Icons.travel_explore, color: AppColors.beige),
+                        child: const Icon(
+                          Icons.travel_explore,
+                          color: AppColors.beige,
+                        ),
                       ),
                       title: Text(
                         j.name,
@@ -216,12 +219,18 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
                           IconButton(
                             tooltip: 'Stories, clues & landmarks',
                             onPressed: () => _openLandmarks(j),
-                            icon: const Icon(Icons.place_rounded, color: AppColors.brown),
+                            icon: const Icon(
+                              Icons.place_rounded,
+                              color: AppColors.brown,
+                            ),
                           ),
                           IconButton(
                             tooltip: 'Edit journey',
                             onPressed: () => _openEdit(j),
-                            icon: const Icon(Icons.edit_rounded, color: AppColors.brown),
+                            icon: const Icon(
+                              Icons.edit_rounded,
+                              color: AppColors.brown,
+                            ),
                           ),
                         ],
                       ),
@@ -288,14 +297,16 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
     _startPointController = TextEditingController(text: j?.startPoint ?? '');
     _endPointController = TextEditingController(text: j?.endPoint ?? '');
     _stopsController = TextEditingController(text: j?.stops ?? '');
-    _estimatedDurationController =
-        TextEditingController(text: j?.estimatedDuration ?? '');
+    _estimatedDurationController = TextEditingController(
+      text: j?.estimatedDuration ?? '',
+    );
     _distanceController = TextEditingController(text: j?.distance ?? '');
     _goodToKnowController = TextEditingController(text: j?.goodToKnow ?? '');
     _languagesController = TextEditingController(text: j?.languages ?? '');
     _cityController = TextEditingController(text: j?.city ?? '');
-    _landmarksJourneyIdController =
-        TextEditingController(text: j?.landmarksJourneyId ?? '');
+    _landmarksJourneyIdController = TextEditingController(
+      text: j?.landmarksJourneyId ?? '',
+    );
   }
 
   @override
@@ -337,7 +348,9 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
       landmarksJourneyId: _nullIfEmpty(_landmarksJourneyIdController.text),
     );
 
-    Navigator.of(context).pop(_JourneyFormResult(journeyId: journeyId, journey: journey));
+    Navigator.of(
+      context,
+    ).pop(_JourneyFormResult(journeyId: journeyId, journey: journey));
   }
 
   @override
@@ -346,7 +359,10 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
       backgroundColor: AppColors.beige,
       title: Text(
         _isEdit ? 'Edit journey' : 'Add journey',
-        style: const TextStyle(color: AppColors.brown, fontWeight: FontWeight.w800),
+        style: const TextStyle(
+          color: AppColors.brown,
+          fontWeight: FontWeight.w800,
+        ),
       ),
       content: SizedBox(
         width: 520,
@@ -365,7 +381,9 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
                     decoration: _inputDecoration(hintText: 'e.g. journey_1'),
                     validator: (v) {
                       if (_isEdit) return null;
-                      if (v == null || v.trim().isEmpty) return 'Journey ID is required';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Journey ID is required';
+                      }
                       return null;
                     },
                   ),
@@ -376,9 +394,13 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
                   child: TextFormField(
                     controller: _nameController,
                     style: const TextStyle(color: AppColors.brown),
-                    decoration: _inputDecoration(hintText: 'Enter journey name'),
+                    decoration: _inputDecoration(
+                      hintText: 'Enter journey name',
+                    ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Name is required';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Name is required';
+                      }
                       return null;
                     },
                   ),
@@ -388,7 +410,9 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
                   label: 'Price (SAR)',
                   child: TextFormField(
                     controller: _priceController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     style: const TextStyle(color: AppColors.brown),
                     decoration: _inputDecoration(hintText: '0.00'),
                     validator: (v) {
@@ -417,7 +441,8 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
                     controller: _landmarksJourneyIdController,
                     style: const TextStyle(color: AppColors.brown),
                     decoration: _inputDecoration(
-                      hintText: 'e.g. journey1 — links catalog journey to journey_landmarks',
+                      hintText:
+                          'e.g. journey1 — links catalog journey to journey_landmarks',
                     ),
                   ),
                 ),
@@ -483,7 +508,9 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
                   child: TextFormField(
                     controller: _languagesController,
                     style: const TextStyle(color: AppColors.brown),
-                    decoration: _inputDecoration(hintText: 'e.g. Arabic, English'),
+                    decoration: _inputDecoration(
+                      hintText: 'e.g. Arabic, English',
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -493,7 +520,9 @@ class _JourneyFormDialogState extends State<_JourneyFormDialog> {
                     controller: _goodToKnowController,
                     maxLines: 3,
                     style: const TextStyle(color: AppColors.brown),
-                    decoration: _inputDecoration(hintText: 'Enter good to know'),
+                    decoration: _inputDecoration(
+                      hintText: 'Enter good to know',
+                    ),
                   ),
                 ),
               ],
@@ -554,7 +583,10 @@ class _SearchField extends StatelessWidget {
           borderRadius: BorderRadius.circular(15),
           borderSide: const BorderSide(color: AppColors.brown, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -701,4 +733,3 @@ String? _nullIfEmpty(String? s) {
   final v = s?.trim() ?? '';
   return v.isEmpty ? null : v;
 }
-

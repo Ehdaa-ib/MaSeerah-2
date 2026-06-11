@@ -91,6 +91,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get journeyPurchaseStartYourJourney => 'Start your journey';
 
   @override
+  String get comingSoonTitle => 'Coming Soon';
+
+  @override
+  String get comingSoonBody =>
+      'This journey is not available yet. We are preparing new stories and landmarks for you — check back soon.';
+
+  @override
+  String get comingSoonBack => 'Back to home';
+
+  @override
+  String get comingSoonBadge => 'Coming Soon';
+
+  @override
   String get googleMapPageTitle => 'Google Map';
 
   @override

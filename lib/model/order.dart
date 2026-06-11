@@ -1,9 +1,5 @@
 /// Order payment lifecycle status.
-enum OrderStatus {
-  pendingPayment,
-  paid,
-  cancelled,
-}
+enum OrderStatus { pendingPayment, paid, cancelled }
 
 extension OrderStatusExtension on OrderStatus {
   /// Firestore-safe string value (e.g. "PENDING_PAYMENT").

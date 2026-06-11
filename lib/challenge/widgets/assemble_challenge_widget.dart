@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -16,7 +15,8 @@ class AssembleChallengeWidget extends StatefulWidget {
   final ChallengeStageModel stage;
 
   @override
-  State<AssembleChallengeWidget> createState() => _AssembleChallengeWidgetState();
+  State<AssembleChallengeWidget> createState() =>
+      _AssembleChallengeWidgetState();
 }
 
 class _AssembleChallengeWidgetState extends State<AssembleChallengeWidget> {
@@ -28,19 +28,27 @@ class _AssembleChallengeWidgetState extends State<AssembleChallengeWidget> {
   void initState() {
     super.initState();
     final parts = widget.stage.parts;
-    _order = parts.isNotEmpty ? List<String>.from(parts) : List<String>.from(widget.stage.options);
-    _rowKeys = List<Key>.generate(_order.length, (i) => ValueKey<Object>('assemble_${widget.stage.index}_$i'));
+    _order = parts.isNotEmpty
+        ? List<String>.from(parts)
+        : List<String>.from(widget.stage.options);
+    _rowKeys = List<Key>.generate(
+      _order.length,
+      (i) => ValueKey<Object>('assemble_${widget.stage.index}_$i'),
+    );
   }
 
   void _check() {
     final expected = widget.stage.correctOrder;
-    final ok = expected.isNotEmpty &&
+    final ok =
+        expected.isNotEmpty &&
         ChallengeValidation.validateListOrderAnswer(
           userOrder: _order,
           expectedOrder: expected,
         );
     debugPrint('[Assemble] correct=$ok user=$_order expected=$expected');
-    setState(() => _feedback = ok ? 'Correct (placeholder)' : 'Not quite — try again.');
+    setState(
+      () => _feedback = ok ? 'Correct (placeholder)' : 'Not quite — try again.',
+    );
   }
 
   @override
@@ -76,7 +84,9 @@ class _AssembleChallengeWidgetState extends State<AssembleChallengeWidget> {
                 ListTile(
                   key: _rowKeys[i],
                   tileColor: Colors.white.withValues(alpha: 0.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   title: Text(_order[i], style: ChallengeStyles.bodyStyle),
                   trailing: const Icon(Icons.drag_handle),
                 ),
@@ -90,7 +100,9 @@ class _AssembleChallengeWidgetState extends State<AssembleChallengeWidget> {
               backgroundColor: AppColors.orange,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Check assembly'),
           ),
@@ -100,7 +112,9 @@ class _AssembleChallengeWidgetState extends State<AssembleChallengeWidget> {
               _feedback!,
               style: ChallengeStyles.bodyStyle.copyWith(
                 fontWeight: FontWeight.w600,
-                color: _feedback!.startsWith('Correct') ? const Color(0xFF2E7D32) : AppColors.brown,
+                color: _feedback!.startsWith('Correct')
+                    ? const Color(0xFF2E7D32)
+                    : AppColors.brown,
               ),
             ),
           ],

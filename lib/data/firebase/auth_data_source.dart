@@ -20,10 +20,10 @@ class AuthDataSource {
       email: email.trim(),
       password: password,
     );
-    
+
     // 2) Get FirebaseAuth UID - used to read from Firestore users/{uid}
     final uid = userCredential.user!.uid;
-    
+
     // 3) Read user document from Firestore using users/{uid} pattern
     final doc = await _firestore.collection("users").doc(uid).get();
     if (!doc.exists || doc.data() == null) {
@@ -53,10 +53,10 @@ class AuthDataSource {
       email: email.trim(),
       password: password,
     );
-    
+
     // 2) Get FirebaseAuth UID - this will be used as the Firestore document ID
     final uid = userCredential.user!.uid;
-    
+
     // 3) Save user data to Firestore using users/{uid} pattern
     // Document ID = FirebaseAuth UID (not a random ID)
     await _firestore.collection("users").doc(uid).set({

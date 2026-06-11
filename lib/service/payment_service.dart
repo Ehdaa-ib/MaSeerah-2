@@ -14,8 +14,8 @@ class PaymentService {
   PaymentService({
     required OrderRepository orderRepo,
     required PaymentRepository paymentRepo,
-  })  : _orderRepo = orderRepo,
-        _paymentRepo = paymentRepo;
+  }) : _orderRepo = orderRepo,
+       _paymentRepo = paymentRepo;
 
   static const List<PaymentMethod> _allowedMethods = [
     PaymentMethod.card,
@@ -41,7 +41,7 @@ class PaymentService {
     }
 
     final payerId = FirebaseAuth.instance.currentUser!.uid.trim();
-    if (payerId == null || payerId.isEmpty) {
+    if (payerId.isEmpty) {
       throw Exception('Sign in to pay.');
     }
     if (order.userId.trim().isNotEmpty && order.userId.trim() != payerId) {
@@ -67,11 +67,16 @@ class PaymentService {
     required String gatewayTransactionId,
     required bool paid,
   }) async {
-    final payment = await _paymentRepo.getByGatewayTransactionId(gatewayTransactionId);
+    final payment = await _paymentRepo.getByGatewayTransactionId(
+      gatewayTransactionId,
+    );
     if (payment == null) throw Exception('Payment not found.');
 
     if (paid) {
-      await _paymentRepo.updateStatus(payment.paymentId!, PaymentStatus.success);
+      await _paymentRepo.updateStatus(
+        payment.paymentId!,
+        PaymentStatus.success,
+      );
       await _orderRepo.updateStatus(payment.orderId, OrderStatus.paid);
     } else {
       await _paymentRepo.updateStatus(payment.paymentId!, PaymentStatus.failed);
@@ -109,7 +114,9 @@ class PaymentService {
     if (last != null &&
         last.status != PaymentStatus.failed &&
         last.status != PaymentStatus.cancelled) {
-      throw Exception('Retry only allowed when last payment is FAILED or CANCELLED.');
+      throw Exception(
+        'Retry only allowed when last payment is FAILED or CANCELLED.',
+      );
     }
     return processPayment(orderId: orderId, paymentMethod: paymentMethod);
   }

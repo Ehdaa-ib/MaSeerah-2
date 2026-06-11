@@ -10,8 +10,8 @@ class OrderService {
   OrderService({
     required JourneyRepository journeyRepo,
     required OrderRepository orderRepo,
-  })  : _journeyRepo = journeyRepo,
-        _orderRepo = orderRepo;
+  }) : _journeyRepo = journeyRepo,
+       _orderRepo = orderRepo;
 
   /// Creates a new order for the given user and journey.
   ///
@@ -100,7 +100,10 @@ class OrderService {
     required String journeyId,
   }) async {
     if (userId.trim().isEmpty || journeyId.trim().isEmpty) return null;
-    return _orderRepo.getPendingOrderForJourney(userId.trim(), journeyId.trim());
+    return _orderRepo.getPendingOrderForJourney(
+      userId.trim(),
+      journeyId.trim(),
+    );
   }
 
   /// Pending order for checkout, or a new one when the latest order is already paid/cancelled.

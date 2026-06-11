@@ -6,11 +6,7 @@ import 'map_popup_close_button.dart';
 
 /// Popup title row: **balanced** center title, close on the right (recommendation list, etc.).
 class MapPopupHeader extends StatelessWidget {
-  const MapPopupHeader({
-    super.key,
-    required this.title,
-    required this.onClose,
-  });
+  const MapPopupHeader({super.key, required this.title, required this.onClose});
 
   final String title;
   final VoidCallback onClose;
@@ -78,7 +74,9 @@ class MapPopupHeaderLeadingClose extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsetsDirectional.only(end: MapDesignTokens.spaceSm),
+            padding: const EdgeInsetsDirectional.only(
+              end: MapDesignTokens.spaceSm,
+            ),
             child: trailing ?? const SizedBox(width: _closeSlot),
           ),
         ],

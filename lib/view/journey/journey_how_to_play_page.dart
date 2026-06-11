@@ -83,7 +83,8 @@ class _JourneyHowToPlayPageState extends State<JourneyHowToPlayPage> {
   Future<void> _onPrimaryPressed() async {
     final l10n = AppLocalizations.of(context)!;
 
-    if (widget.presentation == JourneyHowToPlayPresentation.manualFromPurchase) {
+    if (widget.presentation ==
+        JourneyHowToPlayPresentation.manualFromPurchase) {
       final fn = widget.onManualPrimary;
       if (fn == null) {
         if (mounted) Navigator.of(context).pop();
@@ -94,9 +95,9 @@ class _JourneyHowToPlayPageState extends State<JourneyHowToPlayPage> {
         await fn(context);
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(toUserFriendlyMessage(e))),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(toUserFriendlyMessage(e))));
         }
       } finally {
         if (mounted) setState(() => _busy = false);
@@ -117,8 +118,14 @@ class _JourneyHowToPlayPageState extends State<JourneyHowToPlayPage> {
       if (widget.needsProgressBootstrap) {
         final journeyRepo = JourneyRepositoryFirebase(JourneyDataSource());
         final orderRepo = OrderRepositoryFirebase(OrderDataSource());
-        final access = AccessService(journeyRepo: journeyRepo, orderRepo: orderRepo);
-        await access.assertPaidForPlay(userId: uid, journeyId: widget.catalogJourneyId);
+        final access = AccessService(
+          journeyRepo: journeyRepo,
+          orderRepo: orderRepo,
+        );
+        await access.assertPaidForPlay(
+          userId: uid,
+          journeyId: widget.catalogJourneyId,
+        );
         await JourneyProgressDataSource().upsert(
           userId: uid,
           journeyId: widget.catalogJourneyId,
@@ -146,9 +153,9 @@ class _JourneyHowToPlayPageState extends State<JourneyHowToPlayPage> {
     setState(() => _busy = false);
 
     if (!persistOk) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.howToPlaySaveHintFailed)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.howToPlaySaveHintFailed)));
     }
 
     if (!mounted) return;
@@ -160,7 +167,8 @@ class _JourneyHowToPlayPageState extends State<JourneyHowToPlayPage> {
           catalogJourneyId: widget.catalogJourneyId,
           initialRegion: widget.initialRegion,
           initialQubaChallengeCompleted: widget.initialQubaChallengeCompleted,
-          initialLastRegionChallengeCompleted: widget.initialLastRegionChallengeCompleted,
+          initialLastRegionChallengeCompleted:
+              widget.initialLastRegionChallengeCompleted,
           clearRecommendationTracking: widget.clearRecommendationTracking,
         ),
       ),
@@ -279,12 +287,18 @@ class _JourneyHowToPlayPageState extends State<JourneyHowToPlayPage> {
                     decoration: BoxDecoration(
                       color: AppColors.beige,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.orange.withValues(alpha: 0.35)),
+                      border: Border.all(
+                        color: AppColors.orange.withValues(alpha: 0.35),
+                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.auto_awesome, size: 22, color: AppColors.orange.withValues(alpha: 0.95)),
+                        Icon(
+                          Icons.auto_awesome,
+                          size: 22,
+                          color: AppColors.orange.withValues(alpha: 0.95),
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -318,21 +332,28 @@ class _JourneyHowToPlayPageState extends State<JourneyHowToPlayPage> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _busy ? null : _onPrimaryPressed,
-                  style: MapButtonStyles.secondaryFilled(
-                    textStyle: MapTextStyles.buttonLabel.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.beige,
-                    ),
-                  ).copyWith(
-                    padding: WidgetStateProperty.all(
-                      const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
-                    ),
-                  ),
+                  style:
+                      MapButtonStyles.secondaryFilled(
+                        textStyle: MapTextStyles.buttonLabel.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.beige,
+                        ),
+                      ).copyWith(
+                        padding: WidgetStateProperty.all(
+                          const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 18,
+                          ),
+                        ),
+                      ),
                   child: _busy
                       ? const SizedBox(
                           height: 22,
                           width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.beige),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: AppColors.beige,
+                          ),
                         )
                       : Text(_primaryLabel(l10n)),
                 ),

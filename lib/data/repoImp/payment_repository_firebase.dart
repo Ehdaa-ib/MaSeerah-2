@@ -18,7 +18,9 @@ class PaymentRepositoryFirebase implements PaymentRepository {
   }
 
   @override
-  Future<Payment?> getByGatewayTransactionId(String gatewayTransactionId) async {
+  Future<Payment?> getByGatewayTransactionId(
+    String gatewayTransactionId,
+  ) async {
     return _dataSource.getByGatewayTransactionId(gatewayTransactionId);
   }
 

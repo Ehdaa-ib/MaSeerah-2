@@ -13,12 +13,7 @@ class AppUser {
 
   // Convert object to Map to save in Firestore
   Map<String, dynamic> toMap() {
-    return {
-      'userId': userId,
-      'email': email,
-      'name': name,
-      'role': role,
-    };
+    return {'userId': userId, 'email': email, 'name': name, 'role': role};
   }
 
   // Convert Firestore Map back to object

@@ -31,7 +31,10 @@ class MultipleChoiceChallenge extends StatelessWidget {
             if (stage.question != null)
               Text(stage.question!, style: ChallengeStyles.titleStyle)
             else
-              Text('Choose the correct answer', style: ChallengeStyles.titleStyle),
+              Text(
+                'Choose the correct answer',
+                style: ChallengeStyles.titleStyle,
+              ),
             const SizedBox(height: 12),
             for (final o in opts)
               Padding(
@@ -45,7 +48,9 @@ class MultipleChoiceChallenge extends StatelessWidget {
             if (opts.isEmpty)
               Text(
                 'No options in this challenge.',
-                style: ChallengeStyles.bodyStyle.copyWith(color: ChallengeStyles.mutedBrown),
+                style: ChallengeStyles.bodyStyle.copyWith(
+                  color: ChallengeStyles.mutedBrown,
+                ),
               ),
           ],
         ),
@@ -67,8 +72,12 @@ class _ChoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = selected ? AppColors.orange : AppColors.brown.withValues(alpha: 0.18);
-    final fill = selected ? AppColors.orange.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.65);
+    final border = selected
+        ? AppColors.orange
+        : AppColors.brown.withValues(alpha: 0.18);
+    final fill = selected
+        ? AppColors.orange.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.65);
     return Material(
       color: fill,
       borderRadius: BorderRadius.circular(14),
@@ -93,4 +102,3 @@ class _ChoiceCard extends StatelessWidget {
     );
   }
 }
-

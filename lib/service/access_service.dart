@@ -15,10 +15,11 @@ class AccessService {
     required OrderRepository orderRepo,
     JourneyCompletionDataSource? completionDs,
     JourneyRepurchaseGateDataSource? repurchaseGateDs,
-  })  : _journeyRepo = journeyRepo,
-        _orderRepo = orderRepo,
-        _completionDs = completionDs ?? JourneyCompletionDataSource(),
-        _repurchaseGateDs = repurchaseGateDs ?? JourneyRepurchaseGateDataSource();
+  }) : _journeyRepo = journeyRepo,
+       _orderRepo = orderRepo,
+       _completionDs = completionDs ?? JourneyCompletionDataSource(),
+       _repurchaseGateDs =
+           repurchaseGateDs ?? JourneyRepurchaseGateDataSource();
 
   /// Paid access for a new play session (purchase screen → Start). Does not block on completion;
   /// the UI routes completed runs to feedback or Unlock instead.
@@ -34,7 +35,10 @@ class AccessService {
 
     if (journey.price <= 0) return;
 
-    final hasPaid = await _orderRepo.hasPaidOrderForJourney(userId.trim(), journeyId.trim());
+    final hasPaid = await _orderRepo.hasPaidOrderForJourney(
+      userId.trim(),
+      journeyId.trim(),
+    );
     if (!hasPaid) throw Exception('Payment required.');
 
     if (await _repurchaseGateDs.requiresNewPurchase(

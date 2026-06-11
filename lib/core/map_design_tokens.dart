@@ -19,12 +19,17 @@ abstract final class MapDesignTokens {
   static const Color successColor = Color(0xFF2E7D32);
   static Color scrimOverMap() => Colors.black.withValues(alpha: 0.35);
 
-  static Color borderSubtle([double a = 0.12]) => AppColors.brown.withValues(alpha: a);
-  static Color borderMedium([double a = 0.2]) => AppColors.brown.withValues(alpha: a);
-  static Color iconMuted([double a = 0.72]) => AppColors.brown.withValues(alpha: a);
-  static Color closeIconColor([double a = 0.72]) => AppColors.brown.withValues(alpha: a);
+  static Color borderSubtle([double a = 0.12]) =>
+      AppColors.brown.withValues(alpha: a);
+  static Color borderMedium([double a = 0.2]) =>
+      AppColors.brown.withValues(alpha: a);
+  static Color iconMuted([double a = 0.72]) =>
+      AppColors.brown.withValues(alpha: a);
+  static Color closeIconColor([double a = 0.72]) =>
+      AppColors.brown.withValues(alpha: a);
 
-  static Color cardOnBeige([double alpha = 0.72]) => Colors.white.withValues(alpha: alpha);
+  static Color cardOnBeige([double alpha = 0.72]) =>
+      Colors.white.withValues(alpha: alpha);
   static Color cardHighlightGreen([double alpha = 0.18]) =>
       AppColors.green.withValues(alpha: alpha);
 
@@ -44,21 +49,40 @@ abstract final class MapDesignTokens {
   static const double space2xl = 24;
 
   /// Outer margin for centered map sheets (matches challenge / recommendation overlays).
-  static const EdgeInsets sheetOuterMargin = EdgeInsets.symmetric(horizontal: 16, vertical: 12);
+  static const EdgeInsets sheetOuterMargin = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 12,
+  );
 
-  static const EdgeInsets paddingPopupContent = EdgeInsets.symmetric(horizontal: 18);
+  static const EdgeInsets paddingPopupContent = EdgeInsets.symmetric(
+    horizontal: 18,
+  );
   static const EdgeInsets paddingFooter = EdgeInsets.fromLTRB(20, 14, 20, 16);
-  static const EdgeInsets paddingLandmarkScroll = EdgeInsets.fromLTRB(22, 18, 22, 12);
-  static const EdgeInsets paddingStickyCta = EdgeInsets.fromLTRB(16, 10, 16, 12);
+  static const EdgeInsets paddingLandmarkScroll = EdgeInsets.fromLTRB(
+    22,
+    18,
+    22,
+    12,
+  );
+  static const EdgeInsets paddingStickyCta = EdgeInsets.fromLTRB(
+    16,
+    10,
+    16,
+    12,
+  );
 
   /// Minimum comfortable tap target (accessibility).
   static const Size minimumTouchTarget = Size(64, 48);
 
-  static const EdgeInsets paddingButtonVertical =
-      EdgeInsets.symmetric(vertical: 14, horizontal: 18);
+  static const EdgeInsets paddingButtonVertical = EdgeInsets.symmetric(
+    vertical: 14,
+    horizontal: 18,
+  );
 
-  static const EdgeInsets paddingButtonVerticalDense =
-      EdgeInsets.symmetric(vertical: 14, horizontal: 14);
+  static const EdgeInsets paddingButtonVerticalDense = EdgeInsets.symmetric(
+    vertical: 14,
+    horizontal: 14,
+  );
 
   // --- Popup header (shared title bar) ---
   static const double popupHeaderHeight = 48;

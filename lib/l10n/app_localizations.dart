@@ -244,6 +244,30 @@ abstract class AppLocalizations {
   /// **'Start your journey'**
   String get journeyPurchaseStartYourJourney;
 
+  /// No description provided for @comingSoonTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming Soon'**
+  String get comingSoonTitle;
+
+  /// No description provided for @comingSoonBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This journey is not available yet. We are preparing new stories and landmarks for you — check back soon.'**
+  String get comingSoonBody;
+
+  /// No description provided for @comingSoonBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to home'**
+  String get comingSoonBack;
+
+  /// No description provided for @comingSoonBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming Soon'**
+  String get comingSoonBadge;
+
   /// No description provided for @googleMapPageTitle.
   ///
   /// In en, this message translates to:

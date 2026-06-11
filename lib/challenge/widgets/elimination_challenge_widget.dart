@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -16,10 +15,12 @@ class EliminationChallengeWidget extends StatefulWidget {
   final ChallengeStageModel stage;
 
   @override
-  State<EliminationChallengeWidget> createState() => _EliminationChallengeWidgetState();
+  State<EliminationChallengeWidget> createState() =>
+      _EliminationChallengeWidgetState();
 }
 
-class _EliminationChallengeWidgetState extends State<EliminationChallengeWidget> {
+class _EliminationChallengeWidgetState
+    extends State<EliminationChallengeWidget> {
   late List<String> _remaining;
   String? _feedback;
 
@@ -42,7 +43,9 @@ class _EliminationChallengeWidgetState extends State<EliminationChallengeWidget>
       expected: widget.stage.answer,
     );
     debugPrint('[Elimination] correct=$ok remaining=$_remaining');
-    setState(() => _feedback = ok ? 'Correct (placeholder)' : 'Not quite — try again.');
+    setState(
+      () => _feedback = ok ? 'Correct (placeholder)' : 'Not quite — try again.',
+    );
   }
 
   void _reset() {
@@ -69,7 +72,10 @@ class _EliminationChallengeWidgetState extends State<EliminationChallengeWidget>
           const SizedBox(height: 8),
           Text(
             'Tap an item to remove it from the list.',
-            style: ChallengeStyles.bodyStyle.copyWith(fontSize: 13, color: ChallengeStyles.mutedBrown),
+            style: ChallengeStyles.bodyStyle.copyWith(
+              fontSize: 13,
+              color: ChallengeStyles.mutedBrown,
+            ),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -95,16 +101,15 @@ class _EliminationChallengeWidgetState extends State<EliminationChallengeWidget>
                     backgroundColor: AppColors.orange,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text('Check'),
                 ),
               ),
               const SizedBox(width: 10),
-              OutlinedButton(
-                onPressed: _reset,
-                child: const Text('Reset'),
-              ),
+              OutlinedButton(onPressed: _reset, child: const Text('Reset')),
             ],
           ),
           if (_feedback != null) ...[
@@ -113,7 +118,9 @@ class _EliminationChallengeWidgetState extends State<EliminationChallengeWidget>
               _feedback!,
               style: ChallengeStyles.bodyStyle.copyWith(
                 fontWeight: FontWeight.w600,
-                color: _feedback!.startsWith('Correct') ? const Color(0xFF2E7D32) : AppColors.brown,
+                color: _feedback!.startsWith('Correct')
+                    ? const Color(0xFF2E7D32)
+                    : AppColors.brown,
               ),
             ),
           ],

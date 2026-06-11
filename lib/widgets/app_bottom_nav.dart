@@ -65,10 +65,7 @@ class AppBottomNav extends StatelessWidget {
 }
 
 class _ActiveJourneysNavItem extends StatelessWidget {
-  const _ActiveJourneysNavItem({
-    required this.isSelected,
-    required this.onTap,
-  });
+  const _ActiveJourneysNavItem({required this.isSelected, required this.onTap});
 
   final bool isSelected;
   final VoidCallback onTap;
@@ -127,10 +124,7 @@ class _NavItem extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 26),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: labelColor),
-          ),
+          Text(label, style: TextStyle(fontSize: 12, color: labelColor)),
         ],
       ),
     );

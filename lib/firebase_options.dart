@@ -85,5 +85,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'maseerah-2.firebasestorage.app',
     measurementId: 'G-RCBY6RFRCB',
   );
-
 }

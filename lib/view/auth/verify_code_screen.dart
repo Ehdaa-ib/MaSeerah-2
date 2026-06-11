@@ -55,7 +55,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     });
     try {
       final repo = AuthRepositoryFirebase(AuthDataSource());
-      await repo.verifyPasswordResetCode(widget.email, _codeController.text.trim());
+      await repo.verifyPasswordResetCode(
+        widget.email,
+        _codeController.text.trim(),
+      );
       if (!mounted) return;
       setState(() => _isLoading = false);
       await Navigator.of(context).pushReplacement(
@@ -94,10 +97,12 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     } catch (e) {
       if (mounted) {
         final msg = toUserFriendlyMessage(e);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg)),
-        );
-        final match = RegExp(r'wait (\d+) seconds').firstMatch(msg.toLowerCase());
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
+        final match = RegExp(
+          r'wait (\d+) seconds',
+        ).firstMatch(msg.toLowerCase());
         if (match != null) {
           final s = int.tryParse(match.group(1) ?? '') ?? 60;
           _startResendCooldown(s.clamp(1, 300));
@@ -139,7 +144,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                     const SizedBox(height: 0),
                     Container(
                       width: MediaQuery.of(context).size.width * 0.95,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 35),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 35,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.beige.withOpacity(0.92),
                         borderRadius: BorderRadius.circular(20),
@@ -229,17 +237,29 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                                 fillColor: Colors.white.withOpacity(0.5),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(color: Colors.grey.shade700, width: 1.5),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade700,
+                                    width: 1.5,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(color: Colors.grey.shade700, width: 1.5),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade700,
+                                    width: 1.5,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
-                                  borderSide: const BorderSide(color: AppColors.brown, width: 2),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.brown,
+                                    width: 2,
+                                  ),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 16,
+                                ),
                               ),
                               validator: (v) {
                                 if (v == null || v.isEmpty) {
@@ -258,11 +278,16 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.red.shade50,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.red.shade200),
+                                  border: Border.all(
+                                    color: Colors.red.shade200,
+                                  ),
                                 ),
                                 child: Text(
                                   _errorMessage!,
-                                  style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                                  style: TextStyle(
+                                    color: Colors.red.shade800,
+                                    fontSize: 13,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -273,7 +298,9 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.brown,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(30),
                                 ),
@@ -286,7 +313,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                                       width: 22,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.5,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
                                       ),
                                     )
                                   : const Text(
@@ -314,7 +344,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             ),
                             Center(
                               child: TextButton(
-                                onPressed: (_isLoading || _resendCooldownSec > 0)
+                                onPressed:
+                                    (_isLoading || _resendCooldownSec > 0)
                                     ? null
                                     : _resendOtp,
                                 child: Text(

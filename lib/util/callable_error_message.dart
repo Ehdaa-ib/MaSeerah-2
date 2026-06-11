@@ -19,7 +19,9 @@ String messageFromCallableException(FirebaseFunctionsException e) {
   if (_isGenericCallableText(msg)) {
     msg = fromDetails;
   }
-  if (_isGenericCallableText(msg) && fromDetails.isNotEmpty && fromDetails != msg) {
+  if (_isGenericCallableText(msg) &&
+      fromDetails.isNotEmpty &&
+      fromDetails != msg) {
     msg = fromDetails;
   }
 

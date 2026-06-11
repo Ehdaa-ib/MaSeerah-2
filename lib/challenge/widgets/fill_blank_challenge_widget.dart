@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -21,13 +20,12 @@ class FillBlankChallengeWidget extends StatefulWidget {
   final String? nextLandmarkDocumentId;
 
   /// Called when the user submits a correct answer (trim + case-insensitive vs [stage.answer]).
-  final void Function({
-    required bool success,
-    String? nextLandmarkDocumentId,
-  })? onResolved;
+  final void Function({required bool success, String? nextLandmarkDocumentId})?
+  onResolved;
 
   @override
-  State<FillBlankChallengeWidget> createState() => _FillBlankChallengeWidgetState();
+  State<FillBlankChallengeWidget> createState() =>
+      _FillBlankChallengeWidgetState();
 }
 
 class _FillBlankChallengeWidgetState extends State<FillBlankChallengeWidget> {
@@ -94,7 +92,9 @@ class _FillBlankChallengeWidgetState extends State<FillBlankChallengeWidget> {
               hintText: 'Your answer',
               filled: true,
               fillColor: Colors.white.withValues(alpha: 0.65),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
           if (hints.isNotEmpty) ...[
@@ -129,7 +129,9 @@ class _FillBlankChallengeWidgetState extends State<FillBlankChallengeWidget> {
               backgroundColor: AppColors.orange,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Check answer'),
           ),

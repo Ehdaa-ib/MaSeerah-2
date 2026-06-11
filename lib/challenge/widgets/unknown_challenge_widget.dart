@@ -27,7 +27,10 @@ class UnknownChallengeWidget extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             l10n.challengeUnknownBody(stage.type.name),
-            style: ChallengeStyles.bodyStyle.copyWith(fontSize: 13, color: ChallengeStyles.mutedBrown),
+            style: ChallengeStyles.bodyStyle.copyWith(
+              fontSize: 13,
+              color: ChallengeStyles.mutedBrown,
+            ),
           ),
           if (stage.question != null) ...[
             const SizedBox(height: 12),

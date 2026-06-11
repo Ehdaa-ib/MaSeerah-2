@@ -8,4 +8,3 @@ abstract class UserRepository {
     required Map<String, dynamic> data,
   });
 }
-

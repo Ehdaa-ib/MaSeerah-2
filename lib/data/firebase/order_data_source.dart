@@ -34,7 +34,9 @@ class OrderDataSource {
   }
 
   Future<app.Order> updateStatus(String orderId, app.OrderStatus status) async {
-    await _firestore.collection(_collection).doc(orderId).update({'status': status.value});
+    await _firestore.collection(_collection).doc(orderId).update({
+      'status': status.value,
+    });
     final order = await getById(orderId);
     if (order == null) throw Exception('Order not found');
     return app.Order(
@@ -48,7 +50,10 @@ class OrderDataSource {
     );
   }
 
-  Future<app.Order?> getUserOrderForJourney(String userId, String journeyId) async {
+  Future<app.Order?> getUserOrderForJourney(
+    String userId,
+    String journeyId,
+  ) async {
     final q = await _firestore
         .collection(_collection)
         .where('userId', isEqualTo: userId)
@@ -66,7 +71,10 @@ class OrderDataSource {
   }
 
   /// Most recent order still awaiting payment (repurchase / retry checkout).
-  Future<app.Order?> getPendingOrderForJourney(String userId, String journeyId) async {
+  Future<app.Order?> getPendingOrderForJourney(
+    String userId,
+    String journeyId,
+  ) async {
     final q = await _firestore
         .collection(_collection)
         .where('userId', isEqualTo: userId)
@@ -75,7 +83,9 @@ class OrderDataSource {
         .limit(10)
         .get();
     for (final doc in q.docs) {
-      final status = app.OrderStatusExtension.fromString(doc.data()['status'] as String?);
+      final status = app.OrderStatusExtension.fromString(
+        doc.data()['status'] as String?,
+      );
       if (status != app.OrderStatus.pendingPayment) continue;
       final saved = Map<String, dynamic>.from(doc.data());
       if (saved['createdAt'] != null && saved['createdAt'] is Timestamp) {
@@ -104,4 +114,3 @@ class OrderDataSource {
     return false;
   }
 }
- 

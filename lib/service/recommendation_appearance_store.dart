@@ -100,7 +100,9 @@ class RecommendationAppearanceStore {
     final set = cur.map(int.tryParse).whereType<int>().toSet()..add(order);
     await prefs.setStringList(key, set.map((e) => '$e').toList()..sort());
     if (kDebugMode) {
-      debugPrint('[RecommendationStore] journey=$journeyKey appeared orders=$set');
+      debugPrint(
+        '[RecommendationStore] journey=$journeyKey appeared orders=$set',
+      );
     }
   }
 }

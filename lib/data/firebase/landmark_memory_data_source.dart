@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../model/landmark_memory.dart';
-import '../../util/journey_history_scope.dart';
 import '../../util/ttl_cache.dart';
 
 /// Landmark memories under `users/{userId}/journeyHistory/{journeyId}/landmarkMemories/{memoryId}`.
@@ -35,14 +34,22 @@ class LandmarkMemoryDataSource {
   LandmarkMemoryDataSource({
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _storage = storage ?? FirebaseStorage.instance;
 
-  DocumentReference<Map<String, dynamic>> _journeyHistoryDoc(String userId, String journeyId) =>
-      _firestore.collection('users').doc(userId).collection(journeyHistorySubcollection).doc(journeyId);
+  DocumentReference<Map<String, dynamic>> _journeyHistoryDoc(
+    String userId,
+    String journeyId,
+  ) => _firestore
+      .collection('users')
+      .doc(userId)
+      .collection(journeyHistorySubcollection)
+      .doc(journeyId);
 
-  CollectionReference<Map<String, dynamic>> _memoriesCol(String userId, String journeyId) =>
-      _journeyHistoryDoc(userId, journeyId).collection(memoriesSubcollection);
+  CollectionReference<Map<String, dynamic>> _memoriesCol(
+    String userId,
+    String journeyId,
+  ) => _journeyHistoryDoc(userId, journeyId).collection(memoriesSubcollection);
 
   /// Aligns catalog id with progress / purchase screen (`journey1` → `journey_1`).
   static String normalizeCatalogJourneyId({
@@ -124,7 +131,10 @@ class LandmarkMemoryDataSource {
     throw Exception('$step failed: ${e.message ?? code}');
   }
 
-  Future<List<LandmarkMemory>> _fetchMemoriesCol(String userId, String journeyDocId) async {
+  Future<List<LandmarkMemory>> _fetchMemoriesCol(
+    String userId,
+    String journeyDocId,
+  ) async {
     final snap = await _memoriesCol(userId, journeyDocId).get();
     final out = <LandmarkMemory>[];
     for (final d in snap.docs) {
@@ -153,12 +163,15 @@ class LandmarkMemoryDataSource {
     if (cached != null) return List<LandmarkMemory>.from(cached);
 
     try {
-      final list = await _fetchAllMemoriesForUserImpl(uid)
-          .timeout(const Duration(seconds: 12));
+      final list = await _fetchAllMemoriesForUserImpl(
+        uid,
+      ).timeout(const Duration(seconds: 12));
       TtlCache.write(_userMemoriesCacheKey(uid), list);
       return list;
     } catch (e) {
-      if (kDebugMode) debugPrint('[LandmarkMemory] fetchAll timed out or failed: $e');
+      if (kDebugMode) {
+        debugPrint('[LandmarkMemory] fetchAll timed out or failed: $e');
+      }
       return const [];
     }
   }
@@ -174,7 +187,9 @@ class LandmarkMemoryDataSource {
       return _memoriesFromQueryDocs(snap.docs);
     } on FirebaseException catch (e) {
       if (kDebugMode) {
-        debugPrint('[LandmarkMemory] fetchAll collectionGroup: ${e.code} — falling back');
+        debugPrint(
+          '[LandmarkMemory] fetchAll collectionGroup: ${e.code} — falling back',
+        );
       }
       return _fetchAllMemoriesForUserPerJourney(uid);
     }
@@ -197,7 +212,9 @@ class LandmarkMemoryDataSource {
   }
 
   /// Fallback when collection-group index is missing: parallel per-journey reads.
-  Future<List<LandmarkMemory>> _fetchAllMemoriesForUserPerJourney(String uid) async {
+  Future<List<LandmarkMemory>> _fetchAllMemoriesForUserPerJourney(
+    String uid,
+  ) async {
     try {
       final histSnap = await _firestore
           .collection('users')
@@ -221,7 +238,9 @@ class LandmarkMemoryDataSource {
       });
       return out;
     } on FirebaseException catch (e) {
-      if (kDebugMode) debugPrint('[LandmarkMemory] fetchAll per-journey: ${e.code}');
+      if (kDebugMode) {
+        debugPrint('[LandmarkMemory] fetchAll per-journey: ${e.code}');
+      }
       return const [];
     }
   }
@@ -254,13 +273,19 @@ class LandmarkMemoryDataSource {
     final contentType = _contentTypeForExtension(ext, isVideo: isVideo);
 
     if (kDebugMode) {
-      debugPrint('[LandmarkMemory] upload start journeyId=$jid landmark=$landmarkId path=$storagePath');
+      debugPrint(
+        '[LandmarkMemory] upload start journeyId=$jid landmark=$landmarkId path=$storagePath',
+      );
     }
 
     // Parent doc + upload in parallel to reduce wait on Next.
     try {
-      final journeyTitleEn = journeyTitle.trim().isEmpty ? 'Journey' : journeyTitle.trim();
-      final landmarkTitleEn = landmarkTitle.trim().isEmpty ? 'Landmark' : landmarkTitle.trim();
+      final journeyTitleEn = journeyTitle.trim().isEmpty
+          ? 'Journey'
+          : journeyTitle.trim();
+      final landmarkTitleEn = landmarkTitle.trim().isEmpty
+          ? 'Landmark'
+          : landmarkTitle.trim();
       final parentPayload = <String, dynamic>{
         'userId': uid,
         'journeyId': jid,
@@ -270,12 +295,14 @@ class LandmarkMemoryDataSource {
         'startedAt': FieldValue.serverTimestamp(),
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       };
-      final parentFuture = _journeyHistoryDoc(uid, instanceId).set(
-        parentPayload,
-        SetOptions(merge: true),
-      );
+      final parentFuture = _journeyHistoryDoc(
+        uid,
+        instanceId,
+      ).set(parentPayload, SetOptions(merge: true));
 
-      final SettableMetadata metadata = SettableMetadata(contentType: contentType);
+      final SettableMetadata metadata = SettableMetadata(
+        contentType: contentType,
+      );
       final UploadTask uploadTask;
       if (!kIsWeb && file.path.isNotEmpty) {
         uploadTask = ref.putFile(File(file.path), metadata);
@@ -311,14 +338,10 @@ class LandmarkMemoryDataSource {
         'source': source,
       };
       batch.set(memoryRef, memoryPayload);
-      batch.set(
-        _journeyHistoryDoc(uid, instanceId),
-        {
-          'lastUpdatedAt': FieldValue.serverTimestamp(),
-          'memoriesCount': FieldValue.increment(1),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_journeyHistoryDoc(uid, instanceId), {
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+        'memoriesCount': FieldValue.increment(1),
+      }, SetOptions(merge: true));
       await batch.commit();
 
       invalidateMemoriesCacheForUser(uid);
@@ -331,7 +354,11 @@ class LandmarkMemoryDataSource {
       }
       return mediaUrl;
     } on FirebaseException catch (e) {
-      if (kDebugMode) debugPrint('[LandmarkMemory] FirebaseException ${e.code}: ${e.message}');
+      if (kDebugMode) {
+        debugPrint(
+          '[LandmarkMemory] FirebaseException ${e.code}: ${e.message}',
+        );
+      }
       if (e.code == 'permission-denied' || e.code == 'unauthorized') {
         _throwFriendly(e, step: 'Journey history');
       }
@@ -365,7 +392,10 @@ class LandmarkMemoryDataSource {
     }..removeWhere((e) => e.isEmpty);
   }
 
-  static bool memoryBelongsToJourney(LandmarkMemory memory, Set<String> variants) {
+  static bool memoryBelongsToJourney(
+    LandmarkMemory memory,
+    Set<String> variants,
+  ) {
     if (variants.isEmpty) return false;
     final mid = memory.journeyId.trim();
     if (mid.isEmpty) return false;
@@ -374,59 +404,6 @@ class LandmarkMemoryDataSource {
     if (normalized.isNotEmpty && variants.contains(normalized)) return true;
     final compact = mid.replaceAll('_', '').toLowerCase();
     return variants.any((v) => v.replaceAll('_', '').toLowerCase() == compact);
-  }
-
-  static bool _variantSetsOverlap(Set<String> a, Set<String> b) {
-    for (final x in a) {
-      if (b.contains(x)) return true;
-      final cx = x.replaceAll('_', '').toLowerCase();
-      if (cx.isEmpty) continue;
-      for (final y in b) {
-        if (y.replaceAll('_', '').toLowerCase() == cx) return true;
-      }
-    }
-    return false;
-  }
-
-  static bool _parentDocMatchesJourney({
-    required String historyDocId,
-    required Map<String, dynamic> parentData,
-    required Set<String> variants,
-  }) {
-    final stored = (parentData['journeyId'] as String?)?.trim() ?? '';
-    if (stored.isNotEmpty) {
-      return _variantSetsOverlap(variants, journeyIdVariants(stored));
-    }
-    final docId = historyDocId.trim();
-    return variants.contains(docId) || variants.contains(docId.replaceAll('_', ''));
-  }
-
-  static bool _memoryInPlaythrough({
-    required LandmarkMemory memory,
-    required Set<String> variants,
-    String? userJourneyId,
-    DateTime? afterExclusive,
-    DateTime? beforeExclusive,
-  }) {
-    if (!memoryBelongsToJourney(memory, variants)) return false;
-    final scoped = userJourneyId?.trim();
-    if (scoped != null && scoped.isNotEmpty) {
-      final onMemory = (memory.userJourneyId ?? '').trim();
-      if (onMemory.isNotEmpty && onMemory != scoped) return false;
-    }
-    return JourneyHistoryScope.timestampInPlaythroughWindow(
-      timestamp: memory.createdAt,
-      afterExclusive: afterExclusive,
-      beforeExclusive: beforeExclusive,
-    );
-  }
-
-  static bool _memoryMatchesInstance(LandmarkMemory memory, String instanceId) {
-    final scoped = instanceId.trim();
-    if (scoped.isEmpty) return false;
-    final onDoc = (memory.userJourneyId ?? '').trim();
-    if (onDoc.isNotEmpty) return onDoc == scoped;
-    return false;
   }
 
   /// Strict: only photos for this playthrough ([userJourneyId] / [journeyHistoryId]).
@@ -441,7 +418,10 @@ class LandmarkMemoryDataSource {
     if (uid.isEmpty || instanceId.isEmpty) return const [];
 
     final cacheKey = _instanceMemoriesCacheKey(uid, instanceId);
-    final cached = TtlCache.read<List<LandmarkMemory>>(cacheKey, _memoriesCacheTtl);
+    final cached = TtlCache.read<List<LandmarkMemory>>(
+      cacheKey,
+      _memoriesCacheTtl,
+    );
     if (cached != null) return List<LandmarkMemory>.from(cached);
 
     // Perf: reuse profile-wide fetch when already in memory.
@@ -509,7 +489,9 @@ class LandmarkMemoryDataSource {
         addIfInstance(m, source: 'collection-group');
       }
     } on FirebaseException catch (e) {
-      if (kDebugMode) debugPrint('[LandmarkMemory] instance group query: ${e.code}');
+      if (kDebugMode) {
+        debugPrint('[LandmarkMemory] instance group query: ${e.code}');
+      }
     }
 
     if (byId.isEmpty) {
@@ -519,7 +501,9 @@ class LandmarkMemoryDataSource {
           addIfInstance(m, source: 'instance-path');
         }
       } on FirebaseException catch (e) {
-        if (kDebugMode) debugPrint('[LandmarkMemory] instance path $instanceId: ${e.code}');
+        if (kDebugMode) {
+          debugPrint('[LandmarkMemory] instance path $instanceId: ${e.code}');
+        }
       }
     }
 

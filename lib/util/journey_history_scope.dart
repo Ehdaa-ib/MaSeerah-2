@@ -21,7 +21,10 @@ class JourneyHistoryScope {
     bool valid(String? id) {
       final v = id?.trim();
       if (v == null || v.isEmpty) return false;
-      return !LandmarkMemoryDataSource.isCatalogJourneyDocId(v, catalogJourneyId: catalog);
+      return !LandmarkMemoryDataSource.isCatalogJourneyDocId(
+        v,
+        catalogJourneyId: catalog,
+      );
     }
 
     if (valid(explicitUserJourneyId)) return explicitUserJourneyId!.trim();
@@ -35,19 +38,28 @@ class JourneyHistoryScope {
     final explicit = row['userJourneyId']?.toString().trim();
     if (explicit != null &&
         explicit.isNotEmpty &&
-        !LandmarkMemoryDataSource.isCatalogJourneyDocId(explicit, catalogJourneyId: catalog)) {
+        !LandmarkMemoryDataSource.isCatalogJourneyDocId(
+          explicit,
+          catalogJourneyId: catalog,
+        )) {
       return explicit;
     }
     final completion = row['completionDocId']?.toString().trim();
     if (completion != null &&
         completion.isNotEmpty &&
-        !LandmarkMemoryDataSource.isCatalogJourneyDocId(completion, catalogJourneyId: catalog)) {
+        !LandmarkMemoryDataSource.isCatalogJourneyDocId(
+          completion,
+          catalogJourneyId: catalog,
+        )) {
       return completion;
     }
     final history = row['historyDocId']?.toString().trim();
     if (history != null &&
         history.isNotEmpty &&
-        !LandmarkMemoryDataSource.isCatalogJourneyDocId(history, catalogJourneyId: catalog)) {
+        !LandmarkMemoryDataSource.isCatalogJourneyDocId(
+          history,
+          catalogJourneyId: catalog,
+        )) {
       return history;
     }
     return null;
@@ -81,7 +93,10 @@ class JourneyHistoryScope {
     String? safeHistoryDocId(String? id) {
       final v = id?.trim();
       if (v == null || v.isEmpty) return null;
-      if (LandmarkMemoryDataSource.isCatalogJourneyDocId(v, catalogJourneyId: catalog)) {
+      if (LandmarkMemoryDataSource.isCatalogJourneyDocId(
+        v,
+        catalogJourneyId: catalog,
+      )) {
         return null;
       }
       return v;
@@ -97,7 +112,8 @@ class JourneyHistoryScope {
   }
 
   /// Playthrough window: memories/feedback after [afterExclusive] and before [beforeExclusive].
-  static ({DateTime? afterExclusive, DateTime? beforeExclusive}) completionTimeWindow({
+  static ({DateTime? afterExclusive, DateTime? beforeExclusive})
+  completionTimeWindow({
     required List<DateTime> completionTimesOldestFirst,
     DateTime? targetCompletedAt,
   }) {
@@ -107,7 +123,9 @@ class JourneyHistoryScope {
 
     var idx = -1;
     for (var i = 0; i < completionTimesOldestFirst.length; i++) {
-      final diff = completionTimesOldestFirst[i].difference(targetCompletedAt).abs();
+      final diff = completionTimesOldestFirst[i]
+          .difference(targetCompletedAt)
+          .abs();
       if (diff.inMinutes <= 3) {
         idx = i;
         break;
@@ -124,8 +142,9 @@ class JourneyHistoryScope {
     if (idx < 0) return (afterExclusive: null, beforeExclusive: null);
 
     final afterExclusive = idx > 0 ? completionTimesOldestFirst[idx - 1] : null;
-    final beforeExclusive =
-        idx < completionTimesOldestFirst.length - 1 ? completionTimesOldestFirst[idx + 1] : null;
+    final beforeExclusive = idx < completionTimesOldestFirst.length - 1
+        ? completionTimesOldestFirst[idx + 1]
+        : null;
     return (afterExclusive: afterExclusive, beforeExclusive: beforeExclusive);
   }
 
@@ -136,8 +155,12 @@ class JourneyHistoryScope {
   }) {
     if (afterExclusive == null && beforeExclusive == null) return true;
     if (timestamp == null) return false;
-    if (afterExclusive != null && !timestamp.isAfter(afterExclusive)) return false;
-    if (beforeExclusive != null && !timestamp.isBefore(beforeExclusive)) return false;
+    if (afterExclusive != null && !timestamp.isAfter(afterExclusive)) {
+      return false;
+    }
+    if (beforeExclusive != null && !timestamp.isBefore(beforeExclusive)) {
+      return false;
+    }
     return true;
   }
 }

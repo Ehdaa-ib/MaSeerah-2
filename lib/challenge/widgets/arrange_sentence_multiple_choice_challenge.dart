@@ -25,4 +25,3 @@ class ArrangeSentenceMultipleChoiceChallenge extends StatelessWidget {
     );
   }
 }
-

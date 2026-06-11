@@ -15,6 +15,7 @@ import '../home/landing_page.dart';
 class FeedbackScreen extends StatefulWidget {
   final String journeyId;
   final String? userJourneyId;
+
   /// Optional override for tests so they don't need Firebase Auth.
   final String? Function()? currentUserId;
 
@@ -82,24 +83,42 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_camera_outlined, color: AppColors.brown),
-              title: Text(AppLocalizations.of(context)!.feedbackTakePhoto, style: const TextStyle(color: AppColors.brown)),
+              leading: const Icon(
+                Icons.photo_camera_outlined,
+                color: AppColors.brown,
+              ),
+              title: Text(
+                AppLocalizations.of(context)!.feedbackTakePhoto,
+                style: const TextStyle(color: AppColors.brown),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _takePhoto();
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: AppColors.brown),
-              title: Text(AppLocalizations.of(context)!.feedbackChooseGallery, style: const TextStyle(color: AppColors.brown)),
+              leading: const Icon(
+                Icons.photo_library_outlined,
+                color: AppColors.brown,
+              ),
+              title: Text(
+                AppLocalizations.of(context)!.feedbackChooseGallery,
+                style: const TextStyle(color: AppColors.brown),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickPhotosFromGallery();
               },
             ),
             ListTile(
-              leading: Icon(Icons.close, color: AppColors.brown.withOpacity(0.7)),
-              title: Text(AppLocalizations.of(context)!.feedbackCancel, style: const TextStyle(color: AppColors.brown)),
+              leading: Icon(
+                Icons.close,
+                color: AppColors.brown.withOpacity(0.7),
+              ),
+              title: Text(
+                AppLocalizations.of(context)!.feedbackCancel,
+                style: const TextStyle(color: AppColors.brown),
+              ),
               onTap: () => Navigator.pop(ctx),
             ),
           ],
@@ -123,7 +142,12 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       return;
     }
 
-    final uid = widget.currentUserId?.call() ?? FirebaseAuth.instance.currentUser?.uid;
+    String? uid;
+    if (widget.currentUserId != null) {
+      uid = widget.currentUserId!();
+    } else {
+      uid = FirebaseAuth.instance.currentUser?.uid;
+    }
     if (uid == null) {
       setState(() {
         _isLoading = false;
@@ -312,8 +336,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                             style: const TextStyle(color: AppColors.brown),
                             decoration: InputDecoration(
                               hintText: 'Tell us about your journey...',
-                              hintStyle:
-                                  TextStyle(color: Colors.grey.shade500),
+                              hintStyle: TextStyle(color: Colors.grey.shade500),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.5),
                               border: OutlineInputBorder(
@@ -379,7 +402,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                             _nearbyRating,
                             (val) => setState(() => _nearbyRating = val),
                           ),
-                          _buildRatingRow('Challenges', _challengesRating, (val) {
+                          _buildRatingRow('Challenges', _challengesRating, (
+                            val,
+                          ) {
                             setState(() => _challengesRating = val);
                           }),
                           const SizedBox(height: 20),
@@ -403,12 +428,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
-                            onPressed: _isLoading ? null : _showPhotoSourceSheet,
+                            onPressed: _isLoading
+                                ? null
+                                : _showPhotoSourceSheet,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.brown.withOpacity(0.2),
                               foregroundColor: AppColors.brown,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
                                 side: BorderSide(
@@ -420,8 +446,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                               _photos.isEmpty
                                   ? 'ADD PHOTO'
                                   : 'ADD PHOTO (${_photos.length})',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                           if (_photos.isNotEmpty) ...[
@@ -472,14 +499,12 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.brown,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
                               ),
                               elevation: 3,
-                              shadowColor:
-                                  AppColors.brown.withOpacity(0.5),
+                              shadowColor: AppColors.brown.withOpacity(0.5),
                             ),
                             child: _isLoading
                                 ? const SizedBox(
@@ -487,8 +512,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                                     width: 22,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
-                                      valueColor:
-                                          AlwaysStoppedAnimation<Color>(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
                                         Colors.white,
                                       ),
                                     ),
@@ -552,4 +576,3 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     );
   }
 }
-

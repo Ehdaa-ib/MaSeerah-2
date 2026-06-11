@@ -41,7 +41,9 @@ class ArrangeSentenceAlternativeChallenge extends StatelessWidget {
       );
     }
 
-    final expectedLen = stage.correctOrder.isNotEmpty ? stage.correctOrder.length : tokens.length;
+    final expectedLen = stage.correctOrder.isNotEmpty
+        ? stage.correctOrder.length
+        : tokens.length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 8),
@@ -52,17 +54,27 @@ class ArrangeSentenceAlternativeChallenge extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(stage.question ?? 'Arrange the sentence', style: ChallengeStyles.titleStyle),
+            Text(
+              stage.question ?? 'Arrange the sentence',
+              style: ChallengeStyles.titleStyle,
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Text('Your answer', style: ChallengeStyles.bodyStyle.copyWith(fontWeight: FontWeight.w800)),
+                Text(
+                  'Your answer',
+                  style: ChallengeStyles.bodyStyle.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const Spacer(),
                 TextButton(
                   onPressed: picked.isEmpty ? null : reset,
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.brown,
-                    textStyle: ChallengeStyles.bodyStyle.copyWith(fontWeight: FontWeight.w800),
+                    textStyle: ChallengeStyles.bodyStyle.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   child: const Text('Reset'),
                 ),
@@ -77,7 +89,9 @@ class ArrangeSentenceAlternativeChallenge extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.62),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.brown.withValues(alpha: 0.14)),
+                  border: Border.all(
+                    color: AppColors.brown.withValues(alpha: 0.14),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.04),
@@ -95,7 +109,9 @@ class ArrangeSentenceAlternativeChallenge extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Text(
                           'Tap words below to build the sentence.',
-                          style: ChallengeStyles.bodyStyle.copyWith(color: ChallengeStyles.mutedBrown),
+                          style: ChallengeStyles.bodyStyle.copyWith(
+                            color: ChallengeStyles.mutedBrown,
+                          ),
                         ),
                       ),
                     for (final w in picked)
@@ -110,7 +126,11 @@ class ArrangeSentenceAlternativeChallenge extends StatelessWidget {
                           onTap: () {
                             final next = List<String>.from(picked);
                             next.remove(w);
-                            if (kDebugMode) debugPrint('[ArrangeSentence] removed="$w" next=$next');
+                            if (kDebugMode) {
+                              debugPrint(
+                                '[ArrangeSentence] removed="$w" next=$next',
+                              );
+                            }
                             onChanged(next);
                           },
                         ),
@@ -123,7 +143,12 @@ class ArrangeSentenceAlternativeChallenge extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            Text('Word bank', style: ChallengeStyles.bodyStyle.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              'Word bank',
+              style: ChallengeStyles.bodyStyle.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 10,
@@ -140,7 +165,11 @@ class ArrangeSentenceAlternativeChallenge extends StatelessWidget {
                       selected: false,
                       onTap: () {
                         final next = List<String>.from(picked)..add(w);
-                        if (kDebugMode) debugPrint('[ArrangeSentence] picked="$w" next=$next');
+                        if (kDebugMode) {
+                          debugPrint(
+                            '[ArrangeSentence] picked="$w" next=$next',
+                          );
+                        }
                         onChanged(next);
                       },
                     ),
@@ -168,8 +197,12 @@ class _WordChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = selected ? AppColors.orange : AppColors.brown.withValues(alpha: 0.18);
-    final fill = selected ? AppColors.orange.withValues(alpha: 0.14) : Colors.white.withValues(alpha: 0.72);
+    final border = selected
+        ? AppColors.orange
+        : AppColors.brown.withValues(alpha: 0.18);
+    final fill = selected
+        ? AppColors.orange.withValues(alpha: 0.14)
+        : Colors.white.withValues(alpha: 0.72);
     return Material(
       color: fill,
       elevation: selected ? 2 : 0,
@@ -216,4 +249,3 @@ class _SlotChip extends StatelessWidget {
     );
   }
 }
-

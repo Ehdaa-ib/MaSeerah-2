@@ -43,7 +43,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     try {
       await waitForAuth();
       final users = await _repo.getAll();
-      users.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      users.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
       if (!mounted) return;
       setState(() {
         _users = users;
@@ -68,10 +70,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     try {
       await _repo.update(
         userId: user.userId,
-        data: {
-          'name': result.name.trim(),
-          'role': result.role,
-        },
+        data: {'name': result.name.trim(), 'role': result.role},
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,7 +122,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
             const _EmptyState(
               icon: Icons.people_alt_rounded,
               title: 'No users yet',
-              subtitle: 'Users will appear from the Firestore users collection.',
+              subtitle:
+                  'Users will appear from the Firestore users collection.',
             )
           else if (visible.isEmpty)
             const _EmptyState(
@@ -156,7 +156,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   trailing: IconButton(
                     tooltip: 'Edit user',
                     onPressed: () => _editUser(u),
-                    icon: const Icon(Icons.edit_rounded, color: AppColors.brown),
+                    icon: const Icon(
+                      Icons.edit_rounded,
+                      color: AppColors.brown,
+                    ),
                   ),
                 ),
               ),
@@ -197,7 +200,10 @@ class _SearchField extends StatelessWidget {
           borderRadius: BorderRadius.circular(15),
           borderSide: const BorderSide(color: AppColors.brown, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -317,12 +323,9 @@ class _UserEditDialogState extends State<_UserEditDialog> {
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
-    Navigator.of(context).pop(
-      _UserEditResult(
-        name: _nameController.text,
-        role: _role,
-      ),
-    );
+    Navigator.of(
+      context,
+    ).pop(_UserEditResult(name: _nameController.text, role: _role));
   }
 
   @override
@@ -364,7 +367,9 @@ class _UserEditDialogState extends State<_UserEditDialog> {
             _LabeledTextField(
               label: 'Role',
               child: DropdownButtonFormField<String>(
-                value: (_role == 'admin' || _role == 'user') ? _role : 'user',
+                initialValue: (_role == 'admin' || _role == 'user')
+                    ? _role
+                    : 'user',
                 items: const [
                   DropdownMenuItem(value: 'user', child: Text('user')),
                   DropdownMenuItem(value: 'admin', child: Text('admin')),
@@ -452,4 +457,3 @@ InputDecoration _inputDecoration({required String hintText}) {
     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
   );
 }
-

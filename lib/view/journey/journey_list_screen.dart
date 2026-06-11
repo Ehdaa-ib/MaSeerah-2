@@ -92,7 +92,9 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
                   builder: (context, authSnap) {
                     if (authSnap.connectionState == ConnectionState.waiting) {
                       return const Center(
-                        child: CircularProgressIndicator(color: AppColors.brown),
+                        child: CircularProgressIndicator(
+                          color: AppColors.brown,
+                        ),
                       );
                     }
                     final uid = authSnap.data?.uid;
@@ -108,16 +110,22 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
                                 children: [
                                   Icon(
                                     Icons.info_outline,
-                                    color: AppColors.brown.withValues(alpha: 0.85),
+                                    color: AppColors.brown.withValues(
+                                      alpha: 0.85,
+                                    ),
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Text(
-                                      AppLocalizations.of(context)!.journeyListSignInPrompt,
+                                      AppLocalizations.of(
+                                        context,
+                                      )!.journeyListSignInPrompt,
                                       style: TextStyle(
                                         fontSize: 15,
                                         height: 1.5,
-                                        color: AppColors.brown.withValues(alpha: 0.92),
+                                        color: AppColors.brown.withValues(
+                                          alpha: 0.92,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -146,7 +154,9 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
                                       Icon(
                                         Icons.lock_outline,
                                         size: 42,
-                                        color: AppColors.brown.withValues(alpha: 0.8),
+                                        color: AppColors.brown.withValues(
+                                          alpha: 0.8,
+                                        ),
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
@@ -162,7 +172,9 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
                                         'This is usually caused by Firestore permissions.',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                          color: AppColors.brown.withValues(alpha: 0.75),
+                                          color: AppColors.brown.withValues(
+                                            alpha: 0.75,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -172,15 +184,20 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
                             ),
                           );
                         }
-                        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+                        if (snap.connectionState == ConnectionState.waiting &&
+                            !snap.hasData) {
                           return const Center(
-                            child: CircularProgressIndicator(color: AppColors.brown),
+                            child: CircularProgressIndicator(
+                              color: AppColors.brown,
+                            ),
                           );
                         }
                         var active = snap.data ?? [];
                         if (uid != _lastPurgeUid) {
                           _lastPurgeUid = uid;
-                          _inactivity.purgeInactiveForUser(uid).then((remaining) {
+                          _inactivity.purgeInactiveForUser(uid).then((
+                            remaining,
+                          ) {
                             if (!mounted) return;
                             if (remaining.length != active.length) {
                               setState(() {});
@@ -200,26 +217,36 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
                                   Icon(
                                     Icons.route_outlined,
                                     size: 72,
-                                    color: AppColors.brown.withValues(alpha: 0.45),
+                                    color: AppColors.brown.withValues(
+                                      alpha: 0.45,
+                                    ),
                                   ),
                                   const SizedBox(height: 20),
                                   Text(
-                                    AppLocalizations.of(context)!.journeyListNoActive,
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.journeyListNoActive,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.brown.withValues(alpha: 0.9),
+                                      color: AppColors.brown.withValues(
+                                        alpha: 0.9,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
-                                    AppLocalizations.of(context)!.journeyListNoActiveSubtitle,
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.journeyListNoActiveSubtitle,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 15,
                                       height: 1.5,
-                                      color: AppColors.brown.withValues(alpha: 0.75),
+                                      color: AppColors.brown.withValues(
+                                        alpha: 0.75,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -245,7 +272,10 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
                                 ),
                                 leading: CircleAvatar(
                                   backgroundColor: AppColors.orange,
-                                  child: const Icon(Icons.route, color: AppColors.beige),
+                                  child: const Icon(
+                                    Icons.route,
+                                    color: AppColors.beige,
+                                  ),
                                 ),
                                 title: Text(
                                   p.journeyTitle,
@@ -258,10 +288,13 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
                                 subtitle: Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
-                                    AppLocalizations.of(context)!
-                                        .journeyListCurrentStop(p.currentRegion),
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.journeyListCurrentStop(p.currentRegion),
                                     style: TextStyle(
-                                      color: AppColors.brown.withValues(alpha: 0.75),
+                                      color: AppColors.brown.withValues(
+                                        alpha: 0.75,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -302,7 +335,8 @@ class _JourneyListScreenState extends State<JourneyListScreen> {
           } else {
             Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => const LoginScreen(returnToCallerOnSuccess: true),
+                builder: (_) =>
+                    const LoginScreen(returnToCallerOnSuccess: true),
               ),
             );
           }

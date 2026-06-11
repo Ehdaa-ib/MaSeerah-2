@@ -73,7 +73,10 @@ class UserMediaPreviewSheet {
             ],
             ListTile(
               leading: const Icon(Icons.share_rounded, color: AppColors.brown),
-              title: Text(l10n.mediaShare, style: const TextStyle(color: AppColors.brown)),
+              title: Text(
+                l10n.mediaShare,
+                style: const TextStyle(color: AppColors.brown),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _UserMediaPreviewDialogState.shareFromContext(
@@ -85,8 +88,14 @@ class UserMediaPreviewSheet {
             ),
             if (!kIsWeb)
               ListTile(
-                leading: const Icon(Icons.download_rounded, color: AppColors.brown),
-                title: Text(l10n.mediaSaveToDevice, style: const TextStyle(color: AppColors.brown)),
+                leading: const Icon(
+                  Icons.download_rounded,
+                  color: AppColors.brown,
+                ),
+                title: Text(
+                  l10n.mediaSaveToDevice,
+                  style: const TextStyle(color: AppColors.brown),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _UserMediaPreviewDialogState.saveFromContext(
@@ -115,7 +124,8 @@ class _UserMediaPreviewDialog extends StatefulWidget {
   final String? subtitle;
 
   @override
-  State<_UserMediaPreviewDialog> createState() => _UserMediaPreviewDialogState();
+  State<_UserMediaPreviewDialog> createState() =>
+      _UserMediaPreviewDialogState();
 }
 
 class _UserMediaPreviewDialogState extends State<_UserMediaPreviewDialog> {
@@ -139,9 +149,9 @@ class _UserMediaPreviewDialogState extends State<_UserMediaPreviewDialog> {
       await UserMediaActions.shareImage(url: imageUrl, caption: caption);
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.mediaShareFailed)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.mediaShareFailed)));
     }
   }
 
@@ -153,9 +163,9 @@ class _UserMediaPreviewDialogState extends State<_UserMediaPreviewDialog> {
     try {
       await UserMediaActions.saveToGallery(imageUrl);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.mediaSavedToGallery)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.mediaSavedToGallery)));
     } on UserMediaActionException catch (e) {
       if (!context.mounted) return;
       final msg = e.code == 'permission'
@@ -164,9 +174,9 @@ class _UserMediaPreviewDialogState extends State<_UserMediaPreviewDialog> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.mediaSaveFailed)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.mediaSaveFailed)));
     }
   }
 
@@ -174,7 +184,10 @@ class _UserMediaPreviewDialogState extends State<_UserMediaPreviewDialog> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await UserMediaActions.shareImage(url: widget.imageUrl, caption: _caption);
+      await UserMediaActions.shareImage(
+        url: widget.imageUrl,
+        caption: _caption,
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -192,7 +205,9 @@ class _UserMediaPreviewDialogState extends State<_UserMediaPreviewDialog> {
       await UserMediaActions.saveToGallery(widget.imageUrl);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.mediaSavedToGallery)),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.mediaSavedToGallery),
+        ),
       );
     } catch (_) {
       if (!mounted) return;
@@ -238,7 +253,10 @@ class _UserMediaPreviewDialogState extends State<_UserMediaPreviewDialog> {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded, color: Colors.white),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                        ),
                       ),
                       Expanded(
                         child: Column(

@@ -80,6 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int photosCount = 0;
   List<Map<String, dynamic>> userJourneys = [];
   List<Map<String, dynamic>> userFeedbacks = [];
+
   /// Each entry: `url` (String), optional `journeyName`, `createdAt` (DateTime?), `source` (String).
   List<Map<String, dynamic>> userPhotos = [];
   Map<String, String> _journeyNameLookup = {};
@@ -117,9 +118,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     userFeedbacks = s.userFeedbacks
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
-    userPhotos = s.userPhotos
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+    userPhotos = s.userPhotos.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   void _saveSnapshot(String uid) {
@@ -136,9 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       userFeedbacks: userFeedbacks
           .map((e) => Map<String, dynamic>.from(e))
           .toList(),
-      userPhotos: userPhotos
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList(),
+      userPhotos: userPhotos.map((e) => Map<String, dynamic>.from(e)).toList(),
     );
   }
 
@@ -154,8 +151,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _formatDate(DateTime date) {
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
     return "${months[date.month - 1]} ${date.year}";
   }
@@ -164,8 +171,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _formatExactDate(DateTime? date) {
     if (date == null) return '';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
@@ -173,7 +190,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Prefer Firestore `createdAt` (user doc); fall back to legacy `joinedDate` / snake_case aliases.
   DateTime? _readJoinDateFromUserDoc(Map<String, dynamic>? data) {
     if (data == null) return null;
-    final v = data['createdAt'] ??
+    final v =
+        data['createdAt'] ??
         data['created_at'] ??
         data['joinedDate'] ??
         data['joined_at'];
@@ -193,8 +211,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       userName = (un != null && un.isNotEmpty)
           ? un
           : (nm != null && nm.isNotEmpty)
-              ? nm
-              : user.email?.split('@').first ?? 'User';
+          ? nm
+          : user.email?.split('@').first ?? 'User';
       final rawUrl = (data?['profileImageUrl'] as String?)?.trim();
       profileImageUrl = (rawUrl != null && rawUrl.isNotEmpty) ? rawUrl : null;
       final join = _readJoinDateFromUserDoc(data);
@@ -250,7 +268,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return lookup[normalized];
     }
 
-    final match = RegExp(r'^journey_?(\d+)$', caseSensitive: false).firstMatch(id);
+    final match = RegExp(
+      r'^journey_?(\d+)$',
+      caseSensitive: false,
+    ).firstMatch(id);
     if (match != null) {
       final num = match.group(1)!;
       for (final variant in ['journey_$num', 'journey$num']) {
@@ -273,7 +294,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _prettifyJourneyId(String id) {
     final trimmed = id.trim();
-    final match = RegExp(r'^journey_?(\d+)$', caseSensitive: false).firstMatch(trimmed);
+    final match = RegExp(
+      r'^journey_?(\d+)$',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
     if (match != null) {
       final l10n = AppLocalizations.of(context);
       if (l10n != null) return l10n.profileJourneyNumber(match.group(1)!);
@@ -315,7 +339,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       title: (landmark != null && landmark.isNotEmpty)
           ? landmark
           : (journey != null && journey.isNotEmpty ? journey : null),
-      subtitle: (landmark != null && landmark.isNotEmpty && journey != null && journey.isNotEmpty)
+      subtitle:
+          (landmark != null &&
+              landmark.isNotEmpty &&
+              journey != null &&
+              journey.isNotEmpty)
           ? journey
           : null,
     );
@@ -354,7 +382,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<Map<String, String>> _resolveJourneyNames(Iterable<String> ids) async {
     final out = <String, String>{};
     final toFetch = <String>[];
-    for (final journeyId in ids.map((e) => e.trim()).where((e) => e.isNotEmpty)) {
+    for (final journeyId
+        in ids.map((e) => e.trim()).where((e) => e.isNotEmpty)) {
       final cached = JourneyDataSource.findInCatalogCache(journeyId);
       if (cached != null) {
         out[journeyId] = cached.name;
@@ -363,15 +392,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
     if (toFetch.isEmpty) return out;
-    await Future.wait(toFetch.map((journeyId) async {
-      try {
-        final jd = await _firestore.collection('journeys').doc(journeyId).get();
-        if (jd.exists) {
-          final n = (jd.data()?['name'] as String?)?.trim();
-          if (n != null && n.isNotEmpty) out[journeyId] = n;
-        }
-      } catch (_) {}
-    }));
+    await Future.wait(
+      toFetch.map((journeyId) async {
+        try {
+          final jd = await _firestore
+              .collection('journeys')
+              .doc(journeyId)
+              .get();
+          if (jd.exists) {
+            final n = (jd.data()?['name'] as String?)?.trim();
+            if (n != null && n.isNotEmpty) out[journeyId] = n;
+          }
+        } catch (_) {}
+      }),
+    );
     return out;
   }
 
@@ -390,7 +424,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = _auth.currentUser;
     if (user == null || !mounted) return;
     final uid = user.uid;
-    final generalFeedbackLabel = AppLocalizations.of(context)!.profileFeedbackGeneral;
+    final generalFeedbackLabel = AppLocalizations.of(
+      context,
+    )!.profileFeedbackGeneral;
 
     // Perf: keep showing cached sections while refreshing in background.
     if (mounted && !_hadCachedSnapshotOnOpen) {
@@ -407,16 +443,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _firestore
             .collection('users')
             .doc(uid)
-            .collection(JourneyCompletionDataSource.userCompletionHistorySubcollection)
+            .collection(
+              JourneyCompletionDataSource.userCompletionHistorySubcollection,
+            )
             .get(),
         'journeyCompletionHistory',
       );
       final legacyFuture = _queryDocs(
-        _firestore.collection('user_journeys').where('userId', isEqualTo: uid).get(),
+        _firestore
+            .collection('user_journeys')
+            .where('userId', isEqualTo: uid)
+            .get(),
         'user_journeys',
       );
       final completionsFuture = _queryDocs(
-        _firestore.collection(_journeyCompletionsCollection).where('userId', isEqualTo: uid).get(),
+        _firestore
+            .collection(_journeyCompletionsCollection)
+            .where('userId', isEqualTo: uid)
+            .get(),
         'journeyCompletions',
       );
       final journeyHistoryFuture = _queryDocs(
@@ -455,7 +499,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final authEmail = user.email?.trim() ?? '';
       final fsEmail = (userDoc.data()?['email'] as String?)?.trim() ?? '';
-      if (authEmail.isNotEmpty && authEmail.toLowerCase() != fsEmail.toLowerCase()) {
+      if (authEmail.isNotEmpty &&
+          authEmail.toLowerCase() != fsEmail.toLowerCase()) {
         unawaited(_syncProfileEmail(uid, authEmail));
       }
       _applyUserDocument(userDoc, user);
@@ -474,14 +519,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ]);
       if (!mounted) return;
 
-      final photoDocs = batch[0] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
-      final completionHistDocs = batch[1] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
-      final legacyJourneyDocs = batch[2] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
-      final completionsDocs = batch[3] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
-      final journeyHistoryDocs = batch[4] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
-      final activeJourneyDocs = batch[5] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
-      final feedbackRootDocs = batch[6] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
-      final feedbackProfileDocs = batch[7] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+      final photoDocs =
+          batch[0] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+      final completionHistDocs =
+          batch[1] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+      final legacyJourneyDocs =
+          batch[2] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+      final completionsDocs =
+          batch[3] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+      final journeyHistoryDocs =
+          batch[4] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+      final activeJourneyDocs =
+          batch[5] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+      final feedbackRootDocs =
+          batch[6] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+      final feedbackProfileDocs =
+          batch[7] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
       final landmarkMemories = batch[8] as List<LandmarkMemory>;
       final catalogJourneys = batch[9] as List<Journey>;
 
@@ -523,10 +576,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'journeyId': jid.isNotEmpty ? jid : canonical,
           'name': name,
           'sort': sort,
-          'dateLabel': sort.millisecondsSinceEpoch > 0 ? _formatExactDate(sort) : '',
+          'dateLabel': sort.millisecondsSinceEpoch > 0
+              ? _formatExactDate(sort)
+              : '',
           'rowId': rowId,
           if (uj != null && uj.isNotEmpty) 'userJourneyId': uj,
-          if (historyDocId != null && historyDocId.isNotEmpty) 'historyDocId': historyDocId,
+          if (historyDocId != null && historyDocId.isNotEmpty)
+            'historyDocId': historyDocId,
           if (completionDocId != null && completionDocId.isNotEmpty)
             'completionDocId': completionDocId,
         });
@@ -567,12 +623,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final data = doc.data();
         final journeyId = (data['journeyId'] as String?)?.trim() ?? '';
         final name = (data['journeyName'] as String?)?.trim() ?? '';
-        final sort = _coerceToDateTime(data['date']) ??
+        final sort =
+            _coerceToDateTime(data['date']) ??
             _coerceToDateTime(data['completedAt']) ??
             epoch0;
         addJourneyRow(
           journeyId: journeyId,
-          name: name.isNotEmpty ? name : (journeyId.isNotEmpty ? journeyId : 'Journey'),
+          name: name.isNotEmpty
+              ? name
+              : (journeyId.isNotEmpty ? journeyId : 'Journey'),
           sort: sort,
           rowId: 'legacy_${doc.id}',
         );
@@ -594,11 +653,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       for (final doc in activeJourneyDocs) {
         final data = doc.data();
-        final journeyId = (data['journeyId'] as String?)?.trim().isNotEmpty == true
+        final journeyId =
+            (data['journeyId'] as String?)?.trim().isNotEmpty == true
             ? (data['journeyId'] as String).trim()
             : doc.id;
         final title = (data['journeyTitle'] as String?)?.trim();
-        final sort = _coerceToDateTime(data['lastUpdatedAt']) ??
+        final sort =
+            _coerceToDateTime(data['lastUpdatedAt']) ??
             _coerceToDateTime(data['updatedAt']) ??
             DateTime.now();
         final playthroughId = (data['userJourneyId'] as String?)?.trim();
@@ -607,7 +668,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           name: (title != null && title.isNotEmpty) ? title : journeyId,
           sort: sort,
           rowId: 'active_${doc.id}',
-          userJourneyId: playthroughId != null &&
+          userJourneyId:
+              playthroughId != null &&
                   playthroughId.isNotEmpty &&
                   !LandmarkMemoryDataSource.isCatalogJourneyDocId(
                     playthroughId,
@@ -620,23 +682,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       for (final doc in journeyHistoryDocs) {
         final data = doc.data();
-        final journeyId = ((data['journeyId'] as String?)?.trim().isNotEmpty ?? false)
+        final journeyId =
+            ((data['journeyId'] as String?)?.trim().isNotEmpty ?? false)
             ? (data['journeyId'] as String).trim()
             : doc.id;
         if (hasCanonicalJourney(journeyId)) continue;
-        if (LandmarkMemoryDataSource.isCatalogJourneyDocId(doc.id, catalogJourneyId: journeyId)) {
+        if (LandmarkMemoryDataSource.isCatalogJourneyDocId(
+          doc.id,
+          catalogJourneyId: journeyId,
+        )) {
           continue;
         }
         final title = (data['journeyTitle'] as String?)?.trim();
         final sort = _coerceToDateTime(data['lastUpdatedAt']) ?? epoch0;
-        final parentInstance = (data['userJourneyId'] as String?)?.trim() ??
+        final parentInstance =
+            (data['userJourneyId'] as String?)?.trim() ??
             (data['journeyHistoryId'] as String?)?.trim();
         addJourneyRow(
           journeyId: journeyId,
           name: (title != null && title.isNotEmpty) ? title : journeyId,
           sort: sort,
           rowId: 'history_${doc.id}',
-          userJourneyId: parentInstance?.isNotEmpty == true ? parentInstance : doc.id,
+          userJourneyId: parentInstance?.isNotEmpty == true
+              ? parentInstance
+              : doc.id,
           historyDocId: doc.id,
         );
       }
@@ -647,13 +716,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final sort = mem.createdAt ?? epoch0;
         addJourneyRow(
           journeyId: journeyId,
-          name: mem.journeyTitle.trim().isNotEmpty ? mem.journeyTitle : journeyId,
+          name: mem.journeyTitle.trim().isNotEmpty
+              ? mem.journeyTitle
+              : journeyId,
           sort: sort,
           rowId: 'memory_${journeyId}_${sort.millisecondsSinceEpoch}',
         );
       }
 
-      journeyRows.sort((a, b) => (b['sort'] as DateTime).compareTo(a['sort'] as DateTime));
+      journeyRows.sort(
+        (a, b) => (b['sort'] as DateTime).compareTo(a['sort'] as DateTime),
+      );
 
       final nameSeed = <String, String>{};
       for (final doc in journeyHistoryDocs) {
@@ -680,11 +753,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final nameLookup = _journeyNameLookupFromCatalog(
         seed: nameSeed,
         catalog: catalogJourneys,
-        requiredIds: journeyRows.map((r) => r['journeyId'] as String).where((s) => s.isNotEmpty),
+        requiredIds: journeyRows
+            .map((r) => r['journeyId'] as String)
+            .where((s) => s.isNotEmpty),
       );
       final missingIds = journeyRows
           .map((r) => r['journeyId'] as String)
-          .where((id) => id.isNotEmpty && _lookupJourneyName(nameLookup, id) == null);
+          .where(
+            (id) => id.isNotEmpty && _lookupJourneyName(nameLookup, id) == null,
+          );
       final resolved = await _resolveJourneyNames(missingIds);
       nameLookup.addAll(resolved);
       _journeyNameLookup = nameLookup;
@@ -718,7 +795,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final userJourneyId = JourneyHistoryScope.resolveInstanceId(r);
         final sort = r['sort'];
         final rawCompletion = r['completionDocId']?.toString().trim();
-        final effectiveCompletion = (rawCompletion != null && rawCompletion.isNotEmpty)
+        final effectiveCompletion =
+            (rawCompletion != null && rawCompletion.isNotEmpty)
             ? rawCompletion
             : completionDocId;
         return {
@@ -728,8 +806,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'sort': sort,
           'rowId': rowId,
           if (sort is DateTime) 'completedAt': sort,
-          if (userJourneyId != null && userJourneyId.isNotEmpty) 'userJourneyId': userJourneyId,
-          if (historyDocId != null && historyDocId.isNotEmpty) 'historyDocId': historyDocId,
+          if (userJourneyId != null && userJourneyId.isNotEmpty)
+            'userJourneyId': userJourneyId,
+          if (historyDocId != null && historyDocId.isNotEmpty)
+            'historyDocId': historyDocId,
           if (effectiveCompletion != null && effectiveCompletion.isNotEmpty)
             'completionDocId': effectiveCompletion,
         };
@@ -761,7 +841,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       userFeedbacks = mergedFeedback.map((e) {
         final data = e.value;
         final journeyId = data['journeyId'];
-        final storedTitle = (data['journeyTitle'] as String?)?.trim() ??
+        final storedTitle =
+            (data['journeyTitle'] as String?)?.trim() ??
             (data['journeyName'] as String?)?.trim();
         final journeyName = journeyId == null || journeyId == 'all'
             ? generalFeedbackLabel
@@ -772,12 +853,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
         final rawPhotos = data['photos'];
         final urls = rawPhotos is List
-            ? rawPhotos.whereType<String>().where((u) => u.trim().startsWith('http')).toList()
+            ? rawPhotos
+                  .whereType<String>()
+                  .where((u) => u.trim().startsWith('http'))
+                  .toList()
             : <String>[];
-        final rating = (data['overallRating'] as num?)?.toInt() ??
+        final rating =
+            (data['overallRating'] as num?)?.toInt() ??
             (data['rating'] as num?)?.toInt() ??
             0;
-        final comment = (data['overallComment'] as String?)?.trim().isNotEmpty == true
+        final comment =
+            (data['overallComment'] as String?)?.trim().isNotEmpty == true
             ? data['overallComment'] as String
             : (data['comment'] as String?) ?? '';
         final createdAt = _coerceToDateTime(data['createdAt']);
@@ -800,8 +886,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (url == null) continue;
         photoEntries.add({
           'url': url,
-          'journeyName': data['journeyName']?.toString() ?? data['journey']?.toString(),
-          'createdAt': _coerceToDateTime(data['createdAt'] ?? data['takenAt'] ?? data['timestamp']),
+          'journeyName':
+              data['journeyName']?.toString() ?? data['journey']?.toString(),
+          'createdAt': _coerceToDateTime(
+            data['createdAt'] ?? data['takenAt'] ?? data['timestamp'],
+          ),
           'source': 'photos',
         });
       }
@@ -844,14 +933,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _syncProfileEmail(String uid, String authEmail) async {
     try {
-      await _firestore.collection('users').doc(uid).set(
-        {
-          'email': authEmail,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-      if (kDebugMode) debugPrint('[Profile] synced Firestore email from Auth uid=$uid');
+      await _firestore.collection('users').doc(uid).set({
+        'email': authEmail,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      if (kDebugMode) {
+        debugPrint('[Profile] synced Firestore email from Auth uid=$uid');
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('[Profile] email sync skipped: $e');
     }
@@ -877,7 +965,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         lookup.putIfAbsent(normalized, () => n);
       }
 
-      final match = RegExp(r'^journey_?(\d+)$', caseSensitive: false).firstMatch(k);
+      final match = RegExp(
+        r'^journey_?(\d+)$',
+        caseSensitive: false,
+      ).firstMatch(k);
       if (match != null) {
         final num = match.group(1)!;
         lookup.putIfAbsent('journey_$num', () => n);
@@ -911,15 +1002,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           authBottomNav: AppBottomNav(
             selectedIndex: 2,
             onHomeTap: () => Navigator.of(c).pushAndRemoveUntil(
-                  MaterialPageRoute<void>(builder: (_) => const LandingPage()),
-                  (_) => false,
-                ),
+              MaterialPageRoute<void>(builder: (_) => const LandingPage()),
+              (_) => false,
+            ),
             onActiveJourneysTap: () => Navigator.of(c).pushAndRemoveUntil(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const JourneyListScreen(),
-                  ),
-                  (_) => false,
-                ),
+              MaterialPageRoute<void>(
+                builder: (_) => const JourneyListScreen(),
+              ),
+              (_) => false,
+            ),
             onProfileTap: () {},
           ),
         ),
@@ -954,7 +1045,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icon(Icons.edit_outlined, color: AppColors.brown),
                 onPressed: () async {
                   final changed = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute<bool>(builder: (_) => const EditProfileScreen()),
+                    MaterialPageRoute<bool>(
+                      builder: (_) => const EditProfileScreen(),
+                    ),
                   );
                   if (changed == true && mounted) {
                     _hydrateFromAuthSync();
@@ -1046,7 +1139,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return 'Journey';
   }
 
-  Widget _buildJourneyCard(Map<String, dynamic> journey, {bool fullWidth = false}) {
+  Widget _buildJourneyCard(
+    Map<String, dynamic> journey, {
+    bool fullWidth = false,
+  }) {
     final title = _cardJourneyTitle(journey);
     final dateStr = journey['date']?.toString() ?? '';
     final journeyId = journey['journeyId']?.toString() ?? '';
@@ -1061,17 +1157,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final scope = JourneyHistoryScope.fromProfileRow(journey);
                 final completedAt = journey['completedAt'] is DateTime
                     ? journey['completedAt'] as DateTime
-                    : (journey['sort'] is DateTime ? journey['sort'] as DateTime : scope.completedAt);
+                    : (journey['sort'] is DateTime
+                          ? journey['sort'] as DateTime
+                          : scope.completedAt);
                 Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     builder: (_) => JourneyHistoryMemoriesScreen(
                       journeyId: scope.catalogJourneyId,
                       journeyName: title,
-                      historyDocId: journey['historyDocId']?.toString() ?? scope.historyDocId,
+                      historyDocId:
+                          journey['historyDocId']?.toString() ??
+                          scope.historyDocId,
                       completionDocId:
-                          journey['completionDocId']?.toString() ?? scope.completionDocId,
+                          journey['completionDocId']?.toString() ??
+                          scope.completionDocId,
                       userJourneyId:
-                          journey['userJourneyId']?.toString() ?? scope.userJourneyId,
+                          journey['userJourneyId']?.toString() ??
+                          scope.userJourneyId,
                       completedAt: completedAt,
                     ),
                   ),
@@ -1091,7 +1193,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.route, size: 18, color: AppColors.brown.withOpacity(0.85)),
+                  Icon(
+                    Icons.route,
+                    size: 18,
+                    color: AppColors.brown.withOpacity(0.85),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1111,7 +1217,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 12, color: AppColors.brown.withOpacity(0.6)),
+                    Icon(
+                      Icons.calendar_today,
+                      size: 12,
+                      color: AppColors.brown.withOpacity(0.6),
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -1189,7 +1299,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         scrollDirection: Axis.horizontal,
         itemCount: visible.length,
         separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (_, index) => _photoThumbnail(visible[index], size: thumbSize),
+        itemBuilder: (_, index) =>
+            _photoThumbnail(visible[index], size: thumbSize),
       ),
     );
   }
@@ -1197,7 +1308,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final displayJoined = joinedDate == 'Unknown' ? l10n.profileJoinedUnknown : joinedDate;
+    final displayJoined = joinedDate == 'Unknown'
+        ? l10n.profileJoinedUnknown
+        : joinedDate;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -1223,17 +1336,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Center(
                         child: CircleAvatar(
                           radius: 50,
-                          backgroundColor: AppColors.beige.withValues(alpha: 0.88),
-                          backgroundImage: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                          backgroundColor: AppColors.beige.withValues(
+                            alpha: 0.88,
+                          ),
+                          backgroundImage:
+                              profileImageUrl != null &&
+                                  profileImageUrl!.isNotEmpty
                               ? NetworkImage(profileImageUrl!)
                               : null,
                           onBackgroundImageError: profileImageUrl != null
                               ? (Object o, StackTrace? st) {
-                                  if (kDebugMode) debugPrint('[Profile] avatar load error: $o');
-                                  if (mounted) setState(() => profileImageUrl = null);
+                                  if (kDebugMode) {
+                                    debugPrint(
+                                      '[Profile] avatar load error: $o',
+                                    );
+                                  }
+                                  if (mounted) {
+                                    setState(() => profileImageUrl = null);
+                                  }
                                 }
                               : null,
-                          child: profileImageUrl == null || profileImageUrl!.isEmpty
+                          child:
+                              profileImageUrl == null ||
+                                  profileImageUrl!.isEmpty
                               ? Icon(
                                   Icons.person,
                                   size: 50,
@@ -1370,7 +1495,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   right: 4,
                   child: UserMediaCardActionsButton(
                     imageUrl: url,
-                    title: (landmark != null && landmark.isNotEmpty) ? landmark : journey,
+                    title: (landmark != null && landmark.isNotEmpty)
+                        ? landmark
+                        : journey,
                     subtitle: journey,
                   ),
                 ),
@@ -1394,7 +1521,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text(
             value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.brown),
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.brown,
+            ),
           ),
           const SizedBox(height: 4),
           Text(

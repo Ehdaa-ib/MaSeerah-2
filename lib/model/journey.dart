@@ -16,6 +16,9 @@ class Journey {
   /// Firestore `journey_landmarks.journeyId` value (e.g. `journey1`). Optional catalog hint for admins.
   final String? landmarksJourneyId;
 
+  /// When false, the journey is not playable yet (Coming Soon).
+  final bool isAvailable;
+
   Journey({
     required this.journeyId,
     required this.name,
@@ -30,6 +33,7 @@ class Journey {
     this.languages,
     this.city,
     this.landmarksJourneyId,
+    this.isAvailable = true,
   });
 
   static String? _coerceName(dynamic v) {
@@ -74,8 +78,7 @@ class Journey {
       'journeylabel',
     };
     for (final e in map.entries) {
-      final normalized =
-          e.key.toLowerCase().replaceAll(RegExp(r'[_\s-]'), '');
+      final normalized = e.key.toLowerCase().replaceAll(RegExp(r'[_\s-]'), '');
       if (!wantedNormalized.contains(normalized)) continue;
       final s = _coerceName(e.value);
       if (s != null) return s;
@@ -114,9 +117,30 @@ class Journey {
     return null;
   }
 
+  static bool _isAvailableFromMap(Map<String, dynamic> map, {String? id}) {
+    if (map['comingSoon'] == true) return false;
+    if (map['isAvailable'] == false) return false;
+    final status = (map['status'] as String?)?.trim().toLowerCase();
+    if (status == 'coming_soon' ||
+        status == 'comingsoon' ||
+        status == 'unavailable' ||
+        status == 'draft') {
+      return false;
+    }
+    if (status == 'available' || status == 'released' || status == 'live') {
+      return true;
+    }
+    final jid = (id ?? map['journeyId'] as String? ?? '').trim().toLowerCase();
+    final normalized = jid.replaceAll('_', '');
+    if (normalized == 'journey1') return true;
+    if (normalized == 'journey2' || normalized == 'journey3') return false;
+    return true;
+  }
+
   factory Journey.fromMap(Map<String, dynamic> map, {String? id}) {
+    final journeyId = id ?? map['journeyId'] as String? ?? '';
     return Journey(
-      journeyId: id ?? map['journeyId'] as String? ?? '',
+      journeyId: journeyId,
       name: _nameFromFirestore(map),
       price: _priceFromMap(map),
       description: _optionalString(map, const [
@@ -161,6 +185,7 @@ class Journey {
         'landmarks_journey_id',
         'landmarkJourneyId',
       ]),
+      isAvailable: _isAvailableFromMap(map, id: journeyId),
     );
   }
 }

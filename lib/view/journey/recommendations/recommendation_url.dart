@@ -12,17 +12,26 @@ Future<bool> launchRecommendationLocationUrl(
   if (t.isEmpty) {
     if (showErrors) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.recommendationUrlNoLink)),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.recommendationUrlNoLink),
+        ),
       );
     }
     return false;
   }
   final uri = Uri.tryParse(t);
-  final ok = uri != null && uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https');
+  final ok =
+      uri != null &&
+      uri.hasScheme &&
+      (uri.scheme == 'http' || uri.scheme == 'https');
   if (!ok) {
     if (showErrors) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.recommendationUrlInvalidLink)),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.recommendationUrlInvalidLink,
+          ),
+        ),
       );
     }
     return false;
@@ -31,14 +40,22 @@ Future<bool> launchRecommendationLocationUrl(
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && showErrors && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.recommendationUrlCouldNotOpen)),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.recommendationUrlCouldNotOpen,
+          ),
+        ),
       );
     }
     return launched;
   } catch (_) {
     if (showErrors && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.recommendationUrlCouldNotOpen)),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.recommendationUrlCouldNotOpen,
+          ),
+        ),
       );
     }
     return false;

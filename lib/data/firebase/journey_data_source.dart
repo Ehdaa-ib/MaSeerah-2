@@ -30,7 +30,10 @@ class JourneyDataSource {
     if (normalized.isNotEmpty) out.add(normalized);
     out.add(jid.replaceAll('_', ''));
 
-    final match = RegExp(r'^journey_?(\d+)$', caseSensitive: false).firstMatch(jid);
+    final match = RegExp(
+      r'^journey_?(\d+)$',
+      caseSensitive: false,
+    ).firstMatch(jid);
     if (match != null) {
       final num = match.group(1)!;
       out.add('journey_$num');
@@ -117,19 +120,19 @@ class JourneyDataSource {
     required String journeyId,
     required Map<String, dynamic> data,
   }) async {
-    await _firestore.collection(_collection).doc(journeyId).set(
-          data,
-          SetOptions(merge: false),
-        );
+    await _firestore
+        .collection(_collection)
+        .doc(journeyId)
+        .set(data, SetOptions(merge: false));
   }
 
   Future<void> update({
     required String journeyId,
     required Map<String, dynamic> data,
   }) async {
-    await _firestore.collection(_collection).doc(journeyId).set(
-          data,
-          SetOptions(merge: true),
-        );
+    await _firestore
+        .collection(_collection)
+        .doc(journeyId)
+        .set(data, SetOptions(merge: true));
   }
 }

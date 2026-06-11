@@ -20,10 +20,9 @@ class UserDataSource {
     required String userId,
     required Map<String, dynamic> data,
   }) async {
-    await _firestore.collection(_collection).doc(userId).set(
-          data,
-          SetOptions(merge: true),
-        );
+    await _firestore
+        .collection(_collection)
+        .doc(userId)
+        .set(data, SetOptions(merge: true));
   }
 }
-

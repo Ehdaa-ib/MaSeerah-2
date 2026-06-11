@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 /// Does not touch subcollections (activeJourneys, journeyFeedback, etc.).
 class UserProfileDataSource {
   UserProfileDataSource({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -62,11 +62,13 @@ class UserProfileDataSource {
       );
     }
 
-    await _firestore.collection('users').doc(uid.trim()).set(
-          payload,
-          SetOptions(merge: true),
-        );
+    await _firestore
+        .collection('users')
+        .doc(uid.trim())
+        .set(payload, SetOptions(merge: true));
 
-    if (kDebugMode) debugPrint('[UserProfile] Firestore mergeProfile success uid=$uid');
+    if (kDebugMode) {
+      debugPrint('[UserProfile] Firestore mergeProfile success uid=$uid');
+    }
   }
 }

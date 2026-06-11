@@ -8,6 +8,7 @@ import 'create_account_screen.dart';
 import 'login_screen.dart';
 import '../home/home_page.dart';
 import 'forget_password_page.dart';
+
 /// Root auth-aware screen: shows Login/Create account when signed out,
 /// or User/Admin home when signed in. Logout brings back to login.
 class AuthGate extends StatelessWidget {
@@ -38,9 +39,7 @@ class AuthGate extends StatelessWidget {
                   );
                 case '/login':
                 default:
-                  return MaterialPageRoute(
-                    builder: (_) => const LoginScreen(),
-                  );
+                  return MaterialPageRoute(builder: (_) => const LoginScreen());
               }
             },
             initialRoute: '/login',
@@ -70,7 +69,7 @@ class _SignedInGate extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        
+
         if (snapshot.hasError) {
           return Scaffold(
             body: Center(
@@ -110,13 +109,13 @@ class _SignedInGate extends StatelessWidget {
             ),
           );
         }
-        
+
         if (!snapshot.hasData) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        
+
         if (!snapshot.data!.exists) {
           return Scaffold(
             body: Center(
@@ -147,7 +146,7 @@ class _SignedInGate extends StatelessWidget {
             ),
           );
         }
-        
+
         final rawData = snapshot.data!.data();
         if (rawData == null || rawData is! Map) {
           return Scaffold(
@@ -159,7 +158,7 @@ class _SignedInGate extends StatelessWidget {
             ),
           );
         }
-        
+
         final data = Map<String, dynamic>.from(rawData);
         if (data.isEmpty) {
           return Scaffold(
@@ -171,12 +170,14 @@ class _SignedInGate extends StatelessWidget {
             ),
           );
         }
-        
+
         final map = Map<String, dynamic>.from(data);
         map['userId'] = snapshot.data!.id;
-        
+
         // Ensure required fields exist
-        if (map['email'] == null || map['name'] == null || map['role'] == null) {
+        if (map['email'] == null ||
+            map['name'] == null ||
+            map['role'] == null) {
           return Scaffold(
             body: Center(
               child: Text(
@@ -186,7 +187,7 @@ class _SignedInGate extends StatelessWidget {
             ),
           );
         }
-        
+
         final appUser = AppUser.fromMap(map);
         return HomePage(user: appUser);
       },

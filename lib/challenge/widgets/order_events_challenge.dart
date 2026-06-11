@@ -28,9 +28,13 @@ class _OrderEventsChallengeState extends State<OrderEventsChallenge> {
   @override
   void initState() {
     super.initState();
-    final base = widget.stage.parts.isNotEmpty ? widget.stage.parts : widget.stage.correctOrder;
+    final base = widget.stage.parts.isNotEmpty
+        ? widget.stage.parts
+        : widget.stage.correctOrder;
     _items = widget.order ?? _shuffled(base);
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onChanged(List<String>.from(_items)));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.onChanged(List<String>.from(_items)),
+    );
   }
 
   @override
@@ -56,13 +60,19 @@ class _OrderEventsChallengeState extends State<OrderEventsChallenge> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(widget.stage.question ?? 'Order the events', style: ChallengeStyles.titleStyle),
+          Text(
+            widget.stage.question ?? 'Order the events',
+            style: ChallengeStyles.titleStyle,
+          ),
           const SizedBox(height: 12),
           Expanded(
             child: ReorderableListView(
               buildDefaultDragHandles: false,
               proxyDecorator: (child, index, animation) {
-                final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+                final curved = CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                );
                 return AnimatedBuilder(
                   animation: curved,
                   builder: (context, _) {
@@ -102,14 +112,21 @@ class _OrderEventsChallengeState extends State<OrderEventsChallenge> {
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.65),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.brown.withValues(alpha: 0.14)),
+                        border: Border.all(
+                          color: AppColors.brown.withValues(alpha: 0.14),
+                        ),
                       ),
                       child: ListTile(
                         dense: false,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         leading: CircleAvatar(
                           radius: 14,
-                          backgroundColor: AppColors.orange.withValues(alpha: 0.18),
+                          backgroundColor: AppColors.orange.withValues(
+                            alpha: 0.18,
+                          ),
                           child: Text(
                             '${i + 1}',
                             style: const TextStyle(
@@ -120,10 +137,15 @@ class _OrderEventsChallengeState extends State<OrderEventsChallenge> {
                         ),
                         title: Text(
                           _items[i],
-                          style: ChallengeStyles.bodyStyle.copyWith(fontWeight: FontWeight.w700),
+                          style: ChallengeStyles.bodyStyle.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         // Visual hint only; dragging works from anywhere on the card.
-                        trailing: Icon(Icons.drag_handle_rounded, color: AppColors.brown.withValues(alpha: 0.75)),
+                        trailing: Icon(
+                          Icons.drag_handle_rounded,
+                          color: AppColors.brown.withValues(alpha: 0.75),
+                        ),
                       ),
                     ),
                   ),
@@ -135,4 +157,3 @@ class _OrderEventsChallengeState extends State<OrderEventsChallenge> {
     );
   }
 }
-

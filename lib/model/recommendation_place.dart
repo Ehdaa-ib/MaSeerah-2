@@ -56,7 +56,8 @@ class RecommendationPlace {
     final d = doc.data();
     if (d == null) return null;
 
-    final orderRaw = d['order'] ??
+    final orderRaw =
+        d['order'] ??
         d['orderIndex'] ??
         d['sortOrder'] ??
         d['displayOrder'] ??
@@ -67,13 +68,14 @@ class RecommendationPlace {
     var order = orderRaw is int
         ? orderRaw
         : orderRaw is num
-            ? orderRaw.toInt()
-            : int.tryParse(orderRaw?.toString().trim() ?? '');
+        ? orderRaw.toInt()
+        : int.tryParse(orderRaw?.toString().trim() ?? '');
     order ??= fallbackOrder;
     if (order == null) return null;
 
     final name = _readString(d, const ['name', 'title']) ?? 'Place';
-    final description = _readString(d, const ['description', 'desc', 'details']) ?? '';
+    final description =
+        _readString(d, const ['description', 'desc', 'details']) ?? '';
     final locationUrl = _readMapsLink(d);
 
     final distanceLabel = _formatDistanceOrWalk(
@@ -84,10 +86,15 @@ class RecommendationPlace {
           d['distanceFromPrevious'],
     );
     final walkingLabel = _formatDistanceOrWalk(
-      d['avgWalkingTime'] ?? d['averageWalkingTime'] ?? d['walkingTime'] ?? d['walking'],
+      d['avgWalkingTime'] ??
+          d['averageWalkingTime'] ??
+          d['walkingTime'] ??
+          d['walking'],
     );
 
-    final averagePrice = _readString(d, const ['averagePrice', 'avgPrice', 'average_price']) ?? '—';
+    final averagePrice =
+        _readString(d, const ['averagePrice', 'avgPrice', 'average_price']) ??
+        '—';
 
     final rating = _readRating(d['rating'] ?? d['googleRating'] ?? d['stars']);
 
@@ -111,8 +118,16 @@ class RecommendationPlace {
       rating: rating,
       imageUrls: images,
       pricesRaw: d['prices'],
-      landmarksJourneyId: _readString(d, const ['landmarksJourneyId', 'landmarks_journey_id', 'journeyLandmarksId']),
-      catalogJourneyId: _readString(d, const ['catalogJourneyId', 'catalog_journey_id', 'journeyId']),
+      landmarksJourneyId: _readString(d, const [
+        'landmarksJourneyId',
+        'landmarks_journey_id',
+        'journeyLandmarksId',
+      ]),
+      catalogJourneyId: _readString(d, const [
+        'catalogJourneyId',
+        'catalog_journey_id',
+        'journeyId',
+      ]),
     );
   }
 
@@ -167,7 +182,9 @@ class RecommendationPlace {
       final n = v.toDouble();
       if (n >= 500 && n == n.roundToDouble()) return '${n.round()} m';
       if (n <= 240 && n == n.roundToDouble()) return '${n.round()} min';
-      if (n < 60) return '${n.toStringAsFixed(n == n.roundToDouble() ? 0 : 1)} min';
+      if (n < 60) {
+        return '${n.toStringAsFixed(n == n.roundToDouble() ? 0 : 1)} min';
+      }
       return '${n.round()} m';
     }
     final s = v.toString().trim();
@@ -176,16 +193,23 @@ class RecommendationPlace {
 
   /// Reads Firestore list fields for gallery URLs. Tries [images], then [image], [photoUrls], [photos].
   /// Keeps order; skips invalid entries. Only `http`/`https` strings are kept (`gs://` is skipped — use download URLs).
-  static List<String> _imagesFromFirestore(Map<String, dynamic> d, {String? debugDocId}) {
+  static List<String> _imagesFromFirestore(
+    Map<String, dynamic> d, {
+    String? debugDocId,
+  }) {
     void log(String msg) {
       if (kDebugMode) {
-        debugPrint('[RecommendationImages${debugDocId != null ? ' doc=$debugDocId' : ''}] $msg');
+        debugPrint(
+          '[RecommendationImages${debugDocId != null ? ' doc=$debugDocId' : ''}] $msg',
+        );
       }
     }
 
     final raw = _coerceImageListRaw(d);
     if (raw == null) {
-      log('no usable field: tried images, photoUrls, photos, or single image/photo/imageUrl — all null/empty');
+      log(
+        'no usable field: tried images, photoUrls, photos, or single image/photo/imageUrl — all null/empty',
+      );
       return [];
     }
     final out = <String>[];
@@ -206,11 +230,15 @@ class RecommendationPlace {
         continue;
       }
       if (t.startsWith('gs://')) {
-        log('index $i: skipped (gs:// — store a full https download URL from Firebase Storage): ${_preview(t, 100)}');
+        log(
+          'index $i: skipped (gs:// — store a full https download URL from Firebase Storage): ${_preview(t, 100)}',
+        );
         continue;
       }
       if (!t.startsWith('http')) {
-        log('index $i: skipped (must start with http/https): ${_preview(t, 120)}');
+        log(
+          'index $i: skipped (must start with http/https): ${_preview(t, 120)}',
+        );
         continue;
       }
       if (!seen.add(t)) {
@@ -222,7 +250,9 @@ class RecommendationPlace {
 
     if (kDebugMode) {
       if (out.isEmpty && raw.isNotEmpty) {
-        log('parsed 0 usable URLs from ${raw.length} list entries (see skip reasons above)');
+        log(
+          'parsed 0 usable URLs from ${raw.length} list entries (see skip reasons above)',
+        );
       } else if (out.isNotEmpty) {
         for (var i = 0; i < out.length; i++) {
           log('kept[$i]=${_preview(out[i], 140)}');

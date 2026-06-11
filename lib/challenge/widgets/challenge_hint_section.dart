@@ -7,10 +7,7 @@ import '../challenge_styles.dart';
 ///
 /// TODO: Expand/collapse animation; richer typography.
 class ChallengeHintSection extends StatelessWidget {
-  const ChallengeHintSection({
-    super.key,
-    required this.hints,
-  });
+  const ChallengeHintSection({super.key, required this.hints});
 
   final List<String> hints;
 
@@ -45,7 +42,10 @@ class ChallengeHintSection extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${i + 1}. ', style: ChallengeStyles.bodyStyle.copyWith(fontSize: 13)),
+                    Text(
+                      '${i + 1}. ',
+                      style: ChallengeStyles.bodyStyle.copyWith(fontSize: 13),
+                    ),
                     Expanded(
                       child: Text(
                         hints[i],

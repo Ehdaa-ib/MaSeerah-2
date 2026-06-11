@@ -29,7 +29,7 @@ class JourneyProgressDataSource {
   final FirebaseFirestore _firestore;
 
   JourneyProgressDataSource({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> _col(String userId) =>
       _firestore.collection('users').doc(userId).collection(_subcollection);
@@ -60,7 +60,10 @@ class JourneyProgressDataSource {
     if (uid.isEmpty || jid.isEmpty) return null;
 
     final cacheKey = _progressCacheKey(uid, jid);
-    final cached = TtlCache.read<_ProgressLookupCache>(cacheKey, _progressCacheTtl);
+    final cached = TtlCache.read<_ProgressLookupCache>(
+      cacheKey,
+      _progressCacheTtl,
+    );
     if (cached != null) return cached.progress;
 
     // 1) Direct doc id match (current standard).
@@ -81,10 +84,9 @@ class JourneyProgressDataSource {
     }
 
     // 3) Fallback: query by `catalogJourneyId`.
-    final q = await _col(uid)
-        .where('catalogJourneyId', isEqualTo: jid)
-        .limit(1)
-        .get();
+    final q = await _col(
+      uid,
+    ).where('catalogJourneyId', isEqualTo: jid).limit(1).get();
     if (q.docs.isEmpty) {
       TtlCache.write(cacheKey, const _ProgressLookupCache(null));
       return null;
@@ -95,7 +97,11 @@ class JourneyProgressDataSource {
     return resolved;
   }
 
-  void _cacheProgressLookup(String uid, String jid, ActiveJourneyProgress? progress) {
+  void _cacheProgressLookup(
+    String uid,
+    String jid,
+    ActiveJourneyProgress? progress,
+  ) {
     TtlCache.write(_progressCacheKey(uid, jid), _ProgressLookupCache(progress));
   }
 
@@ -136,6 +142,7 @@ class JourneyProgressDataSource {
     required int currentRegion,
     required bool qubaChallengeCompleted,
     required bool lastRegionChallengeCompleted,
+
     /// When null, existing `hasSeenHowToPlay` in Firestore is left unchanged (map saves must not reset it).
     bool? hasSeenHowToPlay,
     String? userJourneyId,
@@ -145,7 +152,9 @@ class JourneyProgressDataSource {
     final payload = <String, dynamic>{
       'userId': userId.trim(),
       'journeyId': jid,
-      'journeyTitle': journeyTitle.trim().isEmpty ? 'Journey' : journeyTitle.trim(),
+      'journeyTitle': journeyTitle.trim().isEmpty
+          ? 'Journey'
+          : journeyTitle.trim(),
       'landmarksJourneyId': landmarksJourneyId.trim(),
       'catalogJourneyId': catalogJourneyId?.trim(),
       'currentRegion': currentRegion,
@@ -171,13 +180,10 @@ class JourneyProgressDataSource {
     required bool value,
   }) async {
     if (userId.trim().isEmpty || journeyId.trim().isEmpty) return;
-    await _col(userId).doc(journeyId.trim()).set(
-      {
-        'hasSeenHowToPlay': value,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await _col(userId).doc(journeyId.trim()).set({
+      'hasSeenHowToPlay': value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
     _invalidateProgressCacheForUser(userId.trim());
   }
 
@@ -202,6 +208,7 @@ class ActiveJourneyProgress {
     required this.lastRegionChallengeCompleted,
     required this.updatedAtMillis,
     this.hasSeenHowToPlay = false,
+
     /// [users/uid/activeJourneys] document id (may differ from [catalogJourneyId] for legacy rows).
     required this.firestoreDocId,
     this.userJourneyId,
@@ -217,12 +224,15 @@ class ActiveJourneyProgress {
   final int updatedAtMillis;
   final bool hasSeenHowToPlay;
   final String firestoreDocId;
+
   /// Unique playthrough id — same as `users/{uid}/journeyHistory/{userJourneyId}` doc id.
   final String? userJourneyId;
 
   static ActiveJourneyProgress? fromMap(String docId, Map<String, dynamic> d) {
     final journeyId = (d['journeyId'] as String?)?.trim();
-    final jid = (journeyId != null && journeyId.isNotEmpty) ? journeyId : docId.trim();
+    final jid = (journeyId != null && journeyId.isNotEmpty)
+        ? journeyId
+        : docId.trim();
     if (jid.isEmpty) return null;
     final title = (d['journeyTitle'] as String?)?.trim();
     final lm = (d['landmarksJourneyId'] as String?)?.trim();

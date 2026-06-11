@@ -14,7 +14,5 @@ class UserRepositoryFirebase implements UserRepository {
   Future<void> update({
     required String userId,
     required Map<String, dynamic> data,
-  }) =>
-      _dataSource.update(userId: userId, data: data);
+  }) => _dataSource.update(userId: userId, data: data);
 }
-

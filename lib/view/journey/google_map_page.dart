@@ -11,7 +11,10 @@ class GoogleMapPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.googleMapPageTitle, style: const TextStyle(color: AppColors.brown)),
+        title: Text(
+          l10n.googleMapPageTitle,
+          style: const TextStyle(color: AppColors.brown),
+        ),
         backgroundColor: AppColors.green,
         centerTitle: true,
         leading: IconButton(

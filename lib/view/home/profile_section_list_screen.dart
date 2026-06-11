@@ -60,9 +60,7 @@ class ProfileSectionListScreen extends StatelessWidget {
             fit: BoxFit.cover,
           ),
         ),
-        child: SafeArea(
-          child: _buildBody(context),
-        ),
+        child: SafeArea(child: _buildBody(context)),
       ),
     );
   }
@@ -93,7 +91,9 @@ class ProfileSectionListScreen extends StatelessWidget {
           itemCount: photos.length,
           itemBuilder: (_, i) {
             final rawUrl = photos[i]['url'];
-            final url = rawUrl is String ? rawUrl.trim() : rawUrl?.toString().trim() ?? '';
+            final url = rawUrl is String
+                ? rawUrl.trim()
+                : rawUrl?.toString().trim() ?? '';
             if (url.isEmpty) return const SizedBox.shrink();
             return _photoTile(context, photos[i]);
           },
@@ -134,17 +134,23 @@ class ProfileSectionListScreen extends StatelessWidget {
                 final scope = JourneyHistoryScope.fromProfileRow(journey);
                 final completedAt = journey['completedAt'] is DateTime
                     ? journey['completedAt'] as DateTime
-                    : (journey['sort'] is DateTime ? journey['sort'] as DateTime : scope.completedAt);
+                    : (journey['sort'] is DateTime
+                          ? journey['sort'] as DateTime
+                          : scope.completedAt);
                 Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     builder: (_) => JourneyHistoryMemoriesScreen(
                       journeyId: scope.catalogJourneyId,
                       journeyName: title,
-                      historyDocId: journey['historyDocId']?.toString() ?? scope.historyDocId,
+                      historyDocId:
+                          journey['historyDocId']?.toString() ??
+                          scope.historyDocId,
                       completionDocId:
-                          journey['completionDocId']?.toString() ?? scope.completionDocId,
+                          journey['completionDocId']?.toString() ??
+                          scope.completionDocId,
                       userJourneyId:
-                          journey['userJourneyId']?.toString() ?? scope.userJourneyId,
+                          journey['userJourneyId']?.toString() ??
+                          scope.userJourneyId,
                       completedAt: completedAt,
                     ),
                   ),
@@ -164,7 +170,11 @@ class ProfileSectionListScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.route, size: 18, color: AppColors.brown.withValues(alpha: 0.85)),
+                  Icon(
+                    Icons.route,
+                    size: 18,
+                    color: AppColors.brown.withValues(alpha: 0.85),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -184,7 +194,11 @@ class ProfileSectionListScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 12, color: AppColors.brown.withValues(alpha: 0.6)),
+                    Icon(
+                      Icons.calendar_today,
+                      size: 12,
+                      color: AppColors.brown.withValues(alpha: 0.6),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       dateStr,
@@ -199,88 +213,6 @@ class ProfileSectionListScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _feedbackCard(BuildContext context, Map<String, dynamic> fb) {
-    final stars = (fb['rating'] as num?)?.toInt() ?? 0;
-    final photos = (fb['photos'] as List?)?.whereType<String>().toList() ?? [];
-    final journeyName = journeyTitleFor(fb);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.beige.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.brown.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.route, size: 14, color: AppColors.brown.withValues(alpha: 0.75)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  journeyName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: AppColors.brown,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: List.generate(
-              5,
-              (i) => Icon(
-                i < stars ? Icons.star : Icons.star_border,
-                color: Colors.amber,
-                size: 16,
-              ),
-            ),
-          ),
-          if ((fb['comment']?.toString() ?? '').isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              fb['comment']!.toString(),
-              style: const TextStyle(fontSize: 13, color: AppColors.brown, height: 1.35),
-            ),
-          ],
-          if (photos.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 64,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: photos.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => _photoThumb(
-                  context,
-                  photos[i],
-                  journeyName: journeyName,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          Text(
-            (fb['dateLabel'] as String?)?.trim().isNotEmpty == true
-                ? fb['dateLabel'] as String
-                : formatExactDate(fb['date'] as DateTime?),
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.brown.withValues(alpha: 0.65),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -312,49 +244,10 @@ class ProfileSectionListScreen extends StatelessWidget {
                 right: 6,
                 child: UserMediaCardActionsButton(
                   imageUrl: url,
-                  title: (landmark != null && landmark.isNotEmpty) ? landmark : journey,
+                  title: (landmark != null && landmark.isNotEmpty)
+                      ? landmark
+                      : journey,
                   subtitle: journey,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _photoThumb(
-    BuildContext context,
-    String url, {
-    String? journeyName,
-  }) {
-    final photo = {
-      'url': url,
-      if (journeyName != null) 'journeyName': journeyName,
-    };
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: () => onOpenPhoto(photo),
-        child: SizedBox(
-          width: 64,
-          height: 64,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              AppNetworkImage(
-                url: url,
-                fit: BoxFit.cover,
-                width: 64,
-                height: 64,
-                memCacheWidth: 128,
-              ),
-              Positioned(
-                top: 2,
-                right: 2,
-                child: UserMediaCardActionsButton(
-                  imageUrl: url,
-                  title: journeyName,
                 ),
               ),
             ],

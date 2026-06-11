@@ -11,10 +11,7 @@ class ChallengeQuizParser {
   ChallengeQuizParser._();
 
   /// Returns null when [quiz] is null, not a [Map], or yields no usable stages.
-  static ChallengeModel? tryParse(
-    Object? quiz, {
-    String? landmarkDocumentId,
-  }) {
+  static ChallengeModel? tryParse(Object? quiz, {String? landmarkDocumentId}) {
     // Support list-based staged schema: `quiz: [ {stage1}, {stage2} ]`
     if (quiz is List) {
       final stages = <ChallengeStageModel>[];
@@ -46,11 +43,7 @@ class ChallengeQuizParser {
       final stages = <ChallengeStageModel>[];
       for (var i = 0; i < stageEntries.length; i++) {
         final e = stageEntries[i];
-        stages.add(_parseStageMap(
-          index: i,
-          stageKey: e.key,
-          data: e.value,
-        ));
+        stages.add(_parseStageMap(index: i, stageKey: e.key, data: e.value));
       }
       if (stages.isEmpty) return null;
       if (kDebugMode) {
@@ -86,7 +79,10 @@ class ChallengeQuizParser {
   }
 
   // Supports: stage1, stage_1, stage-1, Stage 1
-  static final RegExp _stageKey = RegExp(r'^stage[\s_-]?(\d+)$', caseSensitive: false);
+  static final RegExp _stageKey = RegExp(
+    r'^stage[\s_-]?(\d+)$',
+    caseSensitive: false,
+  );
 
   /// Sorted list of (key, stageMap) for `stage1`, `stage2`, …
   static List<MapEntry<String, Map<String, dynamic>>> _extractStagedPayloads(
@@ -114,8 +110,10 @@ class ChallengeQuizParser {
       out.add(MapEntry(e.key, inner));
     }
     out.sort((a, b) {
-      final na = int.tryParse(_stageKey.firstMatch(a.key)?.group(1) ?? '0') ?? 0;
-      final nb = int.tryParse(_stageKey.firstMatch(b.key)?.group(1) ?? '0') ?? 0;
+      final na =
+          int.tryParse(_stageKey.firstMatch(a.key)?.group(1) ?? '0') ?? 0;
+      final nb =
+          int.tryParse(_stageKey.firstMatch(b.key)?.group(1) ?? '0') ?? 0;
       return na.compareTo(nb);
     });
     return out;
@@ -129,12 +127,12 @@ class ChallengeQuizParser {
     final type = inferType(data);
     if (kDebugMode) {
       final raw = readString(
-        data['type'] ?? data['challengeType'] ?? data['kind'] ?? data['questionType'],
+        data['type'] ??
+            data['challengeType'] ??
+            data['kind'] ??
+            data['questionType'],
       );
-      final flat = raw
-          ?.toLowerCase()
-          .trim()
-          .replaceAll(RegExp(r'[\s_-]'), '');
+      final flat = raw?.toLowerCase().trim().replaceAll(RegExp(r'[\s_-]'), '');
       debugPrint(
         '[ChallengeParse] stage=$index key=${stageKey ?? 'direct'} rawType=${raw ?? 'null'} '
         'normType=${flat ?? 'null'} mapped=${type.name}',
@@ -180,7 +178,10 @@ class ChallengeQuizParser {
       hints: stringListFrom(data['hints'] ?? data['hint']),
       parts: inferredParts,
       correctOrder: stringListFrom(
-        data['correctOrder'] ?? data['correct_order'] ?? data['answerSequence'] ?? data['answer_sequence'],
+        data['correctOrder'] ??
+            data['correct_order'] ??
+            data['answerSequence'] ??
+            data['answer_sequence'],
       ),
       answer: resolvedAnswer,
       matchingPairs: matchingPairsFrom(data),
@@ -215,7 +216,9 @@ class ChallengeQuizParser {
     return const [];
   }
 
-  static List<ChallengeMatchingPair> matchingPairsFrom(Map<String, dynamic> data) {
+  static List<ChallengeMatchingPair> matchingPairsFrom(
+    Map<String, dynamic> data,
+  ) {
     final out = <ChallengeMatchingPair>[];
     final raw = data['matchingPairs'] ?? data['pairs'] ?? data['matchPairs'];
     if (raw is List) {
@@ -257,14 +260,21 @@ class ChallengeQuizParser {
     }
 
     // Region 2 schema: `correctmatches: [ {question: "...", answer: "..."}, ... ]`
-    final cm = data['correctmatches'] ?? data['correctMatches'] ?? data['correct_matches'];
+    final cm =
+        data['correctmatches'] ??
+        data['correctMatches'] ??
+        data['correct_matches'];
     if (out.isEmpty && cm is List) {
       for (final item in cm) {
         if (item is Map) {
           final m = item.map((k, v) => MapEntry(k.toString(), v));
-          final q = readString(m['question'] ?? m['prompt'] ?? m['action'] ?? m['left']);
+          final q = readString(
+            m['question'] ?? m['prompt'] ?? m['action'] ?? m['left'],
+          );
           final a = readString(m['answer'] ?? m['person'] ?? m['right']);
-          if (q != null && a != null) out.add(ChallengeMatchingPair(left: q, right: a));
+          if (q != null && a != null) {
+            out.add(ChallengeMatchingPair(left: q, right: a));
+          }
         }
       }
     }
@@ -286,11 +296,16 @@ class ChallengeQuizParser {
           data['columnB'],
     );
     final matches = data['correctMatches'] ?? data['matches'];
-    if (out.isEmpty && leftCol.isNotEmpty && rightCol.isNotEmpty && matches is Map) {
+    if (out.isEmpty &&
+        leftCol.isNotEmpty &&
+        rightCol.isNotEmpty &&
+        matches is Map) {
       matches.forEach((k, v) {
         final l = readString(k);
         final r = readString(v);
-        if (l != null && r != null) out.add(ChallengeMatchingPair(left: l, right: r));
+        if (l != null && r != null) {
+          out.add(ChallengeMatchingPair(left: l, right: r));
+        }
       });
     }
     return out;
@@ -348,14 +363,18 @@ class ChallengeQuizParser {
     List<String> options,
   ) {
     final raw = _rawAnswerFromData(data);
-    if (type == ChallengeType.multipleChoice || type == ChallengeType.arrangeSentenceWithMultipleChoice) {
+    if (type == ChallengeType.multipleChoice ||
+        type == ChallengeType.arrangeSentenceWithMultipleChoice) {
       final coerced = _coerceAnswerIndexToOptionText(raw, options);
       if (coerced != null) return coerced;
     }
     return raw;
   }
 
-  static String? _coerceAnswerIndexToOptionText(Object? raw, List<String> options) {
+  static String? _coerceAnswerIndexToOptionText(
+    Object? raw,
+    List<String> options,
+  ) {
     if (options.isEmpty || raw == null) return null;
     int? idx;
     if (raw is int) {
@@ -383,7 +402,10 @@ class ChallengeQuizParser {
   /// Reads explicit `type` / `challengeType` / `kind` from CMS.
   static ChallengeType? typeFromExplicitField(Map<String, dynamic> data) {
     final raw = readString(
-      data['type'] ?? data['challengeType'] ?? data['kind'] ?? data['questionType'],
+      data['type'] ??
+          data['challengeType'] ??
+          data['kind'] ??
+          data['questionType'],
     );
     if (raw == null) return null;
     final key = raw.toLowerCase().trim();
@@ -441,14 +463,22 @@ class ChallengeQuizParser {
 
     if (matchingPairsFrom(data).isNotEmpty) return ChallengeType.matchColumns;
     // Heuristic: left/right columns indicate matching.
-    if (stringListFrom(data['leftColumn'] ?? data['columnA'] ?? data['actions']).isNotEmpty &&
-        stringListFrom(data['rightColumn'] ?? data['columnB'] ?? data['persons']).isNotEmpty) {
+    if (stringListFrom(
+          data['leftColumn'] ?? data['columnA'] ?? data['actions'],
+        ).isNotEmpty &&
+        stringListFrom(
+          data['rightColumn'] ?? data['columnB'] ?? data['persons'],
+        ).isNotEmpty) {
       return ChallengeType.matchColumns;
     }
 
     // Duolingo-style sentence builder keys → arrange sentence.
-    if (stringListFrom(data['words'] ?? data['tokens'] ?? data['sentenceParts'] ?? data['sentence_parts'])
-        .isNotEmpty) {
+    if (stringListFrom(
+      data['words'] ??
+          data['tokens'] ??
+          data['sentenceParts'] ??
+          data['sentence_parts'],
+    ).isNotEmpty) {
       return ChallengeType.arrangeSentenceAlternative;
     }
 
@@ -457,11 +487,14 @@ class ChallengeQuizParser {
     if (parts.isNotEmpty && order.isNotEmpty) {
       // Some CMS entries represent sentence arrangement using `parts/correctOrder`.
       // If the prompt mentions arranging a sentence, render the Duolingo-style builder.
-      final q = (readString(data['question'] ?? data['prompt']) ?? '').toLowerCase();
+      final q = (readString(data['question'] ?? data['prompt']) ?? '')
+          .toLowerCase();
       if (q.contains('arrange') && q.contains('sentence')) {
         return ChallengeType.arrangeSentenceAlternative;
       }
-      final assembleHint = readString(data['assembleStyle'] ?? data['buildMode']);
+      final assembleHint = readString(
+        data['assembleStyle'] ?? data['buildMode'],
+      );
       if (assembleHint != null &&
           assembleHint.toLowerCase().contains('assemble')) {
         return ChallengeType.assemble;
@@ -477,10 +510,11 @@ class ChallengeQuizParser {
         return ChallengeType.elimination;
       }
       final q = readString(data['question'] ?? data['prompt']) ?? '';
-      if (_looksLikeFillBlankQuestion(q) ||
-          readString(data['blank']) != null) {
+      if (_looksLikeFillBlankQuestion(q) || readString(data['blank']) != null) {
         // If options exist, default to the chip-based fill blank.
-        return options.isNotEmpty ? ChallengeType.fillBlankWithChoices : ChallengeType.fillBlank;
+        return options.isNotEmpty
+            ? ChallengeType.fillBlankWithChoices
+            : ChallengeType.fillBlank;
       }
       return ChallengeType.multipleChoice;
     }

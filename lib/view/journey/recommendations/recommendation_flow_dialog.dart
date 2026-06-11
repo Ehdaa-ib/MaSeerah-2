@@ -12,7 +12,8 @@ class RecommendationFlowDialog extends StatefulWidget {
   final List<RecommendationPlace> places;
 
   @override
-  State<RecommendationFlowDialog> createState() => _RecommendationFlowDialogState();
+  State<RecommendationFlowDialog> createState() =>
+      _RecommendationFlowDialogState();
 }
 
 class _RecommendationFlowDialogState extends State<RecommendationFlowDialog> {

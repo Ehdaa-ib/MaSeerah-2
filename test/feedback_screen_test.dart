@@ -5,22 +5,22 @@ import 'package:maseerah_app/view/feedback/feedback_screen.dart';
 import 'test_asset_bundle.dart';
 
 void main() {
-  Widget _wrap(Widget child) {
+  Widget wrap(Widget child) {
     return DefaultAssetBundle(
       bundle: TestPngAssetBundle(),
       child: MaterialApp(home: child),
     );
   }
 
-  Finder _overallStars() => find.byWidgetPredicate(
-        (w) =>
-            w is Icon &&
-            (w.icon == Icons.star || w.icon == Icons.star_border) &&
-            w.size == 32,
-      );
+  Finder overallStars() => find.byWidgetPredicate(
+    (w) =>
+        w is Icon &&
+        (w.icon == Icons.star || w.icon == Icons.star_border) &&
+        w.size == 32,
+  );
 
   testWidgets('FeedbackScreen renders title and submit button', (tester) async {
-    await tester.pumpWidget(_wrap(const FeedbackScreen(journeyId: 'j1')));
+    await tester.pumpWidget(wrap(const FeedbackScreen(journeyId: 'j1')));
 
     expect(find.text('Journey Feedback'), findsOneWidget);
     expect(find.text('Submit Review'), findsOneWidget);
@@ -31,12 +31,7 @@ void main() {
 
   testWidgets('Submit requires Overall rating only', (tester) async {
     await tester.pumpWidget(
-      _wrap(
-        FeedbackScreen(
-          journeyId: 'j1',
-          currentUserId: () => 'u1',
-        ),
-      ),
+      wrap(FeedbackScreen(journeyId: 'j1', currentUserId: () => 'u1')),
     );
 
     await tester.ensureVisible(find.text('Submit Review'));
@@ -46,18 +41,15 @@ void main() {
     expect(find.text('overall rating is required'), findsOneWidget);
   });
 
-  testWidgets('With Overall rating set, signed-out user sees sign-in error', (tester) async {
+  testWidgets('With Overall rating set, signed-out user sees sign-in error', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-      _wrap(
-        FeedbackScreen(
-          journeyId: 'j1',
-          currentUserId: () => null,
-        ),
-      ),
+      wrap(FeedbackScreen(journeyId: 'j1', currentUserId: () => null)),
     );
 
     // Tap the 5th overall star (index 4).
-    final stars = _overallStars();
+    final stars = overallStars();
     expect(stars, findsWidgets);
     await tester.tap(stars.at(4));
     await tester.pump();
@@ -70,7 +62,7 @@ void main() {
   });
 
   testWidgets('Comments field accepts input', (tester) async {
-    await tester.pumpWidget(_wrap(const FeedbackScreen(journeyId: 'j1')));
+    await tester.pumpWidget(wrap(const FeedbackScreen(journeyId: 'j1')));
 
     await tester.enterText(find.byType(TextFormField), 'Nice journey');
     await tester.pump();
@@ -78,4 +70,3 @@ void main() {
     expect(find.text('Nice journey'), findsOneWidget);
   });
 }
-
