@@ -1,0 +1,234 @@
+@startuml MaSeerah_Implementation
+title MaSeerah — Implementation Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam nodesep 40
+skinparam ranksep 40
+skinparam roundcorner 8
+skinparam shadowing false
+
+package "Models" as pkgModels {
+
+  class AppUser <<model>> {
+    - userId: String
+    - email: String
+    - name: String
+    - role: String
+    --
+    + toMap(): Map
+    + {static} fromMap(map): AppUser
+  }
+
+  class Journey <<model>> {
+    - journeyId: String
+    - name: String
+    - price: double
+    - description: String
+    - city: String
+    - landmarksJourneyId: String
+    --
+    + {static} fromMap(map): Journey
+  }
+
+  class JourneyLandmark <<model>> {
+    - documentId: String
+    - journeyId: String
+    - order: int
+    - name: String
+    - latitude: double
+    - longitude: double
+    - challenge: ChallengeModel
+    --
+    + hasCoordinates(): bool
+    + {static} fromFirestore(id, data): JourneyLandmark
+  }
+
+  class ChallengeModel <<model>> {
+    - isStaged: bool
+    - stages: List<ChallengeStageModel>
+    - landmarkDocumentId: String
+    --
+    + stageCount(): int
+  }
+
+  class Order <<model>> {
+    - orderId: String
+    - userId: String
+    - journeyId: String
+    - totalAmount: double
+    - currency: String
+    - status: OrderStatus
+    --
+    + toMap(): Map
+    + {static} fromMap(map): Order
+  }
+
+  class Payment <<model>> {
+    - paymentId: String
+    - orderId: String
+    - userId: String
+    - amount: double
+    - paymentMethod: PaymentMethod
+    - status: PaymentStatus
+    --
+    + toMap(): Map
+    + {static} fromMap(map): Payment
+  }
+
+  class ActiveJourneyProgress <<model>> {
+    - journeyId: String
+    - currentRegion: int
+    - updatedAtMillis: int
+    - userJourneyId: String
+    - hasSeenHowToPlay: bool
+    --
+    + {static} fromMap(id, map): ActiveJourneyProgress
+  }
+
+  class FeedbackEntry <<model>> {
+    - userId: String
+    - journeyId: String
+    - overallRating: int
+    - contentRating: int
+    - challengeRating: int
+    - recommendationRating: int
+    - photos: List<String>
+    --
+    + toMap(): Map
+    + {static} fromMap(map): FeedbackEntry
+  }
+
+  class LandmarkMemory <<model>> {
+    - id: String
+    - journeyId: String
+    - landmarkId: String
+    - mediaUrl: String
+    - mediaType: String
+    - userJourneyId: String
+    --
+    + isVideo(): bool
+    + {static} fromDoc(id, data): LandmarkMemory
+  }
+
+  class RecommendationPlace <<model>> {
+    - id: String
+    - name: String
+    - description: String
+    - locationUrl: String
+    - order: int
+    --
+    + {static} fromDoc(id, data): RecommendationPlace
+  }
+
+  ' Grid layout (2 columns)
+  AppUser -[hidden]down- Journey
+  Journey -[hidden]down- JourneyLandmark
+  JourneyLandmark -[hidden]down- ChallengeModel
+  ChallengeModel -[hidden]down- Order
+  Order -[hidden]down- Payment
+
+  ActiveJourneyProgress -[hidden]down- FeedbackEntry
+  FeedbackEntry -[hidden]down- LandmarkMemory
+  LandmarkMemory -[hidden]down- RecommendationPlace
+
+  AppUser -[hidden]right- ActiveJourneyProgress
+  Journey -[hidden]right- FeedbackEntry
+  JourneyLandmark -[hidden]right- LandmarkMemory
+  Order -[hidden]right- RecommendationPlace
+}
+
+package "Services" as pkgServices {
+
+  interface AuthRepository <<repository>> {
+    + login(email, password): AppUser
+    + register(name, email, password): AppUser
+    + logout(): void
+    + sendPasswordResetEmail(email): void
+    + verifyPasswordResetCode(email, code): void
+    + completePasswordResetAndSignIn(...): AppUser
+  }
+
+  class OrderService <<service>> {
+    + createOrder(userId, journeyId): Order
+    + confirmOrder(orderId): Order
+    + cancelOrder(orderId): Order
+    + getOrCreateCheckoutOrder(...): Order
+    + userHasPaidForJourney(...): bool
+  }
+
+  class PaymentService <<service>> {
+    + processPayment(orderId, method): Payment
+    + handlePaymentSuccess(paymentId): void
+    + handlePaymentFailed(paymentId): void
+    + retryPayment(orderId, method): Payment
+  }
+
+  class AccessService <<service>> {
+    + assertPaidForPlay(userId, journeyId): void
+    + startJourney(userId, journeyId): void
+  }
+
+  class JourneyInactivityService <<service>> {
+    + isInactive(progress): bool
+    + terminateIfInactive(userId, progress): bool
+    + resolveActiveProgress(userId, journeyId): ActiveJourneyProgress
+  }
+
+  class JourneyProgressDataSource <<dataSource>> {
+    + get(userId, journeyId): ActiveJourneyProgress
+    + upsert(...): void
+    + delete(userId, journeyId): void
+    + listAll(userId): List
+  }
+
+  class LandmarkMapsLaunchService <<service>> {
+    + {static} openWalkingDirections(lat, lng): bool
+  }
+
+  class AdminDashboard <<ui>> {
+    + manageUsers(): void
+    + manageJourneys(): void
+    + manageFeedback(): void
+    + manageRecommendationPlaces(): void
+  }
+
+  AuthRepository -[hidden]down- PaymentService
+  PaymentService -[hidden]down- JourneyInactivityService
+  JourneyInactivityService -[hidden]down- LandmarkMapsLaunchService
+
+  OrderService -[hidden]down- AccessService
+  AccessService -[hidden]down- JourneyProgressDataSource
+  JourneyProgressDataSource -[hidden]down- AdminDashboard
+
+  AuthRepository -[hidden]right- OrderService
+  PaymentService -[hidden]right- AccessService
+  JourneyInactivityService -[hidden]right- JourneyProgressDataSource
+  LandmarkMapsLaunchService -[hidden]right- AdminDashboard
+}
+
+' Packages side by side
+pkgModels -[hidden]right- pkgServices
+
+' --- Model associations (solid, orthogonal) ---
+Journey "1" *-- "0..*" JourneyLandmark
+JourneyLandmark "1" *-- "0..1" ChallengeModel
+AppUser "1" -- "0..*" Order
+AppUser "1" -- "0..*" ActiveJourneyProgress
+AppUser "1" -- "0..*" FeedbackEntry
+AppUser "1" -- "0..*" LandmarkMemory
+Journey "1" -- "0..*" RecommendationPlace
+Order "1" -- "0..1" Payment
+
+' --- Service dependencies (minimal, straight routes) ---
+AuthRepository ..> AppUser
+OrderService ..> Order
+PaymentService ..> Payment
+AccessService ..> Journey
+AccessService ..> Order
+JourneyProgressDataSource ..> ActiveJourneyProgress
+JourneyInactivityService ..> JourneyProgressDataSource
+JourneyInactivityService ..> ActiveJourneyProgress
+LandmarkMapsLaunchService ..> JourneyLandmark
+
+@enduml
