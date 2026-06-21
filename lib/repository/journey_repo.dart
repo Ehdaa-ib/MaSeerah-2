@@ -6,7 +6,9 @@ abstract class JourneyRepository {
   Future<Journey?> getById(String journeyId);
 
   /// Returns all journeys from Firestore.
-  Future<List<Journey>> getAll();
+  ///
+  /// Pass [forceRefresh] to bypass any cached catalog and read live data.
+  Future<List<Journey>> getAll({bool forceRefresh = false});
 
   /// Creates a journey document with [journeyId] as the document ID.
   Future<void> create({required String journeyId, required Journey journey});

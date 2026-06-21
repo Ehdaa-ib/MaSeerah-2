@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../model/journey.dart';
@@ -96,24 +98,48 @@ class JourneyDataSource {
   }
 
   /// Fetches all journeys. Returns empty list if none.
-  Future<List<Journey>> getAll() async {
+  ///
+  /// Pass [forceRefresh] to bypass the in-memory catalog cache and always read
+  /// live data from Firestore (used by the admin dashboard so newly added or
+  /// edited journeys appear immediately instead of after the cache TTL).
+  Future<List<Journey>> getAll({bool forceRefresh = false}) async {
     final cached = _catalogCache;
     final at = _catalogCachedAt;
-    if (cached != null &&
+    if (!forceRefresh &&
+        cached != null &&
         at != null &&
         DateTime.now().difference(at) < _catalogCacheTtl) {
+      developer.log(
+        'getAll: serving ${cached.length} journeys from cache',
+        name: 'JourneyDataSource',
+      );
       return cached;
     }
 
-    final snapshot = await _firestore.collection(_collection).get();
-    final list = snapshot.docs.map((doc) {
-      final data = Map<String, dynamic>.from(doc.data());
-      return Journey.fromMap(data, id: doc.id);
-    }).toList();
+    try {
+      final snapshot = await _firestore.collection(_collection).get();
+      developer.log(
+        'getAll: read ${snapshot.docs.length} docs from "$_collection" '
+        '(ids: ${snapshot.docs.map((d) => d.id).toList()})',
+        name: 'JourneyDataSource',
+      );
+      final list = snapshot.docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data());
+        return Journey.fromMap(data, id: doc.id);
+      }).toList();
 
-    _catalogCache = list;
-    _catalogCachedAt = DateTime.now();
-    return list;
+      _catalogCache = list;
+      _catalogCachedAt = DateTime.now();
+      return list;
+    } catch (e, st) {
+      developer.log(
+        'getAll: failed to read "$_collection"',
+        name: 'JourneyDataSource',
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
+    }
   }
 
   Future<void> create({
@@ -124,6 +150,7 @@ class JourneyDataSource {
         .collection(_collection)
         .doc(journeyId)
         .set(data, SetOptions(merge: false));
+    clearCatalogCache();
   }
 
   Future<void> update({
@@ -134,5 +161,6 @@ class JourneyDataSource {
         .collection(_collection)
         .doc(journeyId)
         .set(data, SetOptions(merge: true));
+    clearCatalogCache();
   }
 }

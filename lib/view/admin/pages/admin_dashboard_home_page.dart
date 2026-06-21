@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -96,6 +98,12 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
       final completionsCount = results[4] as int;
       final analytics = results[5] as _EngagementAnalytics;
 
+      developer.log(
+        'dashboard: journeys count=${journeysAgg.count}, '
+        'users count=${usersAgg.count}',
+        name: 'AdminDashboardHome',
+      );
+
       if (!mounted) return;
       setState(() {
         _totalUsers = usersAgg.count ?? 0;
@@ -110,7 +118,13 @@ class _AdminDashboardHomePageState extends State<AdminDashboardHomePage> {
         _ratingDistribution = analytics.ratingDistribution;
         _loading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      developer.log(
+        'dashboard: failed to load statistics',
+        name: 'AdminDashboardHome',
+        error: e,
+        stackTrace: st,
+      );
       if (!mounted) return;
       setState(() {
         _error = toUserFriendlyMessage(e);

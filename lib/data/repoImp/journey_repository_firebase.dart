@@ -13,8 +13,8 @@ class JourneyRepositoryFirebase implements JourneyRepository {
   }
 
   @override
-  Future<List<Journey>> getAll() async {
-    return _dataSource.getAll();
+  Future<List<Journey>> getAll({bool forceRefresh = false}) async {
+    return _dataSource.getAll(forceRefresh: forceRefresh);
   }
 
   @override

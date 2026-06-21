@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
@@ -44,7 +46,12 @@ class _AdminJourneysPageState extends State<AdminJourneysPage> {
     });
     try {
       await waitForAuth();
-      final journeys = await _repo.getAll();
+      final journeys = await _repo.getAll(forceRefresh: true);
+      developer.log(
+        'AdminJourneysPage: loaded ${journeys.length} journeys '
+        '(ids: ${journeys.map((j) => j.journeyId).toList()})',
+        name: 'AdminJourneysPage',
+      );
       journeys.sort(
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       );
