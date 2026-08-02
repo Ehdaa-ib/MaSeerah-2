@@ -361,7 +361,7 @@ class _LandingPageState extends State<LandingPage> {
     }
     return indices.isEmpty ? [0, 1, 2] : indices;
   }
-
+ 
   /// First: Darb Al-Sunnah, second: Battle of Uhud, third: Valley Adventure
   static String _imagePathForIndex(int index) {
     switch (index) {
