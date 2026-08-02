@@ -119,13 +119,7 @@ Package id: `com.example.maseerah_app`.
 
 ---
 
-## Admin / demo access
 
-- **Regular users:** create an account in the app.
-- **Admin dashboard** (`/admin`): allowed for emails listed in `lib/core/validators.dart` (and matching Firestore `users/{uid}.role = admin` when used).  
-  Admin passwords are **not** stored in this repo — get them from the project team, or create matching Auth users in Firebase if you own the project.
-
----
 
 ## Emulator / desktop (optional)
 
@@ -139,45 +133,6 @@ flutter run
 
 For a full payment flow, prefer a **phone** or mobile emulator over web/desktop.
 
----
-
-## Cloud Functions & rules (only if you own Firebase)
-
-Most testers using the team project can skip this.
-
-```bash
-# Deploy rules if permission errors appear (requires Firebase project access)
-firebase login
-firebase use maseerah-2
-firebase deploy --only firestore:rules,storage
-```
-
-Password-reset OTP needs Cloud Functions + SMTP — see [`functions/README.md`](functions/README.md) and [DEPLOY_FIRESTORE_RULES.md](DEPLOY_FIRESTORE_RULES.md).
-
----
-
-## Common issues
-
-| Problem | What to try |
-|---------|-------------|
-| `flutter devices` empty | Unlock phone, accept USB debugging, try another cable/port; run `flutter doctor` |
-| `permission-denied` in app | Sign in; ensure network works; rules must be deployed on your Firebase project |
-| Empty journeys / map | Confirm you’re on the shared `maseerah-2` config (don’t replace `firebase_options.dart` unless intentional) |
-| Payment UI missing | Use Android or iOS (not Chrome/desktop) |
-| Photos won’t upload | Grant camera/gallery permission; check Storage access |
-| SDK / `pub get` errors | Upgrade Flutter stable so Dart matches `pubspec.yaml` (^3.10.8) |
-
----
-
-## Project layout & tests
-
-Source overview: [`lib/README.md`](lib/README.md)
-
-```bash
-flutter test
-```
-
-Automated tests do not replace a device demo; use `flutter run` or the release APK for end-to-end testing.
 
 ---
 
